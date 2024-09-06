@@ -28,8 +28,7 @@ docker run \
     -e "PFSENSE_USERNAME=admin" \
     -e "PFSENSE_PASSWORD=pfsense" \
     -e "PFSENSE_PRIVATE_KEY=" \
-    --restart always \
-    --net=host \
+    -p 9898:9898 \
     --name pfsense-actions \
     mrjackyliang/pfsense-actions:latest
 ```
