@@ -1,0 +1,13 @@
+services:
+  pfsense-actions:
+    image: "mrjackyliang/pfsense-actions:latest"
+    environment:
+      - "API_KEY="
+      - "PORT="
+      - "PFSENSE_SSH_IP=192.168.1.1"
+      - "PFSENSE_SSH_PORT=22"
+      - "PFSENSE_USERNAME=admin"
+      - "PFSENSE_PASSWORD=pfsense"
+      - "PFSENSE_PRIVATE_KEY="
+    ports:
+      - "9898:9898"
