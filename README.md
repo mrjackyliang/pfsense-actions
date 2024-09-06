@@ -126,6 +126,7 @@ In order to send a Wake-on-LAN request, a broadcast address is required since ma
 3. On the address bar, look for the `if=` parameter and copy the value. The interface value should look something like `igb1`, `opt1`, or `lan`.
 4. Copy the [PHP Code](#php-code) shown below and replace `[YOUR_INTERFACE_ID]` with your interface value.
 5. Run the code under __Diagnostics__ > __Command Prompt__ > __Execute PHP Commands__ section.
+6. Retrieve the calculated IP address above in the __PHP Response__ section.
 
 #### PHP Code:
 ```php
