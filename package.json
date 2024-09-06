@@ -36,7 +36,8 @@
     "pfsense",
     "pfsense-firewall",
     "wake-on-lan",
-    "dhcp-lease",
+    "dyndns",
+    "dyndns-updater",
     "docker-image"
   ],
   "author": {
