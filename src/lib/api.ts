@@ -7,6 +7,9 @@ import type {
   PfsenseIsAuthenticatedReturns,
   PfsenseLoginReturns,
   PfsenseLogoutReturns,
+  PfsensePingCount,
+  PfsensePingIpAddress,
+  PfsensePingReturns,
   PfsenseReloadFilterReturns,
   PfsenseSession,
   PfsenseSystemInformationReturns,
@@ -145,6 +148,51 @@ export class Pfsense {
 
     return {
       action: 'LOGOUT',
+      success: false,
+      info: {
+        error: errorObject,
+      },
+    };
+  }
+
+  /**
+   * Pfsense - Ping.
+   *
+   * @param {PfsensePingIpAddress} ipAddress - Ip address.
+   * @param {PfsensePingCount}     count     - Count.
+   *
+   * @returns {PfsensePingReturns}
+   *
+   * @since 1.0.0
+   */
+  public async ping(ipAddress: PfsensePingIpAddress, count: PfsensePingCount): PfsensePingReturns {
+    let errorObject;
+
+    try {
+      // Check if this session is not authenticated.
+      if (!await this.isAuthenticated()) {
+        return {
+          action: 'PING',
+          success: false,
+          info: {
+            message: 'Failed to authenticate to pfSense via SSH',
+          },
+        };
+      }
+
+      const response = await this.#session.sshClient.execCommand(`ping -c ${count} ${ipAddress}`);
+
+      return {
+        action: 'PING',
+        success: true,
+        info: response,
+      };
+    } catch (error) {
+      errorObject = serializeError(error);
+    }
+
+    return {
+      action: 'PING',
       success: false,
       info: {
         error: errorObject,

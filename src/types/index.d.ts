@@ -61,6 +61,19 @@ export type PfsenseLogoutReturnsInfo = null;
 export type PfsenseLogoutReturns = Promise<ApiResponse<'LOGOUT', PfsenseLogoutReturnsInfo>>;
 
 /**
+ * Pfsense - Ping.
+ *
+ * @since 1.0.0
+ */
+export type PfsensePingIpAddress = string;
+
+export type PfsensePingCount = number;
+
+export type PfsensePingReturnsInfo = SSHExecCommandResponse;
+
+export type PfsensePingReturns = Promise<ApiResponse<'PING', PfsensePingReturnsInfo>>;
+
+/**
  * Pfsense - Reload filter.
  *
  * @since 1.0.0
@@ -198,6 +211,17 @@ export type ServerRouteWolRequest = express.Request;
 export type ServerRouteWolResponse = express.Response;
 
 export type ServerRouteWolReturns = Promise<void>;
+
+/**
+ * Server - Route wol check.
+ *
+ * @since 1.0.0
+ */
+export type ServerRouteWolCheckRequest = express.Request;
+
+export type ServerRouteWolCheckResponse = express.Response;
+
+export type ServerRouteWolCheckReturns = Promise<void>;
 
 /**
  * Server - Start server.

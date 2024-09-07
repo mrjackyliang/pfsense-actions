@@ -8,6 +8,7 @@ import type { ErrorObject } from 'serialize-error';
 export type ApiResponseAction =
   'LOGIN'
   | 'LOGOUT'
+  | 'PING'
   | 'RELOAD_FILTER'
   | 'SYSTEM_INFORMATION'
   | 'UPDATE_DYNDNS'

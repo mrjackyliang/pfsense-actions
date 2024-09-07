@@ -1,7 +1,7 @@
 {
   "name": "pfsense-actions",
   "displayName": "pfSense® Actions",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A controller that allows a network administrator to run simple actions such as Wake-on-LAN and reload firewall filters",
   "main": "./build/index.js",
   "exports": "./build/index.js",

@@ -1,7 +1,7 @@
 import express from 'express';
 
 import { Pfsense } from '@/lib/api.js';
-import { wakeOnLan } from '@/lib/schema.js';
+import { wakeOnLan, wakeOnLanCheck } from '@/lib/schema.js';
 import { getEnvironmentVariables, isValidApiKey } from '@/lib/utility.js';
 import type {
   ServerAddMiddlewareReturns,
@@ -21,6 +21,9 @@ import type {
   ServerRouteUpdateDyndnsRequest,
   ServerRouteUpdateDyndnsResponse,
   ServerRouteUpdateDyndnsReturns,
+  ServerRouteWolCheckRequest,
+  ServerRouteWolCheckResponse,
+  ServerRouteWolCheckReturns,
   ServerRouteWolRequest,
   ServerRouteWolResponse,
   ServerRouteWolReturns,
@@ -99,6 +102,7 @@ class Server {
     this.#app.get('/reload-filter', this.routeReloadFilter.bind(this));
     this.#app.get('/update-dyndns', this.routeUpdateDyndns.bind(this));
     this.#app.post('/wol', this.routeWol.bind(this));
+    this.#app.post('/wol-check', this.routeWolCheck.bind(this));
   }
 
   /**
@@ -156,9 +160,9 @@ class Server {
     try {
       const instance = new Pfsense(this.#env);
 
-      console.log(await instance.login());
-      console.log(await instance.systemInformation());
-      console.log(await instance.logout());
+      await instance.login();
+      console.log(JSON.stringify(await instance.systemInformation()));
+      await instance.logout();
 
       response.sendStatus(200);
     } catch (error) {
@@ -184,9 +188,9 @@ class Server {
     try {
       const instance = new Pfsense(this.#env);
 
-      console.log(await instance.login());
-      console.log(await instance.reloadFilter());
-      console.log(await instance.logout());
+      await instance.login();
+      console.log(JSON.stringify(await instance.reloadFilter()));
+      await instance.logout();
 
       response.sendStatus(200);
     } catch (error) {
@@ -212,9 +216,9 @@ class Server {
     try {
       const instance = new Pfsense(this.#env);
 
-      console.log(await instance.login());
-      console.log(await instance.updateDyndns());
-      console.log(await instance.logout());
+      await instance.login();
+      console.log(JSON.stringify(await instance.updateDyndns()));
+      await instance.logout();
 
       response.sendStatus(200);
     } catch (error) {
@@ -249,11 +253,64 @@ class Server {
 
       const { broadcastAddress, macAddress } = responseBody.data;
 
-      console.log(await instance.login());
-      console.log(await instance.wakeOnLan(broadcastAddress, macAddress));
-      console.log(await instance.logout());
+      await instance.login();
+      console.log(JSON.stringify(await instance.wakeOnLan(broadcastAddress, macAddress)));
+      await instance.logout();
 
       response.sendStatus(200);
+    } catch (error) {
+      console.error(error);
+
+      response.sendStatus(500);
+    }
+  }
+
+  /**
+   * Server - Route wol check.
+   *
+   * @param {ServerRouteWolCheckRequest}  request  - Request.
+   * @param {ServerRouteWolCheckResponse} response - Response.
+   *
+   * @private
+   *
+   * @returns {ServerRouteWolCheckReturns}
+   *
+   * @since 1.0.0
+   */
+  private async routeWolCheck(request: ServerRouteWolCheckRequest, response: ServerRouteWolCheckResponse): ServerRouteWolCheckReturns {
+    try {
+      const instance = new Pfsense(this.#env);
+      const responseBody = wakeOnLanCheck.safeParse(request.body);
+
+      if (!responseBody.success) {
+        response.sendStatus(400);
+
+        return;
+      }
+
+      const { ipAddress } = responseBody.data;
+
+      await instance.login();
+
+      // Pings the device 3 times (5 tries each) until it gives up.
+      for (let i = 1; i <= 3; i += 1) {
+        const pingResponse = await instance.ping(ipAddress, 5);
+
+        console.log(JSON.stringify(pingResponse));
+
+        // If command does not respond with "100.0% packet loss", it means the device is now online.
+        if (pingResponse.success && !pingResponse.info.stdout.includes('100.0% packet loss')) {
+          await instance.logout();
+
+          response.sendStatus(200);
+
+          return;
+        }
+      }
+
+      await instance.logout();
+
+      response.sendStatus(503);
     } catch (error) {
       console.error(error);
 

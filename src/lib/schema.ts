@@ -45,3 +45,12 @@ export const wakeOnLan = z.object({
     },
   ),
 });
+
+/**
+ * Wake on lan check.
+ *
+ * @since 1.0.0
+ */
+export const wakeOnLanCheck = z.object({
+  ipAddress: z.string().ip(),
+});
