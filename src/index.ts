@@ -292,9 +292,9 @@ class Server {
 
       await instance.login();
 
-      // Pings the device 3 times (5 tries each) until it gives up.
-      for (let i = 1; i <= 3; i += 1) {
-        const pingResponse = await instance.ping(ipAddress, 5);
+      // Pings the device 10 times (2 tries each) until it gives up.
+      for (let i = 1; i <= 10; i += 1) {
+        const pingResponse = await instance.ping(ipAddress, 2);
 
         console.log(JSON.stringify(pingResponse));
 
