@@ -14,8 +14,7 @@
     "build:lint": "npx eslint ./src",
     "build:tsc": "tsc --project tsconfig.json",
     "build:fix-paths": "tsconfig-replace-paths --project tsconfig.json",
-    "prepare": "npm run build",
-    "prepublishOnly": "npm run build"
+    "prepare": "npm run build"
   },
   "types": "",
   "repository": {
