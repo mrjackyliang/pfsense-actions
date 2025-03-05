@@ -116,8 +116,8 @@ class Server {
    */
   private startServer(): ServerStartServerReturns {
     this.#app.listen(this.#env.port, () => {
-      console.log(`Listening on port ${this.#env.port}`);
-      console.log(`Your API key is ${this.#env.apiKey}`);
+      console.info(`Listening on port ${this.#env.port}`);
+      console.info(`Your API key is ${this.#env.apiKey}`);
     });
   }
 
@@ -161,7 +161,9 @@ class Server {
       const instance = new Pfsense(this.#env);
 
       await instance.login();
-      console.log(JSON.stringify(await instance.systemInformation()));
+
+      console.info(JSON.stringify(await instance.systemInformation()));
+
       await instance.logout();
 
       response.sendStatus(200);
@@ -189,7 +191,9 @@ class Server {
       const instance = new Pfsense(this.#env);
 
       await instance.login();
-      console.log(JSON.stringify(await instance.reloadFilter()));
+
+      console.info(JSON.stringify(await instance.reloadFilter()));
+
       await instance.logout();
 
       response.sendStatus(200);
@@ -217,7 +221,9 @@ class Server {
       const instance = new Pfsense(this.#env);
 
       await instance.login();
-      console.log(JSON.stringify(await instance.updateDyndns()));
+
+      console.info(JSON.stringify(await instance.updateDyndns()));
+
       await instance.logout();
 
       response.sendStatus(200);
@@ -254,7 +260,9 @@ class Server {
       const { broadcastAddress, macAddress } = responseBody.data;
 
       await instance.login();
-      console.log(JSON.stringify(await instance.wakeOnLan(broadcastAddress, macAddress)));
+
+      console.info(JSON.stringify(await instance.wakeOnLan(broadcastAddress, macAddress)));
+
       await instance.logout();
 
       response.sendStatus(200);
@@ -288,24 +296,22 @@ class Server {
         return;
       }
 
-      const { ipAddress } = responseBody.data;
+      const { count, ipAddress } = responseBody.data;
 
       await instance.login();
 
-      // Pings the device 10 times (2 tries each) until it gives up.
-      for (let i = 1; i <= 10; i += 1) {
-        const pingResponse = await instance.ping(ipAddress, 2);
+      // Pings the device multiple times until it gives up.
+      const pingResponse = await instance.ping(ipAddress, count);
 
-        console.log(JSON.stringify(pingResponse));
+      console.info(JSON.stringify(pingResponse));
 
-        // If command does not respond with "100.0% packet loss", it means the device is now online.
-        if (pingResponse.success && !pingResponse.info.stdout.includes('100.0% packet loss')) {
-          await instance.logout();
+      // If command does not respond with "100.0% packet loss", it means the device is now online.
+      if (pingResponse.success && !pingResponse.info.stdout.includes('100.0% packet loss')) {
+        await instance.logout();
 
-          response.sendStatus(200);
+        response.sendStatus(200);
 
-          return;
-        }
+        return;
       }
 
       await instance.logout();

@@ -52,5 +52,6 @@ export const wakeOnLan = z.object({
  * @since 1.0.0
  */
 export const wakeOnLanCheck = z.object({
+  count: z.number().min(1),
   ipAddress: z.string().ip(),
 });

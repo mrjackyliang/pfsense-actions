@@ -1,5 +1,5 @@
 import { NodeSSH } from 'node-ssh';
-import { serializeError } from 'serialize-error';
+import { isErrorLike, serializeError } from 'serialize-error';
 
 import type {
   PfsenseConstructorEnvironment,
@@ -99,7 +99,7 @@ export class Pfsense {
         info: null,
       };
     } catch (error) {
-      errorObject = serializeError(error);
+      errorObject = (isErrorLike(error)) ? serializeError(error) : serializeError(new Error('Unknown error'));
     }
 
     return {
@@ -143,7 +143,7 @@ export class Pfsense {
         info: null,
       };
     } catch (error) {
-      errorObject = serializeError(error);
+      errorObject = (isErrorLike(error)) ? serializeError(error) : serializeError(new Error('Unknown error'));
     }
 
     return {
@@ -188,7 +188,7 @@ export class Pfsense {
         info: response,
       };
     } catch (error) {
-      errorObject = serializeError(error);
+      errorObject = (isErrorLike(error)) ? serializeError(error) : serializeError(new Error('Unknown error'));
     }
 
     return {
@@ -230,7 +230,7 @@ export class Pfsense {
         info: response,
       };
     } catch (error) {
-      errorObject = serializeError(error);
+      errorObject = (isErrorLike(error)) ? serializeError(error) : serializeError(new Error('Unknown error'));
     }
 
     return {
@@ -272,7 +272,7 @@ export class Pfsense {
         info: response,
       };
     } catch (error) {
-      errorObject = serializeError(error);
+      errorObject = (isErrorLike(error)) ? serializeError(error) : serializeError(new Error('Unknown error'));
     }
 
     return {
@@ -314,7 +314,7 @@ export class Pfsense {
         info: response,
       };
     } catch (error) {
-      errorObject = serializeError(error);
+      errorObject = (isErrorLike(error)) ? serializeError(error) : serializeError(new Error('Unknown error'));
     }
 
     return {
@@ -359,7 +359,7 @@ export class Pfsense {
         info: response,
       };
     } catch (error) {
-      errorObject = serializeError(error);
+      errorObject = (isErrorLike(error)) ? serializeError(error) : serializeError(new Error('Unknown error'));
     }
 
     return {
