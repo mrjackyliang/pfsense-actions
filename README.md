@@ -128,7 +128,7 @@ Authorization: Bearer [YOUR_API_KEY]
 Content-Type: application/json
 
 {
-  "count": 40,
+  "count": 60,
   "ipAddress": "[YOUR_IP_ADDRESS]",
 }
 ```
