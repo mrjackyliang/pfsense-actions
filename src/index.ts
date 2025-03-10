@@ -296,18 +296,29 @@ class Server {
         return;
       }
 
-      const { count, ipAddress } = responseBody.data;
+      const { count, ipAddress, strict } = responseBody.data;
 
       await instance.login();
 
       // Pings the device multiple times until the count exhausts.
       for (let i = 1; i <= count; i += 1) {
-        const pingResponse = await instance.ping(ipAddress, 3);
+        const pingResponse = await instance.ping(ipAddress, 5);
 
         console.info(JSON.stringify(pingResponse));
 
-        // If command does not respond with "100.0% packet loss", it means the device is now online.
-        if (pingResponse.success && !pingResponse.info.stdout.includes('100.0% packet loss')) {
+        // This means the device is now online.
+        if (
+          (
+            !strict
+            && pingResponse.success
+            && !pingResponse.info.stdout.includes('100.0% packet loss')
+          )
+          || (
+            strict
+            && pingResponse.success
+            && pingResponse.info.stdout.includes('0.0% packet loss')
+          )
+        ) {
           await instance.logout();
 
           response.sendStatus(200);

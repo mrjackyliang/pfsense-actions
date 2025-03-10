@@ -130,6 +130,7 @@ Content-Type: application/json
 {
   "count": 60,
   "ipAddress": "[YOUR_IP_ADDRESS]",
+  "strict": false,
 }
 ```
 
