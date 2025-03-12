@@ -11,6 +11,13 @@ import type { ApiResponse, EnvironmentVariables } from '@/types/shared.d.ts';
 export type GetEnvironmentVariablesReturns = EnvironmentVariables;
 
 /**
+ * Get package version.
+ *
+ * @since 1.0.0
+ */
+export type GetPackageVersionReturns = string;
+
+/**
  * Is valid api key.
  *
  * @since 1.0.0
@@ -180,6 +187,17 @@ export type ServerRouteIndexResponse = express.Response;
 export type ServerRouteIndexReturns = Promise<void>;
 
 /**
+ * Server - Route ping.
+ *
+ * @since 1.0.0
+ */
+export type ServerRoutePingRequest = express.Request;
+
+export type ServerRoutePingResponse = express.Response;
+
+export type ServerRoutePingReturns = Promise<void>;
+
+/**
  * Server - Route reload filter.
  *
  * @since 1.0.0
@@ -211,17 +229,6 @@ export type ServerRouteWolRequest = express.Request;
 export type ServerRouteWolResponse = express.Response;
 
 export type ServerRouteWolReturns = Promise<void>;
-
-/**
- * Server - Route wol check.
- *
- * @since 1.0.0
- */
-export type ServerRouteWolCheckRequest = express.Request;
-
-export type ServerRouteWolCheckResponse = express.Response;
-
-export type ServerRouteWolCheckReturns = Promise<void>;
 
 /**
  * Server - Start server.

@@ -1,8 +1,11 @@
+import { createRequire } from 'node:module';
+
 import { v4 as uuidv4 } from 'uuid';
 
 import { env } from '@/lib/schema.js';
 import type {
   GetEnvironmentVariablesReturns,
+  GetPackageVersionReturns,
   IsValidApiKeyEnvironment,
   IsValidApiKeyRequest,
   IsValidApiKeyReturns,
@@ -48,6 +51,20 @@ export function getEnvironmentVariables(): GetEnvironmentVariablesReturns {
     pfsenseUsername,
     port,
   });
+}
+
+/**
+ * Get package version.
+ *
+ * @returns {GetPackageVersionReturns}
+ *
+ * @since 1.0.0
+ */
+export function getPackageVersion(): GetPackageVersionReturns {
+  const require = createRequire(import.meta.url);
+  const packageJson = require('../../package.json');
+
+  return packageJson.version;
 }
 
 /**

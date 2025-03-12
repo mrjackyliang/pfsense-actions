@@ -29,6 +29,17 @@ export const env = z.object({
 );
 
 /**
+ * Ping.
+ *
+ * @since 1.0.0
+ */
+export const ping = z.object({
+  count: z.number().min(1),
+  ipAddress: z.string().ip(),
+  strict: z.boolean().default(false),
+});
+
+/**
  * Wake on lan.
  *
  * @since 1.0.0
@@ -44,15 +55,4 @@ export const wakeOnLan = z.object({
       ],
     },
   ),
-});
-
-/**
- * Wake on lan check.
- *
- * @since 1.0.0
- */
-export const wakeOnLanCheck = z.object({
-  count: z.number().min(1),
-  ipAddress: z.string().ip(),
-  strict: z.boolean().default(false),
 });

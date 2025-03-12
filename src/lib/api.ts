@@ -386,13 +386,11 @@ export class Pfsense {
 
       // Mark that this session is "authenticated".
       this.#session.isAuthenticated = true;
-
-      return true;
     } catch {
       // Mark that this session is not "authenticated".
       this.#session.isAuthenticated = false;
-
-      return false;
     }
+
+    return this.#session.isAuthenticated;
   }
 }

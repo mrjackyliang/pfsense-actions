@@ -64,10 +64,10 @@ services:
 ## Available Endpoints
 | Endpoint        | Description                                               | Method | Instructions                                                |
 |-----------------|-----------------------------------------------------------|--------|-------------------------------------------------------------|
+| `ping`          | Send a ping check request to a connected device           | `POST` | [Ping Endpoint](#ping-endpoint)                             |
 | `reload-filter` | Reload the filters on your pfSense® firewall              | `GET`  | [Reload Filter Endpoint](#reload-filter-endpoint)           |
 | `update-dyndns` | Update the Dynamic DNS settings on your pfSense® firewall | `GET`  | [Update Dynamic DNS Endpoint](#update-dynamic-dns-endpoint) |
 | `wol`           | Send a Wake-on-LAN request to a connected device          | `POST` | [Wake-on-LAN Endpoint](#wake-on-lan-endpoint)               |
-| `wol-check`     | Send a Wake-on-LAN check request to a connected device    | `POST` | [Wake-on-LAN Check Endpoint](#wake-on-lan-check-endpoint)   |
 
 ## Authorizing Your Requests
 When accessing the controller, ensure that you have the `Authorization` header properly set to the `API_KEY` you specified during image creation. For example:
@@ -97,6 +97,19 @@ __Note 2:__ If you wish to use a private key, paste the contents of the key into
 ## Using the Endpoints
 This section describes how to interact with the available API endpoints for managing your pfSense® firewall.
 
+#### Ping Endpoint:
+```http request
+POST http://localhost:9898/ping
+Authorization: Bearer [YOUR_API_KEY]
+Content-Type: application/json
+
+{
+  "count": 60,
+  "ipAddress": "[YOUR_IP_ADDRESS]",
+  "strict": false,
+}
+```
+
 #### Reload Filter Endpoint:
 ```http request
 GET http://localhost:9898/reload-filter
@@ -118,19 +131,6 @@ Content-Type: application/json
 {
   "broadcastAddress": "[YOUR_BROADCAST_IP_ADDRESS]",
   "macAddress": "[YOUR_MAC_ADDRESS]"
-}
-```
-
-#### Wake-on-LAN Check Endpoint:
-```http request
-POST http://localhost:9898/wol-check
-Authorization: Bearer [YOUR_API_KEY]
-Content-Type: application/json
-
-{
-  "count": 60,
-  "ipAddress": "[YOUR_IP_ADDRESS]",
-  "strict": false,
 }
 ```
 
