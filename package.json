@@ -1,7 +1,7 @@
 {
   "name": "pfsense-actions",
   "displayName": "pfSense® Actions",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "A controller that allows a network administrator to run simple actions such as Wake-on-LAN and reload firewall filters",
   "main": "./build/index.js",
   "exports": "./build/index.js",
@@ -14,7 +14,7 @@
     "build:lint": "npx eslint ./src",
     "build:tsc": "tsc --project tsconfig.json",
     "build:fix-paths": "tsconfig-replace-paths --project tsconfig.json",
-    "prepare": "npm run build"
+    "postinstall": "npm run build"
   },
   "types": "",
   "repository": {

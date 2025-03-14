@@ -225,12 +225,12 @@ class Server {
           (
             !strict
             && pingResponse.success
-            && !pingResponse.info.stdout.includes('100.0% packet loss')
+            && !pingResponse.info.stdout.includes(', 100.0% packet loss')
           )
           || (
             strict
             && pingResponse.success
-            && pingResponse.info.stdout.includes('0.0% packet loss')
+            && pingResponse.info.stdout.includes(', 0.0% packet loss')
           )
         ) {
           await instance.logout();
