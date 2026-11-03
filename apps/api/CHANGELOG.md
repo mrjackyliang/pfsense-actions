@@ -32,3 +32,62 @@
 ### REMOVED
 - Removed the filter-reload and Dynamic DNS refresh routes to keep the public API focused on connectivity, reachability, and Wake-on-LAN.
 - Removed the `API_KEY` variable. Each client signs in with its own personal access token from the console instead.
+
+## 1.3.1 - 2025-03-14
+
+### UPDATED
+- `prepare` script updated to `postinstall` script because the script is designed only for after dependency installation.
+- `Dockerfile` upgraded to prevent redundant builds.
+
+### FIXED
+- Ping response was not properly recognized between `100.0% packet loss` and `0.0% packet loss` because of the `0.0%` discrepancy.
+
+## 1.3.0 - 2025-03-12
+
+### UPDATED
+- `wol-check` route is renamed to `ping` instead.
+- Redundant return values for `isAuthenticated()` function.
+
+### ADDED
+- Rate limiting for 3 requests per 10 second window.
+
+## 1.2.2 - 2025-03-10
+
+### UPDATED
+- Each `ping` would now count for 5 times instead of 3 for better accuracy.
+
+### ADDED
+- Strict check setting for the `wol-check` endpoint.
+
+## 1.2.1 - 2025-03-05
+
+### UPDATED
+- Stabilized device pinging.
+
+## 1.2.0 - 2025-03-05
+
+### UPDATED
+- Simplified `ping` wait process.
+- Revamped ESLint configuration.
+- Dependencies.
+
+### ADDED
+- Ability to change count of packets sent through `ping`.
+
+## 1.1.1 - 2024-09-11
+
+### UPDATED
+- Improved ping check timing by using ten two-packet attempts instead of three five-packet attempts.
+
+## 1.1.0 - 2024-09-07
+
+### UPDATED
+- Only command responses will now be converted to a JSON string then logged.
+
+### ADDED
+- Wake-on-LAN device check feature.
+
+## 1.0.0 - 2024-09-06
+
+### ADDED
+- Added the initial Docker-based pfSense Actions controller with authenticated filter reload, Dynamic DNS refresh, and Wake-on-LAN endpoints over pfSense SSH connections.
