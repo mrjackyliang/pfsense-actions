@@ -1,0 +1,103 @@
+---
+id: prepare-pfsense
+title: Prepare pfSense
+description: Turn on SSH in pfSense, give an account shell access and an authorized SSH key, and confirm it can run the commands pfSense Actions uses.
+sidebar_position: 1
+keywords:
+  - pfsense actions
+  - pfsense setup
+  - ssh
+  - shell account access
+  - authorized keys
+  - user manager
+tags:
+  - getting started
+  - pfsense
+  - ssh
+---
+
+import { Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
+
+Set up SSH on your pfSense firewall so pfSense Actions can sign in and run its <Terminology title="the closed set of commands the controller runs" to="/docs/reference/terminology#allowlist">allowlisted</Terminology> commands.
+
+## Why Prepare a Dedicated Account?
+
+1. Lets you remove the <Terminology title="the pfSense Actions service between clients and pfSense" to="/docs/reference/terminology#controller">controller</Terminology>'s access in pfSense without touching any other account.
+2. Pairs the account with a key made only for pfSense Actions, so no personal key or password is shared.
+3. Keeps the firewall's own administrator password out of pfSense Actions.
+
+## Requirements
+
+- **pfSense web access** — An administrator sign-in to the pfSense web interface.
+- **Network path** — The host that runs pfSense Actions can reach the firewall's SSH port, 22 by default.
+- **Firewall IP address** — pfSense Actions accepts an IP address for the firewall, not a hostname.
+
+## Enable SSH
+
+1. Sign in to the pfSense web interface.
+2. Open **System** > **Advanced** and stay on the **Admin Access** tab.
+3. In the **Secure Shell** section, select **Enable Secure Shell**.
+4. Select **Save** at the bottom of the page.
+
+## Create an Account for pfSense Actions
+
+1. Open **System** > **User Manager** and add a user on the **Users** tab.
+2. Set a username, such as `automation`, and a long random password.
+3. Save the user, then edit it and add the **User - System: Shell account access** privilege under **Effective Privileges**.
+4. Save the user again.
+
+The <Terminology title="the pfSense privilege that allows SSH sign-in" to="/docs/reference/terminology#shell-account-access">shell account access</Terminology> privilege is what lets the account sign in over SSH.
+
+:::info
+pfSense Actions doesn't check which privileges the account has. The 1.x instructions asked only for <Terminology title="the pfSense privilege that allows SSH sign-in" to="/docs/reference/terminology#shell-account-access">shell account access</Terminology>, so it's worth confirming the account can run each command as shown below.
+:::
+
+## Add an Authorized SSH Key
+
+1. On a trusted computer, create a key pair without a passphrase.
+
+   ```bash
+   ssh-keygen -t ed25519 -N '' -C pfsense-actions -f ./pfsense-actions-key
+   ```
+
+2. Edit the pfSense user, paste the contents of `pfsense-actions-key.pub` into **Authorized SSH Keys**, and save.
+3. Keep the private key file, `pfsense-actions-key`, for the next steps.
+
+The public key you pasted is now an <Terminology title="the public key pfSense accepts for key sign-in" to="/docs/reference/terminology#authorized-ssh-key">authorized SSH key</Terminology> for the account. pfSense Actions also accepts the account's password instead of a key, but a key is recommended.
+
+:::warning
+pfSense Actions can't use a private key that has a passphrase. Keep the unencrypted key file private, for example with `chmod 600 ./pfsense-actions-key`.
+:::
+
+## Limit Who Can Reach SSH
+
+- pfSense Actions doesn't perform <Terminology title="confirming the firewall's SSH identity before trusting it" to="/docs/reference/terminology#host-key-verification">host key verification</Terminology>, so it trusts whichever server answers at the configured address. It's recommended to keep the network path between pfSense Actions and the firewall on a segment you trust.
+- It's also recommended to allow SSH to the firewall only from the host that runs pfSense Actions and from your own management devices.
+
+## Confirm the Commands
+
+Sign in as the new account from the host that will run pfSense Actions, and run each command it uses.
+
+```bash
+ssh -i ./pfsense-actions-key automation@192.0.2.1 whoami
+ssh -i ./pfsense-actions-key automation@192.0.2.1 'uname -mrs'
+ssh -i ./pfsense-actions-key automation@192.0.2.1 'ping -c 5 192.0.2.25'
+ssh -i ./pfsense-actions-key automation@192.0.2.1 'wol -i 192.0.2.255 00:11:22:33:44:55'
+```
+
+| Command                    | Used by                                                                                                                                                                                                                                                                                                                                             |
+|----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `whoami`                   | Every <Terminology title="one allowlisted pfSense operation behind an API route" to="/docs/reference/terminology#action">action</Terminology> and <Terminology title="the 5-minute SSH check behind the pfSense alerts" to="/docs/reference/terminology#scheduled-check">scheduled check</Terminology>, to confirm the session before each command. |
+| `uname -mrs`               | `GET /api/v1/connectivity`, `GET /api/v1/system`, and the <Terminology title="the 5-minute SSH check behind the pfSense alerts" to="/docs/reference/terminology#scheduled-check">scheduled check</Terminology> for notifications.                                                                                                                   |
+| `ping -c 5 <address>`      | `POST /api/v1/ping`, once per <Terminology title="one five-packet ping run in a reachability check" to="/docs/reference/terminology#ping-attempt">ping attempt</Terminology>.                                                                                                                                                                       |
+| `wol -i <broadcast> <mac>` | `POST /api/v1/wol`.                                                                                                                                                                                                                                                                                                                                 |
+
+Each command needs to exit with status `0`, because pfSense Actions treats any other exit status as a failure. The one exception is `ping`, which exits with `2` when nothing replies, and pfSense Actions reads that as no answer rather than as a failure.
+
+Use an address that answers ping for this test, so that status `0` confirms the account can run the command.
+
+## Supported Versions
+
+- pfSense Actions doesn't check the pfSense version, and there's no tested version list yet.
+- It needs only SSH and the four commands above, with no add-on package.
+- Bug reports are considered only for releases that Netgate lists as supported on its [releases page](https://docs.netgate.com/pfsense/en/latest/releases/versions.html).

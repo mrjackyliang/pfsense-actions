@@ -1,0 +1,411 @@
+---
+id: notifications
+title: Notifications
+description: Send pfSense Actions alerts to ntfy, Telegram, email, and eight other services when pfSense stops answering, sign-in is locked, or an action fails.
+sidebar_position: 5
+keywords:
+  - pfsense actions
+  - notifications
+  - alerts
+  - ntfy
+  - telegram
+  - webhook
+  - email
+tags:
+  - console
+  - notifications
+  - alerts
+---
+
+import ThemedImage from '@theme/ThemedImage';
+import { Frame, Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
+
+import notificationsOneLight from './_assets_/notifications-1-light.png';
+import notificationsOneDark from './_assets_/notifications-1-dark.png';
+import notificationsTwoLight from './_assets_/notifications-2-light.png';
+import notificationsTwoDark from './_assets_/notifications-2-dark.png';
+import notificationsThreeLight from './_assets_/notifications-3-light.png';
+import notificationsThreeDark from './_assets_/notifications-3-dark.png';
+import notificationsFourLight from './_assets_/notifications-4-light.png';
+import notificationsFourDark from './_assets_/notifications-4-dark.png';
+import notificationsFiveLight from './_assets_/notifications-5-light.png';
+import notificationsFiveDark from './_assets_/notifications-5-dark.png';
+import notificationsSixLight from './_assets_/notifications-6-light.png';
+import notificationsSixDark from './_assets_/notifications-6-dark.png';
+import notificationsSevenLight from './_assets_/notifications-7-light.png';
+import notificationsSevenDark from './_assets_/notifications-7-dark.png';
+import notificationsEightLight from './_assets_/notifications-8-light.png';
+import notificationsEightDark from './_assets_/notifications-8-dark.png';
+import notificationsNineLight from './_assets_/notifications-9-light.png';
+import notificationsNineDark from './_assets_/notifications-9-dark.png';
+
+Send an alert to your phone, chat, or inbox when pfSense stops answering or comes back, when sign-in is locked, or when an <Terminology title="one allowlisted pfSense operation behind an API route" to="/docs/reference/terminology#action">action</Terminology> fails.
+
+## Why Use Notifications?
+
+1. Checks pfSense every 5 minutes while a <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology> wants to hear about it, so you learn the firewall stopped answering before a script or shortcut fails.
+2. Reports locked sign-ins and secrets removed with a lost <Terminology title="the 64-character key that seals stored secrets" to="/docs/reference/terminology#encryption-key">encryption key</Terminology>, so trouble with the <Terminology title="the protected browser admin interface at /admin" to="/docs/reference/terminology#operations-console">operations console</Terminology> reaches you even when nobody has it open.
+3. Sends each alert to every <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology> that chose its <Terminology title="something a destination can get an alert about" to="/docs/reference/terminology#notification-event">event</Terminology>, from ntfy and Telegram to email and webhooks, so it reaches you wherever you look.
+4. Seals tokens, passwords, and webhook URLs with the <Terminology title="the 64-character key that seals stored secrets" to="/docs/reference/terminology#encryption-key">encryption key</Terminology> and never shows them again, so the list of <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destinations</Terminology> doesn't expose them.
+
+## Open the Notifications Page
+
+- **Wide screens** — Select **Notifications** in the sidebar, below **Connection**.
+- **Narrow screens** — The tab bar keeps **Overview**, **Activity**, **Access tokens**, and **Connection**, so open the account menu from your initial at the top and select **Notifications**.
+
+<Frame caption="The Notifications page with four destinations">
+  <ThemedImage sources={{ light: notificationsOneLight, dark: notificationsOneDark }} alt="Notifications page, selected in the sidebar, listing the Firewall alerts, Network alerts, Ops chat, and My phone destinations with their services, event counts, and last sends, where the last attempt to Network alerts failed with HTTP 404: Unknown Webhook" width={1280} height={479} style={{ maxWidth: '100%', height: 'auto' }} />
+</Frame>
+
+<Frame caption="The account menu on a phone" style={{ maxWidth: 392, marginInline: 'auto' }}>
+  <ThemedImage sources={{ light: notificationsTwoLight, dark: notificationsTwoDark }} alt="pfSense Actions on a phone with the account menu open, listing Appearance, Notifications, Password and sign-in, and Sign out above a tab bar with Overview, Activity, Access tokens, and Connection" width={780} height={1688} style={{ maxWidth: '100%', height: 'auto' }} />
+</Frame>
+
+Under **Destinations**, each row shows a <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology>'s name and service, how many <Terminology title="something a destination can get an alert about" to="/docs/reference/terminology#notification-event">events</Terminology> it hears about, and the result of its last send. The newest <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology> is listed first.
+
+## Add a Destination
+
+1. Select **Add notification**.
+2. In **Service**, choose where alerts go. **ntfy** is selected at first.
+3. Enter a **Name** you'll recognize, such as the device or chat it goes to.
+4. Fill in the service's fields, as listed in [Services](#services).
+5. Under **Events**, keep the <Terminology title="something a destination can get an alert about" to="/docs/reference/terminology#notification-event">events</Terminology> this <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology> should hear about. The first four are checked at first, as listed in [Events](#events).
+6. Select **Add notification** in the dialog.
+
+<Frame caption="Adding an ntfy destination" style={{ maxWidth: 586, marginInline: 'auto' }}>
+  <ThemedImage sources={{ light: notificationsThreeLight, dark: notificationsThreeDark }} alt="Add notification dialog with ntfy selected, the name Work laptop, a topic URL, an empty optional access token, and the first four of six events checked" width={584} height={903} style={{ maxWidth: '100%', height: 'auto' }} />
+</Frame>
+
+- A name can have up to 80 characters, and each <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology> needs a different one, whatever the letter case.
+- The dialog's **Add notification** stays unavailable until the name is filled in and at least one <Terminology title="something a destination can get an alert about" to="/docs/reference/terminology#notification-event">event</Terminology> is checked.
+- A field with a problem shows the reason under it, such as `Use the full topic URL, like https://ntfy.sh/my-alerts.`
+
+It's recommended to select **Send test** after adding a <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology>, as covered in [Send a Test](#send-a-test).
+
+## Services
+
+**Service** offers these in this order, starting with **ntfy**.
+
+| Service                | Required fields                                                                                                           | Optional fields                                                       |
+|------------------------|---------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------|
+| ntfy                   | **Topic URL**, the full topic address, such as `https://ntfy.sh/my-alerts`                                                | **Access token**, for a topic that needs one                          |
+| Reverse Proxy for ntfy | **Context URL**, the `https://` address of a context whose interpreter is `pfsense-actions`                               | **Context token**, for a context that needs one                       |
+| Telegram               | **Bot token** from @BotFather, and the **Chat ID** of a user, group, or channel the bot can post to                       | None                                                                  |
+| Discord                | **Webhook URL** from the channel's Integrations settings, starting with `https://discord.com/api/webhooks/`               | None                                                                  |
+| Slack                  | **Webhook URL** of an incoming webhook in your Slack app, starting with `https://hooks.slack.com/`                        | None                                                                  |
+| Gotify                 | **Server URL**, and the **App token** of an application you made in Gotify                                                | None                                                                  |
+| Pushover               | **User key**, and the **App token** of an application you made in Pushover                                                | None                                                                  |
+| Matrix                 | **Homeserver URL**, a **Room ID** such as `!room:example.com`, and the **Access token** of an account already in the room | None                                                                  |
+| Email                  | **SMTP server**, **Port** (`587` at first), **Security** (STARTTLS, TLS, or None), **From**, and **To**                   | **Username** and **Password**, when the server needs a sign-in        |
+| Apprise                | **Apprise URL**, the notify URL of your Apprise API server with its config key                                            | **Service URLs**, separated by spaces, for a stateless Apprise server |
+| Webhook                | **URL** that accepts a JSON `POST`                                                                                        | **Bearer token**, for an endpoint that needs one                      |
+
+- **<Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">Secret fields</Terminology>** — Every token, key, and password is a <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">secret field</Terminology>, and so are the Discord, Slack, Apprise, and webhook URLs. The other fields are plain and show their saved values when you edit.
+- **Addresses** — The ntfy, Gotify, Apprise, and webhook URLs can start with `http://` or `https://`, while the Reverse Proxy for ntfy and Matrix addresses need `https://`. Discord also accepts `https://discordapp.com/api/webhooks/`.
+- **Matrix room IDs** — Use the room ID that starts with `!`, such as `!room:example.com`. Room aliases that start with `#` aren't accepted, because sending needs the room ID.
+- **Email** — **To** takes several addresses separated by commas. Entering a **Password** also requires a **Username**; the form rejects a password on its own instead of silently sending without authentication.
+- **Email security** — **STARTTLS** fails the send when the server doesn't offer it, and **TLS** encrypts from the start, usually on port 465. **None** sends without encryption.
+- **Reverse Proxy for ntfy** — Alerts arrive as the JSON <Terminology title="the JSON body webhooks and Reverse Proxy for ntfy receive" to="/docs/reference/terminology#notification-payload">payload</Terminology> covered in [Webhook Payload](#webhook-payload), which a [Reverse Proxy for ntfy](https://nrp.cbnventures.io/docs/interpreters/pfsense-actions/) context with the `pfsense-actions` interpreter turns into a notification.
+
+<Frame caption="The email fields" style={{ maxWidth: 586, marginInline: 'auto' }}>
+  <ThemedImage sources={{ light: notificationsFourLight, dark: notificationsFourDark }} alt="Add notification dialog with Email selected, showing the SMTP server, Port 587, STARTTLS security, Username, Password, From, and To fields filled in" width={584} height={890} style={{ maxWidth: '100%', height: 'auto' }} />
+</Frame>
+
+## Events
+
+| Event                          | At first    | Sent when                                                                                                                                                                                                                                                                |
+|--------------------------------|-------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Saved secrets were removed** | Checked     | pfSense Actions started without its <Terminology title="the 64-character key that seals stored secrets" to="/docs/reference/terminology#encryption-key">encryption key</Terminology> and removed the secrets the old key sealed. It's sent while pfSense Actions starts. |
+| **Sign-in locked**             | Checked     | Ten failed sign-ins from one address within 15 minutes paused sign-in from it. Each address is reported once per 15 minutes.                                                                                                                                             |
+| **pfSense can't be reached**   | Checked     | Two <Terminology title="the 5-minute SSH check behind the pfSense alerts" to="/docs/reference/terminology#scheduled-check">scheduled checks</Terminology> in a row couldn't sign in to pfSense over SSH or run `uname -mrs`. It's sent once per outage.                  |
+| **pfSense reachable again**    | Checked     | A <Terminology title="the 5-minute SSH check behind the pfSense alerts" to="/docs/reference/terminology#scheduled-check">scheduled check</Terminology> succeeded after **pfSense can't be reached** was sent.                                                            |
+| **Action failed**              | Not checked | An API request for an <Terminology title="one allowlisted pfSense operation behind an API route" to="/docs/reference/terminology#action">action</Terminology> answered `502` or `500`, for example because the SSH sign-in or the pfSense command failed.                |
+| **Wake-on-LAN sent**           | Not checked | pfSense sent a wake packet for a `POST /api/v1/wol` request.                                                                                                                                                                                                             |
+
+- **Off at first** — **Action failed** and **Wake-on-LAN sent** can come with every request, so they stay off until you check them.
+- **Sign-in attempts** — Wrong passwords, authenticator and <Terminology title="a single-use code that stands in for an authenticator code" to="/docs/reference/terminology#recovery-code">recovery codes</Terminology>, rejected <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkeys</Terminology>, and wrong passwords on **Password and sign-in** all count, while wrong <Terminology title="the one-time code printed in the log for first-run setup" to="/docs/reference/terminology#setup-code">setup codes</Terminology> don't.
+- **Pings** — A ping request sends **Action failed** when the SSH sign-in or `ping` command fails, or something unexpected happens. A target that simply never meets the reachability condition doesn't send it.
+- **Not counted** — Invalid requests, token and <Terminology title="a cap on requests per client address" to="/docs/reference/terminology#rate-limit">rate limit</Terminology> errors, a missing pfSense connection, and **Test connection** in the <Terminology title="the protected browser admin interface at /admin" to="/docs/reference/terminology#operations-console">operations console</Terminology> don't send **Action failed**.
+- **Saved secrets were removed** — Only <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destinations</Terminology> without <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">secret fields</Terminology> can get it, such as ntfy without an access token or Email without a password. The others are paused until their secrets are entered again.
+
+### The Scheduled Check
+
+pfSense Actions checks pfSense on its own, so you hear about an outage even when no script is calling it.
+
+- **Every 5 minutes** — While a <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology> that isn't paused hears about **pfSense can't be reached** or **pfSense reachable again**, pfSense Actions signs in to pfSense over SSH and runs `uname -mrs` every 5 minutes. The first <Terminology title="the 5-minute SSH check behind the pfSense alerts" to="/docs/reference/terminology#scheduled-check">scheduled check</Terminology> runs 5 minutes after pfSense Actions starts.
+- **One at a time** — Each SSH command in the check has a 30-second deadline. If a check is still running when another interval arrives, the new interval is skipped instead of opening another session.
+- **Two in a row** — A <Terminology title="the 5-minute SSH check behind the pfSense alerts" to="/docs/reference/terminology#scheduled-check">scheduled check</Terminology> fails when the sign-in or the command fails, and the second failure in a row sends **pfSense can't be reached**. An outage is therefore reported about 5 to 10 minutes after pfSense stops answering.
+- **Back again** — The first <Terminology title="the 5-minute SSH check behind the pfSense alerts" to="/docs/reference/terminology#scheduled-check">scheduled check</Terminology> that succeeds after that sends **pfSense reachable again**.
+- **Skipped** — There's no <Terminology title="the 5-minute SSH check behind the pfSense alerts" to="/docs/reference/terminology#scheduled-check">scheduled check</Terminology> while no <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology> wants these <Terminology title="something a destination can get an alert about" to="/docs/reference/terminology#notification-event">events</Terminology>, while no pfSense connection is saved, or while its password or private key is missing.
+- **Separate from the API** — The <Terminology title="the 5-minute SSH check behind the pfSense alerts" to="/docs/reference/terminology#scheduled-check">scheduled checks</Terminology> don't use a token, don't count toward the <Terminology title="a cap on requests per client address" to="/docs/reference/terminology#rate-limit">rate limits</Terminology>, and aren't recorded in the <Terminology title="a bounded, redacted history of actions and changes" to="/docs/reference/terminology#activity-log">activity log</Terminology>.
+- **After a restart** — The count starts over, so a firewall that's still down is reported again after two more failed <Terminology title="the 5-minute SSH check behind the pfSense alerts" to="/docs/reference/terminology#scheduled-check">scheduled checks</Terminology>. A firewall that came back while pfSense Actions was restarting isn't reported as back.
+
+:::tip
+When pfSense is also the router for the Docker host, an outage can cut off the internet as well, so a cloud service may never get **pfSense can't be reached**. A <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology> on the same network, such as a self-hosted ntfy or Gotify server, can still get it.
+:::
+
+## How Alerts Look
+
+- **Title** — Every alert starts with `pfSense Actions:` and the <Terminology title="something a destination can get an alert about" to="/docs/reference/terminology#notification-event">event</Terminology>, such as `pfSense Actions: pfSense can't be reached`, and email uses it as the subject.
+- **High priority** — **Saved secrets were removed**, **Sign-in locked**, and **pfSense can't be reached** use priority 4 on ntfy, 8 on Gotify, and 1 on Pushover. Discord shows them in red, and Apprise sends them as warnings.
+- **Low priority** — **Wake-on-LAN sent** uses priority 2 on ntfy and Gotify, and -1 on Pushover.
+- **Everything else** — **pfSense reachable again**, **Action failed**, and the test use priority 3 on ntfy, 5 on Gotify, and 0 on Pushover.
+- **Webhooks** — Webhook and Reverse Proxy for ntfy <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destinations</Terminology> get JSON instead, as covered in [Webhook Payload](#webhook-payload).
+
+```text title="Example alerts"
+pfSense Actions: pfSense can't be reached
+Couldn't sign in to pfSense at 192.0.2.1:22 over SSH in two checks in a row. Actions fail until it answers again.
+
+pfSense Actions: pfSense reachable again
+pfSense at 192.0.2.1:22 answered the scheduled check again.
+
+pfSense Actions: Action failed
+Wake-on-LAN failed: The pfSense command failed.
+
+pfSense Actions: Sign-in locked
+Ten failed sign-ins from 198.51.100.7. Sign-in from it is paused for 15 minutes.
+```
+
+## Send a Test
+
+1. Select **Send test** on a <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology>, which reads **Sending…** while it works.
+2. Check that **Test notification** arrives with the message `This is a test from pfSense Actions. Alerts for the events you chose will look like this.`
+
+- A notification in the corner then shows `Test sent to` and the <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology>'s name, or `The test to … couldn't be sent:` with the reason, such as `HTTP 401: Unauthorized` or `No answer within 10 seconds.`
+- A test goes out whichever <Terminology title="something a destination can get an alert about" to="/docs/reference/terminology#notification-event">events</Terminology> the <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology> chose, and it becomes the row's last send.
+
+<Frame caption="A destination after Send test">
+  <ThemedImage sources={{ light: notificationsFiveLight, dark: notificationsFiveDark }} alt="Destinations list where the My phone row shows last sent just now, with a Test sent to My phone. notification in the corner" width={992} height={442} style={{ maxWidth: '100%', height: 'auto' }} />
+</Frame>
+
+## Edit or Remove a Destination
+
+- **Edit** — Opens the same dialog with the note `Leave a saved secret blank to keep it.` Change the name, the <Terminology title="something a destination can get an alert about" to="/docs/reference/terminology#notification-event">events</Terminology>, or the fields, then select **Save**.
+- **Service** — It can't be changed, so add a new <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology> to switch services.
+- **Saved secrets** — A saved <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">secret field</Terminology> shows **Saved** instead of its value. Leaving it blank keeps the saved value, and typing a new one replaces it.
+- **Optional secrets** — Select **Remove saved value** below an optional secret, such as an ntfy **Access token**, to delete it when you save, or **Keep saved value** to undo that. Required secrets can't be removed this way.
+- **Plain fields** — They show their saved values, and clearing an optional one removes it when you save. Email is the exception when a password is saved: its **Username** stays required so the password can't be silently ignored.
+- **Remove** — Opens a dialog that asks you to confirm with `Alerts stop going to this destination. You can add it again later.`, then stops its alerts right away.
+
+<Frame caption="Editing a destination with a saved secret" style={{ maxWidth: 586, marginInline: 'auto' }}>
+  <ThemedImage sources={{ light: notificationsSixLight, dark: notificationsSixDark }} alt="Edit Firewall alerts dialog with the service fixed to Reverse Proxy for ntfy, the context URL, the context token showing Saved with Remove saved value below it, and two events checked" width={584} height={973} style={{ maxWidth: '100%', height: 'auto' }} />
+</Frame>
+
+<Frame caption="Confirming a removal" style={{ maxWidth: 490, marginInline: 'auto' }}>
+  <ThemedImage sources={{ light: notificationsSevenLight, dark: notificationsSevenDark }} alt="Remove Network alerts? dialog saying alerts stop going to this destination and that it can be added again later, with Cancel and Remove buttons" width={488} height={235} style={{ maxWidth: '100%', height: 'auto' }} />
+</Frame>
+
+## Secrets
+
+- **Sealed** — <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">Secret fields</Terminology> are encrypted with the <Terminology title="the 64-character key that seals stored secrets" to="/docs/reference/terminology#encryption-key">encryption key</Terminology> before they're saved, and pfSense Actions opens them only to send an alert or to keep them when you edit.
+- **Never shown** — The <Terminology title="the protected browser admin interface at /admin" to="/docs/reference/terminology#operations-console">operations console</Terminology> and the API show which <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">secret fields</Terminology> are saved, never their values.
+- **Backups** — It's recommended to back up `keys/installation.key` together with the database, as covered in [Backup and Recovery](/docs/operations/backup-and-recovery/#what-to-back-up).
+
+## After a Lost Encryption Key
+
+When pfSense Actions starts without its <Terminology title="the 64-character key that seals stored secrets" to="/docs/reference/terminology#encryption-key">encryption key</Terminology>, it makes a new one and removes what the old key sealed, as covered in [Lost Encryption Key](/docs/operations/backup-and-recovery/#lost-encryption-key).
+
+- **Secrets removed** — Every <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology>'s <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">secret fields</Terminology> are removed. The <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology> stays with its name, <Terminology title="something a destination can get an alert about" to="/docs/reference/terminology#notification-event">events</Terminology>, and plain fields.
+- **Paused** — A <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology> missing a secret gets no alerts, and its **Send test** is unavailable. Its row says which fields to enter, such as `Enter the bot token again. Alerts are paused until you do.`
+- **Notice** — The **Saved secrets were removed** notice at the top of every page has a link for each one, such as **Set up the Ops chat notification again**, which opens **Notifications**.
+- **Optional secrets too** — For an optional secret that a lost key removed, such as an ntfy **Access token**, either enter it again or select **Continue without this value** before you save, and the <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology> resumes. **Require this value** undoes that choice.
+- **Others keep working** — <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">Destinations</Terminology> without <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">secret fields</Terminology> keep getting alerts, and the ones that chose **Saved secrets were removed** get that alert while pfSense Actions starts.
+
+<Frame caption="Destinations paused after a lost key">
+  <ThemedImage sources={{ light: notificationsEightLight, dark: notificationsEightDark }} alt="Notifications page under the Saved secrets were removed notice, which lists the pfSense private key, the authenticator app, and the Firewall alerts, Network alerts, and Ops chat notifications, where the paused Firewall alerts, Network alerts, and Ops chat rows ask for their context token, webhook URL, and bot token again with Send test unavailable, and My phone isn't paused" width={1280} height={821} style={{ maxWidth: '100%', height: 'auto' }} />
+</Frame>
+
+To set a <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology> up again:
+
+1. Select **Edit** on it.
+2. Enter each required field marked `A lost key removed it. Enter it again.` For an optional one, enter it again or select **Continue without this value**.
+3. Select **Save**.
+
+<Frame caption="Entering a removed secret again" style={{ maxWidth: 586, marginInline: 'auto' }}>
+  <ThemedImage sources={{ light: notificationsNineLight, dark: notificationsNineDark }} alt="Edit Firewall alerts dialog with an empty Context token field whose hint says a lost key removed it, Continue without this value below it, and two events checked" width={584} height={973} style={{ maxWidth: '100%', height: 'auto' }} />
+</Frame>
+
+The <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology> then leaves the notice and gets alerts again.
+
+## Delivery
+
+- **Right away** — Each alert goes to every <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology> that chose its <Terminology title="something a destination can get an alert about" to="/docs/reference/terminology#notification-event">event</Terminology> as soon as it happens, without holding up the request that caused it.
+- **10-second limit** — Each send gives up after 10 seconds without an answer, and a slow service doesn't hold up the others.
+- **No retries** — A failed alert isn't sent again, and the row shows **Last attempt failed** in red with the reason.
+- **From the controller** — Alerts leave from pfSense Actions itself, so it needs to reach each service, such as `api.telegram.org`, `api.pushover.net`, or your SMTP server.
+
+## Webhook Payload
+
+Webhook and Reverse Proxy for ntfy <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destinations</Terminology> receive the same JSON <Terminology title="the JSON body webhooks and Reverse Proxy for ntfy receive" to="/docs/reference/terminology#notification-payload">payload</Terminology> in a `POST`. A saved token is sent as `Authorization: Bearer <token>`.
+
+```json title="Webhook body"
+{
+  "app": "pfsense-actions",
+  "details": {
+    "address": "192.0.2.1",
+    "port": 22
+  },
+  "event": "pfsense-unreachable",
+  "message": "Couldn't sign in to pfSense at 192.0.2.1:22 over SSH in two checks in a row. Actions fail until it answers again.",
+  "occurredAt": "2026-10-26T12:10:00.000Z",
+  "priority": 4,
+  "tags": ["warning"],
+  "title": "pfSense can't be reached",
+  "version": 1
+}
+```
+
+| Field        | Description                                                                                                                                                                                                                                     |
+|--------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `app`        | Always `pfsense-actions`.                                                                                                                                                                                                                       |
+| `details`    | Extra data for the <Terminology title="something a destination can get an alert about" to="/docs/reference/terminology#notification-event">event</Terminology>, listed in the next table.                                                       |
+| `event`      | The <Terminology title="something a destination can get an alert about" to="/docs/reference/terminology#notification-event">event</Terminology>'s key, or `test` for **Send test**.                                                             |
+| `message`    | The alert's text.                                                                                                                                                                                                                               |
+| `occurredAt` | When it happened, in UTC with milliseconds.                                                                                                                                                                                                     |
+| `priority`   | `4` for high-priority <Terminology title="something a destination can get an alert about" to="/docs/reference/terminology#notification-event">events</Terminology>, `2` for **Wake-on-LAN sent**, and `3` for the rest, on ntfy's 1-to-5 scale. |
+| `tags`       | ntfy tag names that show as emoji.                                                                                                                                                                                                              |
+| `title`      | The <Terminology title="something a destination can get an alert about" to="/docs/reference/terminology#notification-event">event</Terminology>'s name, without `pfSense Actions:`.                                                             |
+| `version`    | The <Terminology title="the JSON body webhooks and Reverse Proxy for ntfy receive" to="/docs/reference/terminology#notification-payload">payload</Terminology> format, `1`.                                                                     |
+
+| Key                   | Event                      | Priority | Tags               | `details`                                       |
+|-----------------------|----------------------------|----------|--------------------|-------------------------------------------------|
+| `secrets-removed`     | Saved secrets were removed | `4`      | `key`, `warning`   | `items`, the removed secrets in the log's words |
+| `sign-in-locked`      | Sign-in locked             | `4`      | `lock`             | `address`, the client address that was locked   |
+| `pfsense-unreachable` | pfSense can't be reached   | `4`      | `warning`          | `address` and `port` of the saved connection    |
+| `pfsense-reachable`   | pfSense reachable again    | `3`      | `white_check_mark` | `address` and `port` of the saved connection    |
+| `action-failed`       | Action failed              | `3`      | `x`                | `action` and `reason`                           |
+| `wol-sent`            | Wake-on-LAN sent           | `2`      | `zap`              | `macAddress` and `broadcastAddress`             |
+| `test`                | Send test                  | `3`      | `bell`             | Empty                                           |
+
+- `details.action` names the request the way the <Terminology title="a bounded, redacted history of actions and changes" to="/docs/reference/terminology#activity-log">activity log</Terminology> does: `connectivity-check`, `system-information`, `reachability-check`, or `wake-on-lan`.
+- `details.reason` is the short reason, such as `The pfSense command failed.`
+
+## Manage Notifications from Scripts
+
+The **Notifications** page uses these routes, which scripts can call too.
+
+| Route                                              | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+|----------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `GET /api/v1/notifications`                        | Lists every <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology>, newest first, with `secrets` naming its saved <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">secret fields</Terminology> but never their values.                                                                                                                                               |
+| `GET /api/v1/notifications/events`                 | Lists the <Terminology title="something a destination can get an alert about" to="/docs/reference/terminology#notification-event">events</Terminology> in the dialog's order, with their labels, descriptions, and `defaultEnabled` for the ones checked at first.                                                                                                                                                                                                                                                                    |
+| `POST /api/v1/notifications`                       | Adds a <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology> from `name`, `service`, `events`, and `settings`, and answers `201`.                                                                                                                                                                                                                                                                                                          |
+| `PUT /api/v1/notifications/{notificationId}`       | Changes a <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology>'s `name`, `events`, and `settings`, keeping saved <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">secret fields</Terminology> that are left out or blank. `clearSecrets` lists optional secrets to clear, saved or removed by a lost key, each once and never with a new value for the same field. |
+| `DELETE /api/v1/notifications/{notificationId}`    | Removes a <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology> and answers `204`.                                                                                                                                                                                                                                                                                                                                                         |
+| `POST /api/v1/notifications/{notificationId}/test` | Sends the test and answers `{"delivered":true}`, or `false` with a `message`.                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+
+`notificationId` is the <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology>'s `id`, such as `ntf-2a4c6e8a0b2d4f60`.
+
+:::warning
+These routes accept only a signed-in <Terminology title="a 24-hour console sign-in stored in the database" to="/docs/reference/terminology#browser-session">browser session</Terminology>. A request with an `Authorization` header, such as a <Terminology title="a scoped credential issued to one API client" to="/docs/reference/terminology#personal-access-token">personal access token</Terminology>, gets `403` with the code `session_required`, whatever its <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scopes</Terminology>.
+:::
+
+### Sign In from a Script
+
+A script signs in the way the <Terminology title="the protected browser admin interface at /admin" to="/docs/reference/terminology#operations-console">operations console</Terminology> does and keeps the session cookies.
+
+```bash
+read -r -s PFSENSE_ACTIONS_PASSWORD
+
+# Sign in and save the session cookies.
+printf '{"username":"admin","password":"%s"}' "$PFSENSE_ACTIONS_PASSWORD" \
+  | curl --silent --show-error --fail-with-body --cookie-jar session.txt \
+      --header 'Content-Type: application/json' --data @- \
+      https://actions.example.net/api/v1/auth/login
+
+unset PFSENSE_ACTIONS_PASSWORD
+
+# Read the CSRF value that changes need from the pfa_csrf cookie.
+csrf_token="$(awk '$6 == "pfa_csrf" { print $7 }' session.txt)"
+
+# List the destinations.
+curl --silent --show-error --fail-with-body --cookie session.txt \
+  https://actions.example.net/api/v1/notifications
+
+# Send a test to one destination.
+curl --silent --show-error --fail-with-body --cookie session.txt \
+  --request POST --header "X-CSRF-Token: $csrf_token" \
+  https://actions.example.net/api/v1/notifications/ntf-2a4c6e8a0b2d4f60/test
+
+# Sign out, which ends the session, then delete the cookies.
+curl --silent --show-error --cookie session.txt \
+  --request POST --header "X-CSRF-Token: $csrf_token" \
+  https://actions.example.net/api/v1/auth/logout
+
+rm session.txt
+```
+
+- **Username** — Replace `admin` with your username. `printf` doesn't escape JSON, so a password with `"` or `\` needs those characters escaped first.
+- **Changes** — `POST`, `PUT`, and `DELETE` need the `X-CSRF-Token` header with the session's <Terminology title="a per-session value required on console changes" to="/docs/reference/terminology#csrf-token">CSRF token</Terminology>, which the sign-in answer also returns as `csrfToken`.
+- **Authenticator app** — When it's on, the sign-in answers with a `challenge` instead, which you send with a `code` to `POST /api/v1/auth/login/second-factor`.
+- **Failed sign-ins** — They count toward the sign-in limit, and ten from one address send **Sign-in locked** to the <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destinations</Terminology> that chose it.
+- **Session file** — `session.txt` holds a working session until it expires or you sign out, so it's worth keeping it private.
+
+### Request Body
+
+```json title="POST /api/v1/notifications"
+{
+  "name": "My phone",
+  "service": "ntfy",
+  "events": ["sign-in-locked", "pfsense-unreachable", "pfsense-reachable"],
+  "settings": {
+    "url": "https://ntfy.sh/pfsense-alerts",
+    "token": "tk_example"
+  }
+}
+```
+
+| `service`            | `settings` keys                                                                                 |
+|----------------------|-------------------------------------------------------------------------------------------------|
+| `ntfy`               | `url`, `token`                                                                                  |
+| `ntfy-reverse-proxy` | `url`, `token`                                                                                  |
+| `telegram`           | `botToken`, `chatId`                                                                            |
+| `discord`            | `webhookUrl`                                                                                    |
+| `slack`              | `webhookUrl`                                                                                    |
+| `gotify`             | `url`, `token`                                                                                  |
+| `pushover`           | `userKey`, `appToken`                                                                           |
+| `matrix`             | `homeserverUrl`, `roomId`, `accessToken`                                                        |
+| `email`              | `host`, `port`, `security` (`starttls`, `tls`, or `none`), `username`, `password`, `from`, `to` |
+| `apprise`            | `url`, `urls`                                                                                   |
+| `webhook`            | `url`, `token`                                                                                  |
+
+- `events` takes the keys from [Webhook Payload](#webhook-payload), except `test`, and each key only once.
+- Every `settings` value is a string, including `port`, and the required keys match the required fields in [Services](#services).
+- A key that isn't listed for the service is refused with `This field isn't accepted.`
+- `PUT` takes the same body without `service`, or with the same one. A plain field that's left out is cleared, so it's worth sending all of them again.
+
+### Response Body
+
+```json title="One item from GET /api/v1/notifications"
+{
+  "createdAt": "2026-10-26T12:00:00.000Z",
+  "events": ["sign-in-locked", "pfsense-unreachable", "pfsense-reachable"],
+  "id": "ntf-2a4c6e8a0b2d4f60",
+  "lastAttemptAt": "2026-10-26T12:05:00.000Z",
+  "lastError": null,
+  "name": "My phone",
+  "secrets": { "token": true },
+  "secretsMissing": [],
+  "service": "ntfy",
+  "settings": { "url": "https://ntfy.sh/pfsense-alerts" },
+  "updatedAt": "2026-10-26T12:00:00.000Z"
+}
+```
+
+- `secrets` marks each saved <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">secret field</Terminology> with `true`, and `secretsMissing` lists the ones a lost <Terminology title="the 64-character key that seals stored secrets" to="/docs/reference/terminology#encryption-key">encryption key</Terminology> removed.
+- `lastAttemptAt` and `lastError` describe the last send, and `lastError` is `null` when it worked or nothing was sent yet.
+- `POST` answers `201` with the new <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology>, and `PUT` answers `200` with the changed one.
+- The test route answers `200` even when the send fails, with `delivered` set to `false` and the reason in `message`.
+
+### Errors
+
+| Status | Code                      | When                                                                                                                                                                                                               |
+|--------|---------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `401`  | `authentication_required` | No signed-in <Terminology title="a 24-hour console sign-in stored in the database" to="/docs/reference/terminology#browser-session">browser session</Terminology>, or it expired.                                  |
+| `403`  | `session_required`        | The request had an `Authorization` header, such as a <Terminology title="a scoped credential issued to one API client" to="/docs/reference/terminology#personal-access-token">personal access token</Terminology>. |
+| `403`  | `csrf_invalid`            | A change came without a matching `X-CSRF-Token` header.                                                                                                                                                            |
+| `404`  | `notification_not_found`  | The <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology> doesn't exist or was removed.                                 |
+| `409`  | `notification_exists`     | Another <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology> uses the name, whatever the letter case.                  |
+| `422`  | `invalid_request`         | A field failed its check, and `issues` names each one, such as `settings.url` or `events.2`.                                                                                                                       |
+| `429`  | `rate_limited`            | The address sent more than 120 requests under `/api/v1` in a minute.                                                                                                                                               |
+
+Malformed JSON and bodies over 64 KB get `400` and `413`, as described in [Request Basics](/docs/api/request-basics/#request-bodies).

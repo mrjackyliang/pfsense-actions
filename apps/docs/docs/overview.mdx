@@ -1,0 +1,71 @@
+---
+id: overview
+title: Overview
+description: Trigger Wake-on-LAN, reachability checks, and system information reads on one pfSense firewall through a small API with personal access tokens.
+sidebar_position: 1
+keywords:
+  - pfsense actions
+  - overview
+  - pfsense
+  - wake-on-lan
+  - home automation
+  - firewall api
+tags:
+  - overview
+  - getting started
+---
+
+import { Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
+
+Give scripts and home-automation tools a small set of pfSense <Terminology title="one allowlisted pfSense operation behind an API route" to="/docs/reference/terminology#action">actions</Terminology> without sharing your firewall login or a remote shell.
+
+## What Is pfSense Actions?
+
+pfSense Actions is a small self-hosted <Terminology title="the pfSense Actions service between clients and pfSense" to="/docs/reference/terminology#controller">controller</Terminology> that sits between your automation and one pfSense firewall. It signs in to the firewall over SSH, runs one fixed operation per request, and reports the result.
+
+## Why Use pfSense Actions?
+
+1. Keeps the pfSense login in one place, so each script holds only its own <Terminology title="a scoped credential issued to one API client" to="/docs/reference/terminology#personal-access-token">personal access token</Terminology>.
+2. Limits each token to named <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scopes</Terminology>, so a <Terminology title="waking a sleeping device with a network packet" to="/docs/reference/terminology#wake-on-lan">Wake-on-LAN</Terminology> shortcut can't run other <Terminology title="one allowlisted pfSense operation behind an API route" to="/docs/reference/terminology#action">actions</Terminology>.
+3. Answers with a <Terminology title="a reply that reports outcome, not firewall output" to="/docs/reference/terminology#data-minimizing-response">data-minimizing response</Terminology>, so scripts learn the outcome without seeing firewall output.
+4. Includes an <Terminology title="the protected browser admin interface at /admin" to="/docs/reference/terminology#operations-console">operations console</Terminology>, so you can create and revoke tokens without editing files.
+5. Sends alerts to ntfy, Telegram, email, and other services when pfSense stops answering or sign-in is locked, so you hear about a problem before a script runs into it.
+
+## Supported Actions
+
+| Request                    | What it does                                                                                                                                                                 | Scope               |
+|----------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------|
+| `GET /api/v1/connectivity` | Checks that pfSense Actions can sign in to the firewall.                                                                                                                     | `pfsense:read`      |
+| `GET /api/v1/system`       | Returns the firewall's operating system, release, and architecture.                                                                                                          | `pfsense:read`      |
+| `POST /api/v1/ping`        | Asks the firewall to ping one IP address.                                                                                                                                    | `reachability:read` |
+| `POST /api/v1/wol`         | Sends a <Terminology title="waking a sleeping device with a network packet" to="/docs/reference/terminology#wake-on-lan">Wake-on-LAN</Terminology> packet from the firewall. | `wol:execute`       |
+
+The same actions also answer at `GET /`, `GET /system`, `POST /ping`, and `POST /wol`, so scripts written for 1.x keep working.
+
+## What It Doesn't Do
+
+- It doesn't run arbitrary commands or open a remote shell for callers.
+- It doesn't change, import, or export pfSense configuration.
+- It doesn't replace the pfSense web interface, and the <Terminology title="the protected browser admin interface at /admin" to="/docs/reference/terminology#operations-console">operations console</Terminology> can't change firewall settings.
+- It manages one <Terminology title="the single pfSense firewall the controller reaches" to="/docs/reference/terminology#target-firewall">target firewall</Terminology> per deployment.
+
+## How It Works
+
+1. Your script sends a request with its <Terminology title="a scoped credential issued to one API client" to="/docs/reference/terminology#personal-access-token">personal access token</Terminology>.
+2. pfSense Actions checks the token and its <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scope</Terminology> before contacting the firewall.
+3. It signs in to the firewall over SSH, runs the commands for that <Terminology title="one allowlisted pfSense operation behind an API route" to="/docs/reference/terminology#action">action</Terminology>, and signs out.
+4. Your script receives a status code and a small JSON result, or three system fields for `GET /api/v1/system`.
+
+## Requirements at a Glance
+
+- **pfSense firewall** — SSH turned on and an account that pfSense Actions can sign in with.
+- **A host to run it** — Docker with Compose on an amd64 or arm64 machine, or Node.js 24 to run from source.
+- **HTTPS** — A <Terminology title="the HTTPS front end that forwards to the controller" to="/docs/reference/terminology#reverse-proxy">reverse proxy</Terminology> or another encrypted path for any traffic that leaves the host.
+
+## Next Steps
+
+- **[Prepare pfSense](/docs/getting-started/prepare-pfsense/)** — Turn on SSH and set up an account and key for pfSense Actions.
+- **[Install with Docker](/docs/getting-started/install-with-docker/)** — Build and start pfSense Actions with Docker Compose.
+- **[Request Basics](/docs/api/request-basics/)** — See how clients authenticate and read responses.
+- **[Notifications](/docs/console/notifications/)** — Get an alert when pfSense stops answering, sign-in is locked, or an action fails.
+- **[Upgrade from v1.3.1](/docs/getting-started/upgrade-from-v1/)** — Move an existing 1.x deployment to 2.0.0.

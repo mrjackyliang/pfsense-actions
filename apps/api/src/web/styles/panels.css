@@ -1,0 +1,466 @@
+/**
+ * ============================
+ * Panels
+ * ============================
+ */
+
+.panel {
+  display: grid;
+
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-raised);
+}
+
+.panel-heading {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+
+  & h2 {
+    font-size: var(--text-lg);
+  }
+}
+
+.panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.form-section {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+
+  border-bottom: 1px solid var(--color-border);
+}
+
+.form-section-head {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  min-height: 1.75rem;
+
+  & h2 {
+    font-size: var(--text-md);
+  }
+
+  & > span {
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+    color: var(--color-muted);
+  }
+
+  & .select-control {
+    min-height: 1.875rem;
+
+    font-size: var(--text-sm);
+  }
+}
+
+.form-section-note {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-4) var(--space-5);
+}
+
+.form-actions-spacer {
+  flex: 1;
+}
+
+.inline-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+
+  & .text-button {
+    height: auto;
+    padding: 0;
+  }
+}
+
+/**
+ * ============================
+ * Selectable Lists
+ * ============================
+ */
+
+.select-list {
+  display: grid;
+  grid-auto-rows: max-content;
+  max-height: 22rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+
+  list-style: none;
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.select-list-row {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  min-height: 3rem;
+  padding: var(--space-2) var(--space-3);
+
+  border-bottom: 1px solid var(--color-border);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  & > input {
+    flex: none;
+    width: 1rem;
+    height: 1rem;
+
+    accent-color: var(--color-accent);
+  }
+
+  &:has(> input:checked) {
+    background: var(--color-accent-soft);
+  }
+}
+
+label.select-list-row {
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-surface-hover);
+  }
+}
+
+.select-list-main {
+  display: grid;
+  flex: 1;
+  gap: 0.125rem;
+  min-width: 0;
+
+  & > span {
+    color: var(--color-text);
+  }
+
+  & small {
+    overflow: hidden;
+
+    font-size: var(--text-xs);
+    color: var(--color-muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.select-list-empty {
+  padding: var(--space-4);
+
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+  text-align: center;
+}
+
+/**
+ * ============================
+ * Switch
+ * ============================
+ */
+
+.switch-control {
+  position: relative;
+
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+
+  cursor: pointer;
+
+  & input {
+    position: absolute;
+
+    opacity: 0;
+  }
+
+  & input:disabled + .switch-track {
+    opacity: 0.5;
+  }
+
+  & input:focus-visible + .switch-track {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+.switch-track {
+  position: relative;
+
+  display: inline-block;
+  width: 2.25rem;
+  height: 1.375rem;
+
+  background: var(--color-border-strong);
+  border-radius: 999px;
+
+  transition: background-color 150ms ease;
+
+  & > span {
+    position: absolute;
+    top: 0.1875rem;
+    left: 0.1875rem;
+
+    width: 1rem;
+    height: 1rem;
+
+    background: var(--color-switch-knob);
+    border-radius: 999px;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 20%);
+
+    transition: transform 150ms ease;
+  }
+}
+
+.switch-control input:checked + .switch-track {
+  background: var(--color-accent);
+
+  & > span {
+    transform: translateX(0.875rem);
+  }
+}
+
+/**
+ * ============================
+ * Remote Apps
+ * ============================
+ */
+
+.switch-label {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+
+.copy-list {
+  display: grid;
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.copy-row {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+  min-height: 2.75rem;
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+
+  border-bottom: 1px solid var(--color-border);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  & > span:first-child {
+    font-size: var(--text-sm);
+    color: var(--color-muted);
+  }
+
+  & code {
+    overflow: hidden;
+
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.copy-row-hint {
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}
+
+.token-reveal {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+
+  background: var(--color-surface);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-lg);
+
+  & > .copy-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+}
+
+.token-reveal-head {
+  display: grid;
+  gap: 0.125rem;
+
+  & span {
+    font-size: var(--text-sm);
+    color: var(--color-muted);
+  }
+}
+
+/**
+ * ============================
+ * Password and Sign-in
+ * ============================
+ */
+
+.security-form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.security-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.security-state {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+
+.security-state-on {
+  color: var(--color-success);
+}
+
+.panel-actions-start {
+  justify-content: flex-start;
+}
+
+.totp-scan {
+  display: grid;
+  gap: var(--space-4);
+  justify-items: center;
+}
+
+.totp-qr {
+  width: 10rem;
+  height: 10rem;
+  padding: var(--space-2);
+
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+
+  image-rendering: pixelated;
+}
+
+.totp-scan-fields {
+  display: grid;
+  gap: var(--space-3);
+  justify-self: stretch;
+  min-width: 0;
+}
+
+/* Stacked with the QR code centered on phones; side by side once the key fits beside it. */
+@media (min-width: 680px) {
+  .totp-scan {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.totp-key {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.totp-key-head {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+
+  & > span {
+    font-size: var(--text-sm);
+    font-weight: 550;
+    color: var(--color-text-soft);
+  }
+
+  & .text-button {
+    display: inline-flex;
+    gap: var(--space-1);
+    align-items: center;
+    height: auto;
+    padding: 0;
+  }
+}
+
+/* Five blocks on the first row and the rest below, so a 32-character key reads as 5 then 3. */
+.totp-secret {
+  display: grid;
+  grid-template-columns: repeat(5, max-content);
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  color: var(--color-text);
+  letter-spacing: 0.06em;
+
+  background: var(--color-surface-raised);
+  border-radius: var(--radius-md);
+
+  /* One click selects the whole key, and copying it gives one line without the gaps. */
+  user-select: all;
+}
+
+@media (min-width: 480px) {
+  .totp-secret {
+    gap: var(--space-2) var(--space-3);
+
+    font-size: var(--text-lg);
+  }
+}
+
+.totp-codes {
+  display: grid;
+  gap: var(--space-4);
+}
+
+/* Two columns, so ten codes read as five rows. */
+.recovery-codes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  color: var(--color-text);
+  letter-spacing: 0.04em;
+  list-style: none;
+
+  background: var(--color-surface-raised);
+  border-radius: var(--radius-md);
+}

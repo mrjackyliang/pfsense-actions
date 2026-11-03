@@ -1,0 +1,114 @@
+---
+id: activity-log
+title: Activity Log
+description: Review the redacted activity log in the pfSense Actions operations console to see which tokens ran actions, who signed in, and what changed.
+sidebar_position: 4
+keywords:
+  - pfsense actions
+  - activity log
+  - audit
+  - events
+  - sign-in history
+  - redaction
+tags:
+  - console
+  - activity log
+---
+
+import ThemedImage from '@theme/ThemedImage';
+import { Frame, Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
+
+import activityLogOneLight from './_assets_/activity-log-1-light.png';
+import activityLogOneDark from './_assets_/activity-log-1-dark.png';
+
+Review what happened in pfSense Actions, from API requests to sign-ins and settings changes, with sensitive details left out.
+
+## Why Use the Activity Log?
+
+1. Shows which token ran which <Terminology title="one allowlisted pfSense operation behind an API route" to="/docs/reference/terminology#action">action</Terminology>, and whether it worked.
+2. Records failed sign-ins along with successful ones.
+3. Leaves out IP addresses, <Terminology title="a device's colon-separated hardware address" to="/docs/reference/terminology#mac-address">MAC addresses</Terminology>, request bodies, and credentials, so reviewing it doesn't expose them.
+
+## Read an Event
+
+The **Activity** page lists events with the newest first, and **Overview** shows the newest 8 under **Recent activity**. Each event shows:
+
+- **Status** — A green dot for `succeeded` or a red dot for `failed`.
+- **Summary** — What happened, such as `Completed Wake-on-LAN request`.
+- **Details** — The event name, the actor, and the category.
+- **Time** — How long ago it happened, with the full date for older events.
+
+<Frame caption="The Activity page">
+  <ThemedImage sources={{ light: activityLogOneLight, dark: activityLogOneDark }} alt="Activity page with the All, Access, Tokens, Configuration, Service, and Failed chips above the newest events, from notification-created, token-created, connection-tested, and installation-claimed by admin to API requests by Uptime Kuma and Home Assistant, where the reachability check failed" width={1280} height={706} style={{ maxWidth: '100%', height: 'auto' }} />
+</Frame>
+
+## Filter Events
+
+The chips above the list narrow it down.
+
+| Chip              | Shows                                                                                                                                                                                                        |
+|-------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **All**           | Every event.                                                                                                                                                                                                 |
+| **Access**        | API requests, sign-ins, and sign-in security changes.                                                                                                                                                        |
+| **Tokens**        | Tokens being created, edited, and revoked.                                                                                                                                                                   |
+| **Configuration** | Connection tests and changes, and changes to <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">notification destinations</Terminology>. |
+| **Service**       | Events from pfSense Actions itself, such as creating the database.                                                                                                                                           |
+| **Failed**        | Every event that failed, from any category.                                                                                                                                                                  |
+
+## Actors
+
+- **<Terminology title="the label you give a token, shown in the activity log" to="/docs/reference/terminology#token-name">Token name</Terminology>** — For API requests, the name the token had when it made the request.
+- **Administrator username** — For sign-ins and changes made in the console.
+- **`anonymous`** — For failed sign-in and setup attempts.
+- **`system`** — For events from pfSense Actions itself.
+
+## What Gets Recorded
+
+| Event                     | Category      | When it's recorded                                                                                                                                                                                                                                                                                                                         |
+|---------------------------|---------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `connectivity-check`      | Access        | A connectivity request ran.                                                                                                                                                                                                                                                                                                                |
+| `system-information`      | Access        | A system information request ran.                                                                                                                                                                                                                                                                                                          |
+| `reachability-check`      | Access        | A ping request ran, including one rejected for an invalid body.                                                                                                                                                                                                                                                                            |
+| `wake-on-lan`             | Access        | A Wake-on-LAN request ran, including one rejected for an invalid body.                                                                                                                                                                                                                                                                     |
+| `installation-claimed`    | Access        | Someone created the administrator account with the <Terminology title="the one-time code printed in the log for first-run setup" to="/docs/reference/terminology#setup-code">setup code</Terminology>.                                                                                                                                     |
+| `installation-claim`      | Access        | Someone entered a wrong or expired <Terminology title="the one-time code printed in the log for first-run setup" to="/docs/reference/terminology#setup-code">setup code</Terminology>.                                                                                                                                                     |
+| `sign-in`                 | Access        | Someone signed in, or a sign-in attempt failed.                                                                                                                                                                                                                                                                                            |
+| `sign-out`                | Access        | The administrator signed out.                                                                                                                                                                                                                                                                                                              |
+| `password-changed`        | Access        | The administrator's password changed.                                                                                                                                                                                                                                                                                                      |
+| `username-changed`        | Access        | The administrator's username changed.                                                                                                                                                                                                                                                                                                      |
+| `totp-enabled`            | Access        | An authenticator app was turned on.                                                                                                                                                                                                                                                                                                        |
+| `totp-disabled`           | Access        | The authenticator app was turned off.                                                                                                                                                                                                                                                                                                      |
+| `recovery-codes-replaced` | Access        | New <Terminology title="a single-use code that stands in for an authenticator code" to="/docs/reference/terminology#recovery-code">recovery codes</Terminology> replaced the old ones.                                                                                                                                                     |
+| `passkey-created`         | Access        | A <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkey</Terminology> was added.                                                                                                                                                                                 |
+| `passkey-removed`         | Access        | A <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkey</Terminology> was removed.                                                                                                                                                                               |
+| `token-created`           | Tokens        | A token was created.                                                                                                                                                                                                                                                                                                                       |
+| `token-updated`           | Tokens        | A token's name, <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scopes</Terminology>, or expiration changed.                                                                                                                                                                             |
+| `token-revoked`           | Tokens        | A token was revoked.                                                                                                                                                                                                                                                                                                                       |
+| `connection-tested`       | Configuration | Someone tested the saved connection.                                                                                                                                                                                                                                                                                                       |
+| `connection-update`       | Configuration | Proposed connection settings failed their test and weren't saved.                                                                                                                                                                                                                                                                          |
+| `connection-updated`      | Configuration | New connection settings passed their test and were saved, or the deprecated `PFSENSE_*` variables filled them in at startup.                                                                                                                                                                                                               |
+| `notification-created`    | Configuration | A <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">notification destination</Terminology> was added.                                                                                                                                                                 |
+| `notification-updated`    | Configuration | A <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">notification destination</Terminology>'s name, <Terminology title="something a destination can get an alert about" to="/docs/reference/terminology#notification-event">events</Terminology>, or settings changed. |
+| `notification-removed`    | Configuration | A <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">notification destination</Terminology> was removed.                                                                                                                                                               |
+| `state-initialized`       | Service       | pfSense Actions created a new <Terminology title="the SQLite file that holds the controller's state" to="/docs/reference/terminology#controller-database">controller database</Terminology>.                                                                                                                                               |
+| `encryption-key-replaced` | Service       | A missing <Terminology title="the 64-character key that seals stored secrets" to="/docs/reference/terminology#encryption-key">encryption key</Terminology> was replaced, and its secrets were removed.                                                                                                                                     |
+
+API requests rejected for a missing, malformed, unknown, or expired token, a missing <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scope</Terminology>, or a <Terminology title="a cap on requests per client address" to="/docs/reference/terminology#rate-limit">rate limit</Terminology> aren't recorded, and neither are requests answered `503` because no connection is saved.
+
+Alerts, **Send test**, and the <Terminology title="the 5-minute SSH check behind the pfSense alerts" to="/docs/reference/terminology#scheduled-check">scheduled check</Terminology> aren't recorded either. Each <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology>'s row on [Notifications](/docs/console/notifications/) shows its last send instead.
+
+## What's Never Recorded
+
+- Tokens, passwords, private keys, setup and recovery codes, and authenticator secrets.
+- Notification settings and <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">secret fields</Terminology>, since the events name only the <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology>.
+- Request bodies, including any IP or <Terminology title="a device's colon-separated hardware address" to="/docs/reference/terminology#mac-address">MAC addresses</Terminology> in them.
+- SSH output and error details.
+
+## Retention
+
+- pfSense Actions keeps the newest 250 events and deletes older ones as new events arrive, and the **Activity** page shows all of them.
+- The log lives in the <Terminology title="the SQLite file that holds the controller's state" to="/docs/reference/terminology#controller-database">controller database</Terminology>, so it survives restarts but not the removal of the <Terminology title="the persistent /data volume holding the database" to="/docs/reference/terminology#data-volume">data volume</Terminology>.
+
+:::info
+The <Terminology title="a bounded, redacted history of actions and changes" to="/docs/reference/terminology#activity-log">activity log</Terminology> is a local, bounded history, not a tamper-resistant audit trail or a replacement for central logging.
+:::

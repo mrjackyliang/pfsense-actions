@@ -1,0 +1,137 @@
+---
+id: install-with-docker
+title: Install with Docker
+description: Build and start pfSense Actions with Docker Compose, create the administrator account with the setup code from the log, connect pfSense, and create a token.
+sidebar_position: 2
+keywords:
+  - pfsense actions
+  - docker compose
+  - installation
+  - setup code
+  - data volume
+  - container
+tags:
+  - getting started
+  - docker
+  - installation
+---
+
+import { Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
+
+Run pfSense Actions with the repository's Docker Compose file, which builds the image on your host and publishes the console and API on port 22603.
+
+## Why Use This Deployment?
+
+1. Publishes port 22603 on every IPv4 and IPv6 address of the Docker host, so devices on your network can open the console. The [HTTPS reverse proxy](/docs/getting-started/https-reverse-proxy/) guide covers a <Terminology title="publishing the port only on 127.0.0.1" to="/docs/reference/terminology#loopback-binding">loopback binding</Terminology> that limits it to the Docker host.
+2. Needs no passwords or keys in files, because you create the <Terminology title="the single local console login, separate from tokens" to="/docs/reference/terminology#administrator-account">administrator account</Terminology> in the browser with a one-time <Terminology title="the one-time code printed in the log for first-run setup" to="/docs/reference/terminology#setup-code">setup code</Terminology> from the container log.
+3. Keeps the <Terminology title="the SQLite file that holds the controller's state" to="/docs/reference/terminology#controller-database">controller database</Terminology> and its generated <Terminology title="the 64-character key that seals stored secrets" to="/docs/reference/terminology#encryption-key">encryption key</Terminology> on a named <Terminology title="the persistent /data volume holding the database" to="/docs/reference/terminology#data-volume">data volume</Terminology> that survives rebuilds.
+4. Runs the service as a non-root user under <Terminology title="the container's process supervisor and init system" to="/docs/reference/terminology#s6-overlay">s6-overlay</Terminology>, with a built-in <Terminology title="the container probe that confirms the service is up" to="/docs/reference/terminology#health-check">health check</Terminology>.
+
+## Requirements
+
+- **Docker with Compose** — Docker Engine with the Compose plugin and BuildKit, on an amd64 or arm64 host.
+- **Repository checkout** — `compose.yml` builds the image from the root of the [pfSense Actions repository](https://github.com/mrjackyliang/pfsense-actions).
+- **Prepared pfSense** — SSH turned on and an account ready, as described in [Prepare pfSense](/docs/getting-started/prepare-pfsense/).
+- **HTTPS plan** — A <Terminology title="the HTTPS front end that forwards to the controller" to="/docs/reference/terminology#reverse-proxy">reverse proxy</Terminology> for any client that isn't on the Docker host, covered in [HTTPS Reverse Proxy](/docs/getting-started/https-reverse-proxy/).
+
+## Change the Host Settings
+
+`compose.yml` works without an environment file. To change the published port, the user the service runs as, or its time zone, copy the root sample file and edit it.
+
+```bash
+cp .env.sample .env
+```
+
+```bash title=".env"
+PFSENSE_ACTIONS_PORT="22603"
+PGID="1000"
+PUID="1000"
+TZ="UTC"
+```
+
+Every variable and its default is listed in the [Configuration Reference](/docs/reference/configuration/).
+
+## Build and Start
+
+Build the image and start the service from the repository root.
+
+```bash
+docker compose up --build --detach
+```
+
+`npm run deploy:container` runs the same command. On the first start, pfSense Actions creates the <Terminology title="the SQLite file that holds the controller's state" to="/docs/reference/terminology#controller-database">controller database</Terminology> and an <Terminology title="the 64-character key that seals stored secrets" to="/docs/reference/terminology#encryption-key">encryption key</Terminology>, which it saves as `keys/installation.key` in the <Terminology title="the persistent /data volume holding the database" to="/docs/reference/terminology#data-volume">data volume</Terminology>.
+
+## Find the Setup Code
+
+While no <Terminology title="the single local console login, separate from tokens" to="/docs/reference/terminology#administrator-account">administrator account</Terminology> exists, pfSense Actions prints a <Terminology title="the one-time code printed in the log for first-run setup" to="/docs/reference/terminology#setup-code">setup code</Terminology> in its log.
+
+```bash
+docker compose logs app
+```
+
+```text
+WARN No administrator account exists yet. Open the console at /admin/ to create it.
+WARN Setup code: ABCDE-FGHJK-LMNPQ (valid until 2026-01-01T12:30:00.000Z; restart the container for a new one)
+```
+
+- The code works once and lasts 30 minutes, and `docker compose restart app` prints a new one.
+- Anyone who can read the container log can use the code, so it's worth creating the account right after the first start.
+
+## Create the Administrator Account
+
+1. Open `http://<docker-host>:22603/admin/`, where `<docker-host>` is the name or address of the machine that runs Docker. Use your `PFSENSE_ACTIONS_PORT` if you changed it, or your HTTPS address once the proxy is in place.
+2. Enter the **One-time code** from the log. Letter case, spaces, and dashes don't matter.
+3. Choose a **Username** and a **Password** of at least 12 characters, repeat the password in **Confirm password**, and select **Create account**. The bar under the field rates it from **Weak** to **Strong**, and any password of 12 or more characters is accepted.
+
+The console signs you in right away, and the setup screen doesn't appear again.
+
+## Connect pfSense
+
+1. On **Overview**, select **Set up the connection**.
+2. Enter the firewall's IP address, the SSH port, and the SSH username.
+3. Choose **Private key** or **Password** under **Sign in with**, and paste the credential.
+4. Select **Test and save**.
+
+pfSense Actions saves the connection only after it signs in with it, as described in [pfSense Connection](/docs/console/pfsense-connection/).
+
+## Create a Token
+
+Create a <Terminology title="a scoped credential issued to one API client" to="/docs/reference/terminology#personal-access-token">personal access token</Terminology> with the `pfsense:read` <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scope</Terminology> as described in [Access Tokens](/docs/console/access-tokens/), and copy it while the console shows it.
+
+## Verify a Request
+
+Send one <Terminology title="the route that tests pfSense access" to="/docs/reference/terminology#connectivity-check">connectivity check</Terminology> from the Docker host, keeping the token out of the process list.
+
+```bash
+read -r -s PFSENSE_ACTIONS_TOKEN
+
+printf 'header = "Authorization: Bearer %s"\n' "$PFSENSE_ACTIONS_TOKEN" \
+  | curl --config - --silent --show-error \
+      --write-out '\nHTTP %{http_code}\n' \
+      http://127.0.0.1:22603/api/v1/connectivity
+
+unset PFSENSE_ACTIONS_TOKEN
+```
+
+`HTTP 200` with `{"connected":true}` means pfSense Actions signed in to the firewall and ran `uname -mrs`. `HTTP 502` means the SSH sign-in or the command failed, which [Troubleshooting](/docs/operations/troubleshooting/#requests-get-502) covers.
+
+## Get Alerts
+
+To hear when pfSense stops answering or sign-in is locked, add a <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">notification destination</Terminology> on the console's **Notifications** page, as described in [Notifications](/docs/console/notifications/).
+
+## What the Data Volume Holds
+
+The <Terminology title="the persistent /data volume holding the database" to="/docs/reference/terminology#data-volume">data volume</Terminology> `pfsense_actions_data` is mounted at `/data` and holds two things.
+
+- **`pfsense-actions.sqlite3`** — The <Terminology title="the SQLite file that holds the controller's state" to="/docs/reference/terminology#controller-database">controller database</Terminology>, with its `-wal` and `-shm` files. It holds the <Terminology title="the single local console login, separate from tokens" to="/docs/reference/terminology#administrator-account">administrator account</Terminology> with an Argon2id password hash, <Terminology title="a 24-hour console sign-in stored in the database" to="/docs/reference/terminology#browser-session">browser sessions</Terminology>, each <Terminology title="the SHA-256 digest stored instead of the token" to="/docs/reference/terminology#token-hash">token hash</Terminology> and its <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scopes</Terminology>, the encrypted pfSense connection, the encrypted <Terminology title="a six-digit authenticator app code for sign-in" to="/docs/reference/terminology#totp">TOTP</Terminology> secret, <Terminology title="a single-use code that stands in for an authenticator code" to="/docs/reference/terminology#recovery-code">recovery code</Terminology> hashes, <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkey</Terminology> public keys, <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">notification destinations</Terminology> with their encrypted <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">secret fields</Terminology>, and the <Terminology title="a bounded, redacted history of actions and changes" to="/docs/reference/terminology#activity-log">activity log</Terminology>.
+- **`keys/installation.key`** — The generated <Terminology title="the 64-character key that seals stored secrets" to="/docs/reference/terminology#encryption-key">encryption key</Terminology>, readable only by the service's user. If it goes missing, pfSense Actions makes a new one and removes the saved pfSense password or private key, the authenticator app, and every <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology>'s <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">secret fields</Terminology>, as described in [Backup and Recovery](/docs/operations/backup-and-recovery/#lost-encryption-key).
+
+Raw tokens, raw recovery codes, and plaintext passwords or private keys aren't stored anywhere.
+
+:::warning
+The volume holds both the database and the key that decrypts it, so anyone with a copy of the volume can read the stored pfSense credential and notification secrets. Keep volume backups as safe as the firewall credential itself, as described in [Backup and Recovery](/docs/operations/backup-and-recovery/).
+:::
+
+:::info
+The image is built on `node:24.22.0-trixie-slim`, pinned by digest, with <Terminology title="the container's process supervisor and init system" to="/docs/reference/terminology#s6-overlay">s6-overlay</Terminology> 3.2.3.2 downloaded from GitHub and checked against its SHA-256 checksums. Builds for any platform other than amd64 or arm64 stop with an error.
+:::

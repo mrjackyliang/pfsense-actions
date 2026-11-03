@@ -1,0 +1,10 @@
+{
+  "label": "Operations Console",
+  "position": 4,
+  "collapsible": true,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "description": "Sign in to the operations console, manage access tokens, test the pfSense connection, review activity, set up notifications, and secure your account."
+  }
+}

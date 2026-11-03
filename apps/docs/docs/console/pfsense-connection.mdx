@@ -1,0 +1,107 @@
+---
+id: pfsense-connection
+title: pfSense Connection
+description: Set up, test, and change the SSH connection pfSense Actions uses to reach the firewall, with new settings saved only after a successful sign-in test.
+sidebar_position: 3
+keywords:
+  - pfsense actions
+  - pfsense connection
+  - ssh settings
+  - connection test
+  - private key
+  - credentials
+tags:
+  - console
+  - pfsense
+  - ssh
+---
+
+import ThemedImage from '@theme/ThemedImage';
+import { Frame, Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
+
+import pfsenseConnectionOneLight from './_assets_/pfsense-connection-1-light.png';
+import pfsenseConnectionOneDark from './_assets_/pfsense-connection-1-dark.png';
+import pfsenseConnectionTwoLight from './_assets_/pfsense-connection-2-light.png';
+import pfsenseConnectionTwoDark from './_assets_/pfsense-connection-2-dark.png';
+import pfsenseConnectionThreeLight from './_assets_/pfsense-connection-3-light.png';
+import pfsenseConnectionThreeDark from './_assets_/pfsense-connection-3-dark.png';
+
+Set up and change how pfSense Actions signs in to your firewall, with every change tested before it's saved.
+
+## Why Test Before Saving?
+
+1. Keeps the working connection in place when new settings can't sign in.
+2. Treats the password or key as a <Terminology title="a credential you can replace but never read" to="/docs/reference/terminology#write-only-secret">write-only secret</Terminology>, so the console never shows it after you save it.
+3. Lets you check the saved connection at any time without running an <Terminology title="one allowlisted pfSense operation behind an API route" to="/docs/reference/terminology#action">action</Terminology>.
+
+## Set Up the Connection
+
+A new installation has no connection, so **Overview** shows **Connect to pfSense**, and every <Terminology title="one allowlisted pfSense operation behind an API route" to="/docs/reference/terminology#action">action</Terminology> answers `503` until you save one.
+
+1. Select **Set up the connection**, or open **Connection**.
+2. Fill in the fields described below, then select **Test and save**.
+
+If you try to open another page or sign out after changing a field, the console asks before discarding it. Refreshing or closing the browser tab uses the browser's unsaved-changes warning too.
+
+## View the Connection
+
+- **Overview** shows the firewall's address, the SSH username, and the sign-in method under **pfSense**, with the credential hidden.
+- **Connection** shows the same values under **Saved connection**, with a form to change them below.
+
+## Test the Saved Connection
+
+Select **Test connection** on **Overview** or **Connection**.
+
+**Last test** shows whether the sign-in worked, and the sidebar's connection status changes to match. The <Terminology title="a live SSH sign-in check against pfSense" to="/docs/reference/terminology#connection-test">connection test</Terminology> only signs in, so it doesn't ping or wake anything, and its result appears in the <Terminology title="a bounded, redacted history of actions and changes" to="/docs/reference/terminology#activity-log">activity log</Terminology>.
+
+<Frame caption="A saved connection after a test">
+  <ThemedImage sources={{ light: pfsenseConnectionOneLight, dark: pfsenseConnectionOneDark }} alt="pfSense connection page with the saved connection's address 192.168.1.1:22, SSH username admin, and private key sign-in, where Last test shows Signed in over SSH next to Test connection" width={992} height={345} style={{ maxWidth: '100%', height: 'auto' }} />
+</Frame>
+
+To hear about a connection that stops working without testing it yourself, add a <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">notification destination</Terminology> that chose **pfSense can't be reached**. pfSense Actions then runs a <Terminology title="the 5-minute SSH check behind the pfSense alerts" to="/docs/reference/terminology#scheduled-check">scheduled check</Terminology> every 5 minutes, as described in [Notifications](/docs/console/notifications/#the-scheduled-check).
+
+## Change Settings
+
+1. Open **Connection** and find **Change connection**.
+2. Edit **pfSense address**, **SSH port**, and **SSH username** as needed.
+3. Choose **Private key** or **Password** under **Sign in with**.
+4. Enter a new credential, or leave the field empty to keep the saved one.
+5. Select **Test and save**.
+
+<Frame caption="Changing the connection">
+  <ThemedImage sources={{ light: pfsenseConnectionTwoLight, dark: pfsenseConnectionTwoDark }} alt="Change connection form with the pfSense address, SSH port, and SSH username filled in, Private key selected under Sign in with, an empty private key field that keeps the saved key, and Test and save" width={992} height={592} style={{ maxWidth: '100%', height: 'auto' }} />
+</Frame>
+
+| Field               | What it accepts                                                               |
+|---------------------|-------------------------------------------------------------------------------|
+| **pfSense address** | An IPv4 or IPv6 address, not a hostname.                                      |
+| **SSH port**        | A number from 1 to 65535.                                                     |
+| **SSH username**    | Up to 128 characters.                                                         |
+| **Private key**     | The whole private key, including its BEGIN and END lines, with no passphrase. |
+| **Password**        | The account's SSH password.                                                   |
+
+pfSense Actions saves the settings only if the <Terminology title="a live SSH sign-in check against pfSense" to="/docs/reference/terminology#connection-test">connection test</Terminology> signs in with them. If it can't, nothing changes, and the console reports the failure next to **Test and save**.
+
+Switching between **Private key** and **Password** needs a new credential, because the saved one belongs to the other method.
+
+## Enter the Credential Again
+
+If pfSense Actions started without its <Terminology title="the 64-character key that seals stored secrets" to="/docs/reference/terminology#encryption-key">encryption key</Terminology>, it keeps the connection's address, port, username, and sign-in method, but removes the password or private key.
+
+- **Sign-in** under **Saved connection** shows `Password, not saved` or `Private key, not saved`, and the sidebar shows `Not connected` with `Enter the password again` or `Enter the private key again`.
+- Every <Terminology title="one allowlisted pfSense operation behind an API route" to="/docs/reference/terminology#action">action</Terminology> answers `503`, and **Test connection** reports `Enter the password or private key again, then save the connection.`
+- The <Terminology title="the 5-minute SSH check behind the pfSense alerts" to="/docs/reference/terminology#scheduled-check">scheduled check</Terminology> for notifications stops until the credential is back, so **pfSense can't be reached** isn't sent in the meantime.
+
+<Frame caption="A connection missing its private key">
+  <ThemedImage sources={{ light: pfsenseConnectionThreeLight, dark: pfsenseConnectionThreeDark }} alt="pfSense connection page under the Saved secrets were removed notice, which lists the pfSense private key, the authenticator app, and the Firewall alerts, Network alerts, and Ops chat notifications, where Sign-in shows Private key, not saved and the sidebar shows Not connected with Enter the private key again" width={1280} height={646} style={{ maxWidth: '100%', height: 'auto' }} />
+</Frame>
+
+Enter the password or private key under **Change connection** and select **Test and save**. [Backup and Recovery](/docs/operations/backup-and-recovery/#lost-encryption-key) covers what else a lost key removes.
+
+## Environment File Values
+
+:::warning
+The `PFSENSE_*` environment variables are deprecated <Terminology title="an optional setting that fills a new database" to="/docs/reference/terminology#bootstrap-value">bootstrap values</Terminology>. When they're set and no connection is saved yet, or its password or private key was removed, pfSense Actions imports them as the connection on its next start, without testing them, and logs a warning at every start while they're set.
+
+Change the connection on this page instead, and remove the variables.
+:::

@@ -1,0 +1,6 @@
+#!/command/with-contenv sh
+set -eu
+cd '/app/apps/api'
+export DATA_DIRECTORY='/data'
+export PORT='22603'
+exec /command/s6-applyuidgid -u "${PUID:-1000}" -g "${PGID:-1000}" -G "${PGID:-1000}" node build/index.js

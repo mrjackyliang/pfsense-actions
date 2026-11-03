@@ -1,0 +1,71 @@
+---
+title: "Introducing pfSense Actions 2.0.0: A Token for Every Script"
+description: pfSense Actions 2.0.0 gives every script its own scoped token to wake devices, ping addresses, or read pfSense details, plus a console to manage them.
+slug: introducing-pfsense-actions-v2
+authors:
+  - mrjackyliang
+keywords:
+  - pfsense actions
+  - pfsense
+  - wake-on-lan
+  - personal access tokens
+  - operations console
+  - home automation
+tags:
+  - release
+  - pfsense
+  - home automation
+---
+
+A shortcut that wakes your gaming PC needs one small thing from your pfSense firewall, and so does a dashboard that checks whether a device is up. The web interface isn't built for scripts, though, and sharing your firewall login or a shell gives them far more access than they need.
+
+pfSense Actions 2.0.0 is my answer: a small self-hosted controller that gives each script its own token for the pfSense actions it needs, and nothing more.
+
+{/* truncate */}
+
+## Why I Built It
+
+pfSense Actions grew out of one request: waking a computer through the firewall. In version 1.3.1, every client shared one API key, so a shortcut couldn't be limited to the one action it used.
+
+Some failures looked like successes, too, because `GET /` and `POST /wol` returned `200` even when the pfSense command failed. I wanted each script to hold only the access it needs and get a status it can trust.
+
+## What It Does
+
+pfSense Actions sits between your automation and one pfSense firewall, and it does four things:
+
+- **Checks connectivity** — Confirms that it can sign in to the firewall over SSH.
+- **Reads system information** — Returns the operating system, release, and architecture, and nothing else.
+- **Tests reachability** — Has the firewall ping one IP address, with up to 10 attempts in a single request.
+- **Wakes devices** — Sends a Wake-on-LAN packet from the firewall, which is on the device's subnet even when your client isn't.
+
+Replies are small JSON results without SSH output or credentials. pfSense Actions needs only SSH and commands that ship with pfSense, so nothing extra gets installed on the firewall.
+
+## Tokens and a Console
+
+Version 2.0.0 replaces the shared key with a personal access token for each client, created in a browser console at `/admin`.
+
+- **Scopes** — `pfsense:read`, `reachability:read`, and `wol:execute` never overlap, so a Wake-on-LAN shortcut can't run other actions.
+- **Expiration and revocation** — A token can expire in 30 days, 90 days, or a year, and revoking it rejects the client's next request.
+- **Hashes only** — pfSense Actions stores a SHA-256 hash instead of the token, so each token is shown once.
+- **Activity log** — The console records which token ran each action, leaving out IP addresses, MAC addresses, and request bodies.
+
+The same console tests new pfSense connection settings with a live SSH sign-in before it saves them.
+
+## Alerts When Something Goes Wrong
+
+The console's **Notifications** page sends alerts to ntfy, Telegram, Discord, Slack, email, a webhook, and five other services. When you ask for it, pfSense Actions also signs in to pfSense every five minutes and tells you when the firewall stops answering and when it's back.
+
+Each destination picks its own events, which also cover locked sign-ins, failed actions, and Wake-on-LAN packets. Tokens, passwords, and webhook URLs for those services are sealed with the encryption key and never shown again, as covered in [Notifications](/docs/console/notifications/).
+
+## Try It
+
+From the repository root, Docker Compose builds and starts the controller, and the log shows a one-time setup code for the console:
+
+```bash
+docker compose up --build --detach
+docker compose logs app
+```
+
+Compose publishes the port on `127.0.0.1` only, so it's recommended to add an HTTPS reverse proxy for clients on other machines.
+
+Head to [Prepare pfSense](/docs/getting-started/prepare-pfsense/) to get the firewall ready, then [Install with Docker](/docs/getting-started/install-with-docker/). Coming from 1.x, [Upgrade from v1.3.1](/docs/getting-started/upgrade-from-v1/) covers the new tokens, the paths that keep working, and the two routes that were removed.

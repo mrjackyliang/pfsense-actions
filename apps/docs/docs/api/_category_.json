@@ -1,0 +1,10 @@
+{
+  "label": "Build With the API",
+  "position": 3,
+  "collapsible": true,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "description": "Call the four pfSense Actions routes with personal access tokens, read every status code, and connect scripts and shortcuts."
+  }
+}

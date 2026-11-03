@@ -1,0 +1,209 @@
+---
+id: terminology
+title: Terminology
+description: Look up the terms used across the pfSense Actions docs, from personal access tokens and scopes to the operations console and container setup.
+sidebar_position: 3
+keywords:
+  - pfsense actions
+  - terminology
+  - glossary
+  - definitions
+  - concepts
+tags:
+  - reference
+  - terminology
+---
+
+Define the terms and concepts used throughout this documentation.
+
+## Action
+
+One allowlisted pfSense operation behind its own HTTP route: `GET /api/v1/connectivity`, `GET /api/v1/system`, `POST /api/v1/ping`, or `POST /api/v1/wol`. Each action also answers at a root path, such as `POST /wol`, runs a fixed command shape, and requires exactly one scope.
+
+## Allowlist
+
+The closed set of commands the controller runs on pfSense: `whoami`, `uname -mrs`, `ping -c 5 <address>`, and `wol -i <broadcast> <mac>`. Values come only from validated request fields, and no route accepts a command string.
+
+## Controller
+
+The pfSense Actions service that checks tokens, validates requests, runs allowlisted commands over SSH, and serves the operations console at `/admin`. Clients talk to the controller, never directly to the firewall.
+
+## Target Firewall
+
+The one pfSense firewall whose IP address, SSH port, username, and credential are stored in the controller database. Each deployment manages exactly one target firewall.
+
+## Data-Minimizing Response
+
+A reply that reports the outcome without returning firewall output. Action routes answer with a one-field JSON body, such as `{"connected": true}`, or with an error code and message, and only `GET /api/v1/system` returns firewall details, limited to three validated fields.
+
+## Operations Console
+
+The browser interface at `/admin` for creating the administrator account, managing personal access tokens, reviewing the activity log, testing or changing the pfSense connection, setting up notifications, and securing sign-in. It manages the controller only and can't run commands or change firewall settings.
+
+## Personal Access Token
+
+A credential issued to one script or integration, made of `pfa_` and 43 random characters, with one or more scopes and an optional expiry. The controller stores only its token hash, identifier, name, scopes, and timestamps.
+
+## Scope
+
+A named capability granted to a personal access token: `pfsense:read`, `reachability:read`, or `wol:execute`. Scopes are exact, so no scope grants access to another scope's routes.
+
+## Token Identifier
+
+The fixed ID of a personal access token, like `tok-3f9a1c2b7d4e5f60`, which pfSense Actions picks when the token is created and never changes.
+
+## Token Name
+
+The label you give a personal access token, like `Home Assistant`: up to 80 characters, and different from every other token's name regardless of letter case. You can change it at any time, and it appears as the actor in the activity log.
+
+## Token Hash
+
+The SHA-256 digest of a raw personal access token, which is the only form of the token the controller stores. A lost token can't be recovered from its hash, only replaced.
+
+## Rate Limit
+
+A cap on requests from one client IP address. Action routes allow 3 requests per 10 seconds, every route under `/api/v1` allows 120 requests per minute, and console sign-in allows 10 failed attempts per 15 minutes.
+
+## Connectivity Check
+
+The `GET /api/v1/connectivity` action, also at `GET /`, which signs in to the target firewall over SSH, runs `uname -mrs`, and answers `{"connected": true}` or an error. It requires the `pfsense:read` scope.
+
+## System Information
+
+The `GET /api/v1/system` action, also at `GET /system`, which returns the firewall's `operatingSystem`, `release`, and `architecture` as reported by `uname -mrs`. Output that doesn't split into exactly those three fields returns `502`.
+
+## Reachability Check
+
+The `POST /api/v1/ping` action, also at `POST /ping`, which asks the target firewall to ping one IP address for up to `count` ping attempts. It requires the `reachability:read` scope.
+
+## Ping Attempt
+
+One run of `ping -c 5 <address>` on the firewall during a reachability check. The request's `count`, from 1 to 10, sets the maximum number of attempts, so one request can send up to 50 echo requests.
+
+## Strict Mode
+
+A reachability check option, `"strict": true`, that counts a ping attempt as reachable only when it reports `0.0% packet loss`. Without it, any attempt that gets at least one reply counts.
+
+## Wake-on-LAN
+
+A way to power on a sleeping device by sending a "magic packet" that its network card listens for. The `POST /api/v1/wol` action, also at `POST /wol`, has pfSense send it with the `wol` command and requires the `wol:execute` scope.
+
+## Broadcast Address
+
+The address that reaches every device on a subnet, such as `192.0.2.255` for `192.0.2.0/24`. Wake-on-LAN packets don't cross subnets, so use the broadcast address of the subnet the device is on.
+
+## MAC Address
+
+A device's hardware address, written as six pairs of hexadecimal digits separated by colons, such as `00:11:22:33:44:55`. pfSense Actions accepts it in all lowercase or all uppercase.
+
+## Administrator Account
+
+The single local username and password that signs in to the operations console, stored in the controller database with the password as an Argon2id hash. You create it with the setup code, and personal access tokens and pfSense credentials can't sign in to the console.
+
+## Setup Code
+
+A one-time code in three groups of five characters, such as `ABCDE-FGHJK-LMNPQ`, that pfSense Actions prints in its log while no administrator account exists. Entering it on the console's setup screen creates the account.
+
+A code lasts 30 minutes, and each restart prints a new one.
+
+## Bootstrap Value
+
+A deprecated, optional setting that fills a new controller database: the `PFSENSE_*` connection values. The console replaces them, and the administrator account is always created on the setup screen.
+
+Each applies only while nothing of its kind is saved yet, so changing one later has no effect.
+
+## Browser Session
+
+The signed-in state the operations console keeps after you sign in, stored in the controller database for 24 hours from sign-in. Sessions survive restarts, and changing the password ends every session except the one that made the change.
+
+## CSRF Token
+
+A random value issued with each browser session that the console sends in the `X-CSRF-Token` header with every change. A change request without the matching value is rejected with `403`.
+
+## TOTP
+
+A time-based one-time password: the six-digit code an authenticator app shows, which changes every 30 seconds. Once you turn it on, password sign-in also asks for a code, and each code works only once.
+
+## Recovery Code
+
+One of ten single-use codes, such as `7KQ2M-XW9PD`, shown once when you turn on the authenticator app. A recovery code can stand in for an authenticator code at sign-in, and the controller stores only a hash of each one.
+
+## Passkey
+
+A WebAuthn credential kept by your device or password manager that signs in to the console without a username, password, or TOTP code. It's bound to the hostname it was added on, and the controller database stores only its public key and usage details.
+
+## Relying Party
+
+The identity a passkey is bound to, which pfSense Actions takes from the hostname in the browser when you add the passkey. A passkey works only at that hostname, which has to be a domain name served over HTTPS, or `localhost`.
+
+## Activity Log
+
+The redacted history of authenticated API actions, console sign-ins, and administrative changes, stored in the controller database. The newest 250 events are kept, and the console shows all of them.
+
+## Connection Test
+
+A live SSH sign-in to pfSense that the console runs with the saved settings or with proposed new ones. It checks that sign-in works and doesn't run any action.
+
+## Write-Only Secret
+
+A credential the console accepts but never shows again, such as the stored SSH password or private key, or a notification destination's secret field. Leaving the field blank keeps the current secret, though switching the SSH authentication method needs a new one.
+
+## Notification Destination
+
+One place alerts go, such as an ntfy topic, a Telegram chat, an email address, or a webhook, set up on the console's **Notifications** page. Each destination has a name, a service, the events it hears about, and the service's fields.
+
+## Notification Event
+
+Something pfSense Actions can send an alert about: **Saved secrets were removed**, **Sign-in locked**, **pfSense can't be reached**, **pfSense reachable again**, **Action failed**, or **Wake-on-LAN sent**. Each destination chooses its own events, and the first four are checked when you add one.
+
+## Scheduled Check
+
+The SSH sign-in and `uname -mrs` that pfSense Actions runs every 5 minutes while a destination hears about **pfSense can't be reached** or **pfSense reachable again**. Two failed checks in a row send **pfSense can't be reached**, and the next check that succeeds sends **pfSense reachable again**.
+
+## Secret Field
+
+A destination field, such as a token, key, password, or webhook URL, that's encrypted with the encryption key and never shown again. Leaving it blank when you edit keeps the saved value, and a start without the encryption key removes it.
+
+## Notification Payload
+
+The JSON body that Webhook and Reverse Proxy for ntfy destinations receive, with `version`, `app`, `event`, `title`, `message`, `priority`, `tags`, `occurredAt`, and `details`. Its `app` is always `pfsense-actions`.
+
+## Controller Database
+
+The SQLite file `pfsense-actions.sqlite3` in the data directory, holding the administrator account, browser sessions, token hashes, the encrypted pfSense connection, TOTP, recovery code, and passkey records, notification destinations with their sealed secret fields, and the activity log. The controller creates it readable only by its own user.
+
+## Data Volume
+
+The Docker named volume `pfsense_actions_data`, mounted at `/data`, that holds the controller database and the generated encryption key in the Compose deployment. Removing it deletes every token, setting, and activity record.
+
+## Encryption Key
+
+A 64-character hexadecimal key that encrypts the stored pfSense credential, the TOTP secret, and the secret fields of notification destinations. pfSense Actions generates it on the first start as `keys/installation.key` in the data directory, and if that file goes missing, it makes a new key and removes the secrets the old one sealed.
+
+## Shell Account Access
+
+The pfSense user privilege named "User - System: Shell account access", which lets an account sign in over SSH. pfSense Actions doesn't check privileges, so it's worth confirming the account can run the allowlisted commands.
+
+## Authorized SSH Key
+
+The public half of an SSH key pair, added to the pfSense user so the controller can sign in with the matching private key. Passphrase-protected private keys aren't supported.
+
+## Host Key Verification
+
+Checking that an SSH server's host key matches a known value before trusting the connection. pfSense Actions doesn't verify host keys yet, so it accepts whichever key the server presents.
+
+## Reverse Proxy
+
+A web server, such as Caddy, that serves HTTPS to clients and forwards requests to the controller's local listener. The controller reads the forwarded client address and protocol only from proxies on private or loopback addresses.
+
+## Loopback Binding
+
+Publishing the container port only on `127.0.0.1`, so that only the Docker host and software on it can reach the plain-HTTP listener. The included `compose.yml` publishes on every IPv4 and IPv6 address instead, so switch to this binding when a proxy on the same host is the only way in.
+
+## s6-overlay
+
+The process supervisor that runs as the container's first process. Its setup step checks `PUID`, `PGID`, and `TZ`, then it starts the controller as that user and restarts it if it exits.
+
+## Health Check
+
+The Docker check that runs every 30 seconds and marks the container unhealthy after 3 failures in a row. It confirms the service is running and accepting connections on port 22603 inside the container, and it never contacts pfSense.

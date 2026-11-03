@@ -1,0 +1,84 @@
+---
+id: connectivity-and-system
+title: Connectivity and System
+description: Test the SSH sign-in to pfSense with GET /api/v1/connectivity, and read the firewall's operating system, release, and architecture with GET /api/v1/system.
+sidebar_position: 2
+keywords:
+  - pfsense actions
+  - connectivity check
+  - system information
+  - uname
+  - pfsense read
+  - monitoring
+tags:
+  - api
+  - connectivity
+  - system information
+---
+
+import { Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
+
+Use the two `pfsense:read` routes to confirm that the <Terminology title="the pfSense Actions service between clients and pfSense" to="/docs/reference/terminology#controller">controller</Terminology> can reach the firewall and to read its basic system details.
+
+## Why Use These Routes?
+
+1. Tests the whole path, from the token to the firewall, in one request, so monitoring can tell a firewall problem from a client problem.
+2. Returns three validated fields instead of raw `uname` output, so clients get a stable shape.
+3. Needs only the read-only `pfsense:read` <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scope</Terminology>.
+
+## Check Connectivity
+
+`GET /api/v1/connectivity`, also at `GET /`, runs the <Terminology title="the route that tests pfSense access" to="/docs/reference/terminology#connectivity-check">connectivity check</Terminology>. It signs in to the <Terminology title="the single pfSense firewall the controller reaches" to="/docs/reference/terminology#target-firewall">target firewall</Terminology> over SSH, runs `uname -mrs`, and signs out.
+
+```bash
+printf 'header = "Authorization: Bearer %s"\n' "$PFSENSE_ACTIONS_TOKEN" \
+  | curl --config - --silent --show-error --fail-with-body \
+      https://actions.example.net/api/v1/connectivity
+```
+
+```json
+{
+  "connected": true
+}
+```
+
+- `200` means the sign-in and the command both succeeded, and `502` means either one failed.
+- Each call opens an SSH session, so the Docker <Terminology title="the container probe that confirms the service is up" to="/docs/reference/terminology#health-check">health check</Terminology> is the better fit for frequent liveness probes.
+- To get an alert when the firewall stops answering, a <Terminology title="the 5-minute SSH check behind the pfSense alerts" to="/docs/reference/terminology#scheduled-check">scheduled check</Terminology> can do the polling for you, as described in [Notifications](/docs/console/notifications/#the-scheduled-check).
+
+## Read System Information
+
+`GET /api/v1/system`, also at `GET /system`, returns the firewall's <Terminology title="the OS, release, and architecture from uname" to="/docs/reference/terminology#system-information">system information</Terminology> as JSON.
+
+```bash
+printf 'header = "Authorization: Bearer %s"\n' "$PFSENSE_ACTIONS_TOKEN" \
+  | curl --config - --silent --show-error --fail-with-body \
+      https://actions.example.net/api/v1/system
+```
+
+```json
+{
+  "architecture": "amd64",
+  "operatingSystem": "FreeBSD",
+  "release": "14.0-CURRENT"
+}
+```
+
+- The values come from `uname -mrs`, split on whitespace into the operating system, release, and architecture.
+- Output that doesn't split into exactly three fields returns `502` instead of a partial body.
+- The response leaves out the hostname, interfaces, configuration, and the raw command output.
+
+## Responses
+
+| Status | Error code                  | Meaning                                                                                                                                                                        |
+|--------|-----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `200`  | —                           | The SSH sign-in and `uname -mrs` succeeded.                                                                                                                                    |
+| `401`  | `authentication_required`   | The token is missing, malformed, unknown, or expired.                                                                                                                          |
+| `403`  | `scope_required`            | The token doesn't have `pfsense:read`.                                                                                                                                         |
+| `429`  | `rate_limited`              | The client reached a <Terminology title="a cap on requests per client address" to="/docs/reference/terminology#rate-limit">rate limit</Terminology>.                           |
+| `500`  | `internal_error`            | The <Terminology title="the pfSense Actions service between clients and pfSense" to="/docs/reference/terminology#controller">controller</Terminology> hit an unexpected error. |
+| `502`  | `pfsense_unavailable`       | The SSH sign-in failed.                                                                                                                                                        |
+| `502`  | `command_failed`            | `uname -mrs` failed, or the system information route got unexpected output.                                                                                                    |
+| `503`  | `connection_not_configured` | No pfSense connection is saved yet, or its credential was removed.                                                                                                             |
+
+The full list is in [Status Codes and Limits](/docs/api/status-codes/). A `502` or `500` also sends **Action failed** to the <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">notification destinations</Terminology> that chose it, as described in [Notifications](/docs/console/notifications/#events).

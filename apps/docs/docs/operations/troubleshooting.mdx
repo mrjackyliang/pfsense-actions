@@ -1,0 +1,181 @@
+---
+id: troubleshooting
+title: Troubleshooting
+description: Diagnose pfSense Actions startup errors, HTTP status codes, console sign-in and passkey problems, failed alerts, and settings that seem to have no effect.
+sidebar_position: 4
+keywords:
+  - pfsense actions
+  - troubleshooting
+  - errors
+  - status codes
+  - startup
+  - passkeys
+tags:
+  - operations
+  - troubleshooting
+---
+
+import { Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
+
+Find the cause of a pfSense Actions problem by checking the container first, then the HTTP status, then the console.
+
+## Start with Container State
+
+```bash
+docker compose ps
+docker compose logs --tail 100 app
+docker compose top
+```
+
+A healthy container shows `healthy`, logs `Listening on port 22603`, and runs `node build/index.js` under `/init`. Repeated startup errors in the logs mean <Terminology title="the container's process supervisor and init system" to="/docs/reference/terminology#s6-overlay">s6-overlay</Terminology> keeps restarting a service that fails as it starts.
+
+## Match the HTTP Status
+
+| Status | Likely cause                                                                                                                                                                                                                                 | Where to look                                              |
+|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------|
+| `400`  | The body is invalid, or `Content-Type: application/json` is missing.                                                                                                                                                                         | [Bodies Get 400](#bodies-get-400)                          |
+| `401`  | The token is missing, mistyped, expired, or revoked.                                                                                                                                                                                         | [Tokens Get 401](#tokens-get-401)                          |
+| `403`  | The token lacks the route's <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scope</Terminology>, or the route belongs to the console and needs a browser session.                          | [A Valid Token Gets 403](#a-valid-token-gets-403)          |
+| `404`  | The path or method is wrong.                                                                                                                                                                                                                 | [Request Basics](/docs/api/request-basics/)                |
+| `413`  | The body is over 64 KB.                                                                                                                                                                                                                      | [Request Basics](/docs/api/request-basics/#request-bodies) |
+| `429`  | The client reached a <Terminology title="a cap on requests per client address" to="/docs/reference/terminology#rate-limit">rate limit</Terminology>.                                                                                         | [Every Client Gets 429](#every-client-gets-429)            |
+| `500`  | An unexpected error, logged as an `ERROR` line.                                                                                                                                                                                              | [Container State](#start-with-container-state)             |
+| `502`  | The SSH sign-in or the command failed.                                                                                                                                                                                                       | [Requests Get 502](#requests-get-502)                      |
+| `503`  | No connection is saved, its credential was removed, or the target never met the <Terminology title="asking pfSense whether it can ping an address" to="/docs/reference/terminology#reachability-check">reachability condition</Terminology>. | [Requests Get 503](#requests-get-503)                      |
+
+Every error response also carries an `error.code`, listed in [Status Codes and Limits](/docs/api/status-codes/).
+
+## Startup Failures
+
+### Environment Validation Fails
+
+pfSense Actions checks its settings before it starts listening, and a failed check ends startup with an error that names the setting's internal field.
+
+| Field in the error | Fix                                                                                            |
+|--------------------|------------------------------------------------------------------------------------------------|
+| `pfsenseSshIp`     | Use an IP address in `PFSENSE_SSH_IP`, not a hostname, or leave every `PFSENSE_*` value empty. |
+| `pfsenseSshPort`   | Set `PFSENSE_SSH_PORT` to a number from 1 to 65535.                                            |
+
+The `PFSENSE_*` values go together, so set `PFSENSE_SSH_IP`, `PFSENSE_USERNAME`, and `PFSENSE_PASSWORD` or `PFSENSE_PRIVATE_KEY`, or leave all of them empty.
+
+### Encryption Key Doesn't Match
+
+- `The encryption key at /data/keys/installation.key doesn't belong to this database.` means the key file comes from another database, for example after a restore that mixed files.
+- `The encryption key file at /data/keys/installation.key is not 64 hexadecimal characters.` means the key file is damaged.
+
+[Backup and Recovery](/docs/operations/backup-and-recovery/#encryption-key-doesnt-match) covers the way out. A missing key file doesn't stop startup, as described in [Lost Encryption Key](/docs/operations/backup-and-recovery/#lost-encryption-key).
+
+### PUID, PGID, or TZ Rejected
+
+The container's setup step stops with messages such as `PUID must be a positive integer.`, `PGID must be between 1 and 2147483647.`, or `Unknown timezone: ...`. A value of `0` is rejected so the service can't run as root, and `TZ` has to name a zone in the image's time zone database.
+
+### Permission Errors on the Data Folder
+
+An `EACCES` error for `/data` or the database files means they belong to a different user than `PUID` and `PGID`. Change their owner as described in [Backup and Recovery](/docs/operations/backup-and-recovery/#change-puid-or-pgid-with-existing-data).
+
+### Build Stops on the Architecture
+
+`Unsupported target architecture: ...` means the build targeted a platform other than amd64 or arm64. Build on, or for, one of those two.
+
+## Request Failures
+
+### Every Client Gets 429
+
+- Clients share one address when the proxy doesn't send `X-Forwarded-For`, or when the clients are behind the same NAT.
+- Wait for the `Retry-After` seconds, then check the proxy setup in [HTTPS Reverse Proxy](/docs/getting-started/https-reverse-proxy/#forwarded-headers).
+
+### Tokens Get 401
+
+- The token was revoked or has expired, which the **Access tokens** page shows.
+- The header isn't exactly `Authorization: Bearer` followed by the full `pfa_` token, for example because the scheme is missing or extra characters slipped in.
+
+### A Valid Token Gets 403
+
+Compare the route with the token's <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scopes</Terminology> on the **Access tokens** page. The connectivity and system information routes need `pfsense:read`, the ping route needs `reachability:read`, and the Wake-on-LAN route needs `wol:execute`.
+
+The code `session_required` means the route belongs to the console, such as the notification routes, and no token works there. A script can sign in the way the console does instead, as described in [Notifications](/docs/console/notifications/#sign-in-from-a-script).
+
+### Requests Get 502
+
+- **`pfsense_unavailable`** — The IP address, port, username, or credential is wrong, SSH is turned off in pfSense, or a firewall rule blocks the host that runs pfSense Actions.
+- **`command_failed`** — The account can't run the command, or the system information route got output it couldn't parse.
+
+The logs don't record the cause. Select **Test connection** in the console to check the sign-in alone, then run the command yourself as shown in [Prepare pfSense](/docs/getting-started/prepare-pfsense/#confirm-the-commands).
+
+### Requests Get 503
+
+- **`connection_not_configured`** — No pfSense connection is saved yet, or its password or private key was removed with a lost <Terminology title="the 64-character key that seals stored secrets" to="/docs/reference/terminology#encryption-key">encryption key</Terminology>. Set one up, or enter the credential again, on the console's **Connection** page.
+- **`target_unreachable`** — Every <Terminology title="one five-packet ping run in a reachability check" to="/docs/reference/terminology#ping-attempt">ping attempt</Terminology> finished without meeting the selected condition, which in normal mode means no reply arrived and in <Terminology title="requiring zero packet loss for a reachable result" to="/docs/reference/terminology#strict-mode">strict mode</Terminology> also covers partial replies. Retry later, raise `count`, or turn off <Terminology title="requiring zero packet loss for a reachable result" to="/docs/reference/terminology#strict-mode">strict mode</Terminology> when partial replies are enough.
+
+### Bodies Get 400
+
+`error.issues` names each field that failed and why. The usual causes are:
+
+- `Content-Type: application/json` is missing from the request.
+- `count` is a string, or it's outside 1 to 10.
+- The <Terminology title="a device's colon-separated hardware address" to="/docs/reference/terminology#mac-address">MAC address</Terminology> uses hyphens or mixed case.
+- An address is a hostname rather than an IP address.
+
+## Console Problems
+
+### The Setup Code Is Rejected
+
+- The code expired, because each one lasts 30 minutes. Restart the container with `docker compose restart app` and use the new code from the log.
+- The code was already used. Once an account exists, the console shows the sign-in screen instead.
+- After 10 wrong codes in 15 minutes, the setup screen refuses more from that address until the window passes.
+
+### Credentials Are Rejected
+
+- Only the <Terminology title="the single local console login, separate from tokens" to="/docs/reference/terminology#administrator-account">administrator account</Terminology> signs in here, so tokens and pfSense logins don't work.
+- After 10 failed attempts in 15 minutes, the console refuses sign-ins from that address until the window passes.
+
+### Lost Authenticator or Password
+
+Sign in with a <Terminology title="a single-use code that stands in for an authenticator code" to="/docs/reference/terminology#recovery-code">recovery code</Terminology> or a <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkey</Terminology>, or follow [Backup and Recovery](/docs/operations/backup-and-recovery/#lost-authenticator).
+
+### Saved Secrets Were Removed
+
+The console shows **Saved secrets were removed** when pfSense Actions started without its <Terminology title="the 64-character key that seals stored secrets" to="/docs/reference/terminology#encryption-key">encryption key</Terminology>, and the log has a warning that starts with `No encryption key was found at`. Enter each listed item again, including the <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">secret fields</Terminology> of each <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">notification destination</Terminology>, as described in [Lost Encryption Key](/docs/operations/backup-and-recovery/#lost-encryption-key).
+
+### Signed Out Unexpectedly
+
+A <Terminology title="a 24-hour console sign-in stored in the database" to="/docs/reference/terminology#browser-session">browser session</Terminology> ends 24 hours after sign-in, and changing the password on another device ends this one. Signing in again is all it takes, and nothing else is lost.
+
+### Passkeys Aren't Offered
+
+- The console is open at an IP address such as `127.0.0.1` or `192.0.2.10`, or over plain HTTP on a name other than `localhost`. Open it at its HTTPS domain name.
+- The proxy doesn't send `X-Forwarded-Proto`, so pfSense Actions thinks the browser used plain HTTP. Check the proxy setup in [HTTPS Reverse Proxy](/docs/getting-started/https-reverse-proxy/#forwarded-headers).
+
+### Passkey Sign-In Fails
+
+- The <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkey</Terminology> was added at a different hostname, and it only works there. The **Passkeys** list shows each one's hostname.
+- The browser or password manager doesn't have the passkey anymore. Sign in another way, remove it, and add it again.
+
+## Notification Problems
+
+### A Test Fails
+
+The <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology>'s row shows `The test couldn't be sent:` and the reason.
+
+- **`HTTP` and a `4xx` status** — The service refused the alert, usually because a token, key, chat, room, or webhook URL is wrong or was revoked. Select **Edit**, enter the field again, and send another test.
+- **`No answer within 10 seconds.`** — pfSense Actions couldn't reach the service in time. Check that the Docker host can reach the service's address, and that a self-hosted server is running.
+- **A network or mail error** — The address doesn't resolve or refuses the connection, or the SMTP server rejected the sign-in or the **Security** choice. **TLS** usually goes with port 465, and **STARTTLS** with port 587.
+
+### Alerts Don't Arrive
+
+- **The event isn't checked** — Select **Edit** and check it. **Action failed** and **Wake-on-LAN sent** start unchecked.
+- **The destination is paused** — A row that ends with `Alerts are paused until you do.` lost its <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">secret fields</Terminology> with the <Terminology title="the 64-character key that seals stored secrets" to="/docs/reference/terminology#encryption-key">encryption key</Terminology>. Enter them again as described in [Notifications](/docs/console/notifications/#after-a-lost-encryption-key).
+- **The last attempt failed** — Alerts aren't sent again, so the reason after **Last attempt failed** shows what to fix, and **Send test** confirms the fix.
+
+### pfSense Can't Be Reached Never Arrives
+
+- The <Terminology title="the 5-minute SSH check behind the pfSense alerts" to="/docs/reference/terminology#scheduled-check">scheduled check</Terminology> runs only while a <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology> that isn't paused chose **pfSense can't be reached** or **pfSense reachable again**, and while the connection's password or private key is saved.
+- The first check runs 5 minutes after pfSense Actions starts, and it takes two failed checks in a row, so the alert can take about 10 minutes.
+- When pfSense is also the router for the Docker host, the outage can keep the alert from reaching a cloud service. A <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology> on the same network still gets it, as described in [The Scheduled Check](/docs/console/notifications/#the-scheduled-check).
+
+## Changed Settings Had No Effect
+
+- The deprecated `PFSENSE_*` values are <Terminology title="an optional setting that fills a new database" to="/docs/reference/terminology#bootstrap-value">bootstrap values</Terminology>, so they only matter while no connection is saved, and every start logs a warning while they're set. Change the connection in the console instead, and remove them.
+- `LOG_LEVEL` and `LOG_TIME` apply at the next start, so recreate the container after changing them.
+- The container fixes `PORT` at `22603` and `DATA_DIRECTORY` at `/data`, so changing them has no effect in Docker.
+- In a source run, pointing `DATA_DIRECTORY` somewhere new starts an empty database with a new <Terminology title="the 64-character key that seals stored secrets" to="/docs/reference/terminology#encryption-key">encryption key</Terminology>, where the setup screen and the <Terminology title="an optional setting that fills a new database" to="/docs/reference/terminology#bootstrap-value">bootstrap values</Terminology> apply again.

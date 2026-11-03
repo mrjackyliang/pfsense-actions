@@ -1,0 +1,10 @@
+{
+  "label": "Reference",
+  "position": 6,
+  "collapsible": true,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "description": "Look up every configuration setting, answers to common questions, and the terms used throughout the pfSense Actions documentation."
+  }
+}

@@ -1,0 +1,85 @@
+---
+id: reachability-check
+title: Reachability Check
+description: Ask pfSense to ping one IP address with POST /api/v1/ping, set how many five-packet attempts it can make, and interpret the 200, 502, and 503 results.
+sidebar_position: 3
+keywords:
+  - pfsense actions
+  - reachability check
+  - ping
+  - strict mode
+  - packet loss
+  - attempts
+tags:
+  - api
+  - ping
+  - reachability
+---
+
+import { Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
+
+Ask the firewall to ping one IP address with `POST /api/v1/ping`, also at `POST /ping`, repeating up to `count` times, and get back a single result.
+
+## Why Use This Action?
+
+1. Tests reachability from the firewall, which can reach devices that your client can't.
+2. Repeats on the firewall within one request, so a client can wait for a device to come up without polling.
+3. Accepts only an IP address, a small number, and a flag, so nothing else reaches the `ping` command.
+
+## Request Body
+
+| Field       | Description                                                                                                                                                                                                   |
+|-------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `count`     | Required. The maximum number of <Terminology title="one five-packet ping run in a reachability check" to="/docs/reference/terminology#ping-attempt">ping attempts</Terminology>, an integer from `1` to `10`. |
+| `ipAddress` | Required. The IPv4 or IPv6 address to ping from the firewall, not a hostname.                                                                                                                                 |
+| `strict`    | Optional boolean, `false` by default. When `true`, an attempt counts only with zero packet loss.                                                                                                              |
+
+## How Attempts Work
+
+- Each <Terminology title="one five-packet ping run in a reachability check" to="/docs/reference/terminology#ping-attempt">ping attempt</Terminology> runs `ping -c 5 <ipAddress>` on the firewall, so one request sends at most 50 echo requests.
+- Attempts run one after another and stop at the first one that meets the condition, so a target that never answers uses up every attempt before the route answers `503`.
+- Without <Terminology title="requiring zero packet loss for a reachable result" to="/docs/reference/terminology#strict-mode">strict mode</Terminology>, an attempt succeeds when `ping` doesn't report `100.0% packet loss`. With <Terminology title="requiring zero packet loss for a reachable result" to="/docs/reference/terminology#strict-mode">strict mode</Terminology>, it succeeds only when `ping` reports `0.0% packet loss`.
+- Each attempt takes several seconds while `ping` sends its five packets, and pfSense Actions sets no time limit on the command. It's worth setting client and proxy timeouts with the largest `count` you use in mind.
+
+## Responses
+
+| Status | Error code                  | Meaning                                                              |
+|--------|-----------------------------|----------------------------------------------------------------------|
+| `200`  | —                           | An attempt met the condition, and the body is `{"reachable": true}`. |
+| `400`  | `invalid_request`           | The body failed validation.                                          |
+| `502`  | `pfsense_unavailable`       | The SSH sign-in failed.                                              |
+| `502`  | `command_failed`            | `ping` exited with a status other than `0`, or `2` for no reply.     |
+| `503`  | `target_unreachable`        | Every attempt ran without meeting the condition.                     |
+| `503`  | `connection_not_configured` | No pfSense connection is saved yet, or its credential was removed.   |
+
+- `401`, `403`, `429`, and `500` behave as described in [Status Codes and Limits](/docs/api/status-codes/).
+- A `502` or `500` also sends **Action failed** to the <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">notification destinations</Terminology> that chose it, while `target_unreachable` doesn't, as described in [Notifications](/docs/console/notifications/#events).
+
+## Examples
+
+Check a device with up to three attempts and print only the status code.
+
+```bash
+printf 'header = "Authorization: Bearer %s"\n' "$PFSENSE_ACTIONS_TOKEN" \
+  | curl --config - --silent --show-error \
+      --output /dev/null --write-out 'HTTP %{http_code}\n' \
+      --header 'Content-Type: application/json' \
+      --request POST \
+      --data '{"count":3,"ipAddress":"192.0.2.25","strict":false}' \
+      https://actions.example.net/api/v1/ping
+```
+
+Require every packet of an attempt to come back, with up to ten attempts.
+
+```json
+{
+  "count": 10,
+  "ipAddress": "192.0.2.25",
+  "strict": true
+}
+```
+
+## IPv6 Notes
+
+- The request accepts IPv6 addresses, including link-local addresses with a zone such as `fe80::1%igb0`.
+- pfSense Actions passes the address to the firewall's `ping` command unchanged, and its tests don't cover IPv6 targets. Whether an IPv6 target works depends on the `ping` command in your pfSense release.

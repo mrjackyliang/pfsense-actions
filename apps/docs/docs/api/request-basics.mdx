@@ -1,0 +1,121 @@
+---
+id: request-basics
+title: Request Basics
+description: Authenticate pfSense Actions API requests with a Bearer personal access token, send JSON bodies to the /api/v1 routes, and read JSON results and errors.
+sidebar_position: 1
+keywords:
+  - pfsense actions
+  - api
+  - authentication
+  - bearer token
+  - json
+  - curl
+tags:
+  - api
+  - authentication
+---
+
+import { Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
+
+Send every pfSense Actions request to its HTTPS address with a <Terminology title="a scoped credential issued to one API client" to="/docs/reference/terminology#personal-access-token">personal access token</Terminology>, a JSON body where the route needs one, and read the status code and JSON reply as the result.
+
+## Base URL
+
+Use the HTTPS origin of your <Terminology title="the HTTPS front end that forwards to the controller" to="/docs/reference/terminology#reverse-proxy">reverse proxy</Terminology>, such as `https://actions.example.net`. The routes live under `/api/v1`, and serving them under a sub-path isn't supported.
+
+| Route                      | Also at       | Scope               |
+|----------------------------|---------------|---------------------|
+| `GET /api/v1/connectivity` | `GET /`       | `pfsense:read`      |
+| `GET /api/v1/system`       | `GET /system` | `pfsense:read`      |
+| `POST /api/v1/ping`        | `POST /ping`  | `reachability:read` |
+| `POST /api/v1/wol`         | `POST /wol`   | `wol:execute`       |
+
+The shorter paths run the same handlers, so scripts written for 1.x keep working with `GET /`, `POST /ping`, and `POST /wol`.
+
+## Authentication
+
+Send the token in the `Authorization` header of every request.
+
+```http
+GET /api/v1/system HTTP/1.1
+Host: actions.example.net
+Authorization: Bearer pfa_...
+```
+
+- The `Bearer` scheme name is matched without regard to case, and a token is `pfa_` followed by 43 URL-safe base64 characters.
+- A missing, malformed, unknown, expired, or revoked token returns `401` with the code `authentication_required`, with no detail about which check failed.
+- A valid token without the route's <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scope</Terminology> returns `403` with the code `scope_required`.
+- A console sign-in can't run an <Terminology title="one allowlisted pfSense operation behind an API route" to="/docs/reference/terminology#action">action</Terminology>, so only tokens work here.
+- The console's own routes work the other way around. They need a signed-in <Terminology title="a 24-hour console sign-in stored in the database" to="/docs/reference/terminology#browser-session">browser session</Terminology>, so a request with a token gets `403` with the code `session_required`, as described in [Notifications](/docs/console/notifications/#manage-notifications-from-scripts).
+
+## Scopes
+
+| Scope               | Routes                                           | Changes state |
+|---------------------|--------------------------------------------------|---------------|
+| `pfsense:read`      | `GET /api/v1/connectivity`, `GET /api/v1/system` | No            |
+| `reachability:read` | `POST /api/v1/ping`                              | No            |
+| `wol:execute`       | `POST /api/v1/wol`                               | Yes           |
+
+<Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">Scopes</Terminology> are exact and never grant each other's routes. Token changes made in the <Terminology title="the protected browser admin interface at /admin" to="/docs/reference/terminology#operations-console">operations console</Terminology> apply to the next request, with no restart.
+
+## Request Bodies
+
+- `POST /api/v1/ping` and `POST /api/v1/wol` take a JSON body sent with `Content-Type: application/json`. Without that header, the body isn't read, so the route answers `400`.
+- Malformed JSON returns `400` with the code `invalid_json`, and a body over 64 KB returns `413`, both before the token is checked.
+- Field types are strict, so `"count": "3"` is rejected where `"count": 3` is accepted. Fields that a route doesn't define are ignored.
+
+## Responses
+
+Every route answers with JSON, and each one is a <Terminology title="a reply that reports outcome, not firewall output" to="/docs/reference/terminology#data-minimizing-response">data-minimizing response</Terminology> that leaves out SSH output, error details, and credentials.
+
+```json title="A successful connectivity check"
+{
+  "connected": true
+}
+```
+
+```json title="A failed request"
+{
+  "error": {
+    "code": "pfsense_unavailable",
+    "message": "pfSense Actions couldn't sign in to pfSense over SSH."
+  }
+}
+```
+
+- `GET /api/v1/system` returns three system fields, and the other routes return one field set to `true`.
+- A failed request returns an `error` object with a stable `code` for scripts and a `message` for people.
+- A body that fails validation also lists each problem in `issues`, with the `field` name, a `message`, and the `path` as a list, and the top-level `message` repeats the first one.
+
+```json title="A body that failed validation"
+{
+  "error": {
+    "code": "invalid_request",
+    "message": "Enter a MAC address such as 00:11:22:33:44:55, in all lowercase or all uppercase.",
+    "issues": [
+      {
+        "field": "macAddress",
+        "message": "Enter a MAC address such as 00:11:22:33:44:55, in all lowercase or all uppercase.",
+        "path": ["macAddress"]
+      }
+    ]
+  }
+}
+```
+
+## Keep Tokens out of Process Arguments
+
+Passing the token with curl's `-H` option puts it in the process arguments, where other users on the machine can see it. Piping the header to curl's `--config -` keeps it out, as long as `printf` is the shell's builtin rather than `/usr/bin/printf`.
+
+```bash
+read -r -s PFSENSE_ACTIONS_TOKEN
+
+printf 'header = "Authorization: Bearer %s"\n' "$PFSENSE_ACTIONS_TOKEN" \
+  | curl --config - --silent --show-error --fail-with-body \
+      https://actions.example.net/api/v1/system
+
+unset PFSENSE_ACTIONS_TOKEN
+```
+
+- `read -r -s` reads the token without showing it or saving it to the shell history.
+- The other examples in these docs use the same pattern.

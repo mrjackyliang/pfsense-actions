@@ -1,0 +1,89 @@
+---
+id: wake-on-lan
+title: Wake-on-LAN
+description: Wake a sleeping device with POST /api/v1/wol by sending its MAC address and subnet broadcast address, and learn what a 200 response does and doesn't confirm.
+sidebar_position: 4
+keywords:
+  - pfsense actions
+  - wake-on-lan
+  - magic packet
+  - mac address
+  - broadcast address
+  - wol
+tags:
+  - api
+  - wake-on-lan
+---
+
+import { Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
+
+Send a <Terminology title="waking a sleeping device with a network packet" to="/docs/reference/terminology#wake-on-lan">Wake-on-LAN</Terminology> packet from the firewall to one device with `POST /api/v1/wol`, also at `POST /wol`, using its <Terminology title="a device's colon-separated hardware address" to="/docs/reference/terminology#mac-address">MAC address</Terminology> and its subnet's <Terminology title="the subnet-wide address the wake packet targets" to="/docs/reference/terminology#broadcast-address">broadcast address</Terminology>.
+
+## Why Use This Action?
+
+1. Sends the packet from the firewall, which is on the device's subnet even when your client isn't.
+2. Requires its own `wol:execute` <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scope</Terminology>, so read-only tokens can't wake devices.
+3. Checks both addresses before contacting pfSense, so a typo fails right away with `400`.
+
+## Request Body
+
+| Field              | Description                                                                                                                                                                                                     |
+|--------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `broadcastAddress` | Required. The <Terminology title="the subnet-wide address the wake packet targets" to="/docs/reference/terminology#broadcast-address">broadcast address</Terminology> of the device's subnet, as an IP address. |
+| `macAddress`       | Required. The device's <Terminology title="a device's colon-separated hardware address" to="/docs/reference/terminology#mac-address">MAC address</Terminology> with colons, in all lowercase or all uppercase.  |
+
+- `00:11:22:33:44:55` and `AA:BB:CC:DD:EE:FF` are accepted, while `00-11-22-33-44-55` and `aa:BB:cc:DD:ee:FF` return `400`.
+- The request also accepts an IPv6 address for `broadcastAddress`, but IPv6 has no <Terminology title="the subnet-wide address the wake packet targets" to="/docs/reference/terminology#broadcast-address">broadcast address</Terminology>, so use the subnet's IPv4 <Terminology title="the subnet-wide address the wake packet targets" to="/docs/reference/terminology#broadcast-address">broadcast address</Terminology>.
+
+## Find the Broadcast Address
+
+The <Terminology title="the subnet-wide address the wake packet targets" to="/docs/reference/terminology#broadcast-address">broadcast address</Terminology> is the last address in the device's subnet, such as `192.0.2.255` for `192.0.2.0/24`. pfSense can also calculate it for an interface.
+
+1. In the pfSense web interface, open **Interfaces** and select the interface the device is on.
+2. Note the interface name from the `if=` value in the address bar, such as `lan`, `opt1`, or `igb1`.
+3. Open **Diagnostics** > **Command Prompt**, and run this code under **Execute PHP Commands** with your interface name.
+
+```php
+$interface = 'lan';
+
+echo gen_subnet_max(get_interface_ip($interface), get_interface_subnet($interface));
+```
+
+## Responses
+
+| Status | Error code                  | Meaning                                                                         |
+|--------|-----------------------------|---------------------------------------------------------------------------------|
+| `200`  | —                           | pfSense ran `wol` and it exited successfully, and the body is `{"sent": true}`. |
+| `400`  | `invalid_request`           | The body failed validation.                                                     |
+| `502`  | `pfsense_unavailable`       | The SSH sign-in failed.                                                         |
+| `502`  | `command_failed`            | The `wol` command failed.                                                       |
+| `503`  | `connection_not_configured` | No pfSense connection is saved yet, or its credential was removed.              |
+
+- `200` confirms that pfSense sent the packet, not that the device woke up.
+- `401`, `403`, `429`, and `500` behave as described in [Status Codes and Limits](/docs/api/status-codes/).
+- A `200` sends **Wake-on-LAN sent**, and a `502` or `500` sends **Action failed**, to the <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">notification destinations</Terminology> that chose them, as described in [Notifications](/docs/console/notifications/#events).
+
+## Pair with a Reachability Check
+
+Follow a wake request with a <Terminology title="asking pfSense whether it can ping an address" to="/docs/reference/terminology#reachability-check">reachability check</Terminology> to learn whether the device came up.
+
+```bash
+send_request() {
+  printf 'header = "Authorization: Bearer %s"\n' "$PFSENSE_ACTIONS_TOKEN" \
+    | curl --config - --silent --show-error \
+        --output /dev/null --write-out 'HTTP %{http_code}\n' \
+        --header 'Content-Type: application/json' \
+        --request POST --data "$2" "https://actions.example.net$1"
+}
+
+send_request /api/v1/wol '{"broadcastAddress":"192.0.2.255","macAddress":"00:11:22:33:44:55"}'
+send_request /api/v1/ping '{"count":10,"ipAddress":"192.0.2.25"}'
+```
+
+- This needs a token with both `wol:execute` and `reachability:read`, or one token for each request.
+- Both requests count toward the same <Terminology title="a cap on requests per client address" to="/docs/reference/terminology#rate-limit">rate limit</Terminology> of 3 requests per 10 seconds.
+- On a Mac, the [Wake-on-LAN script](/docs/api/automation-clients/#download-the-mac-wake-on-lan-script) sends both requests for you and keeps checking until the device answers.
+
+## Retries
+
+A `502` or a client-side timeout doesn't show whether the packet went out before the failure. Sending the request again sends another packet.

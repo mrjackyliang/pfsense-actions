@@ -1,0 +1,102 @@
+---
+id: account-security
+title: Account Security
+description: Change the administrator password or username, turn on an authenticator app with recovery codes, and add or remove passkeys in the pfSense Actions console.
+sidebar_position: 6
+keywords:
+  - pfsense actions
+  - account security
+  - administrator password
+  - totp
+  - recovery codes
+  - passkeys
+tags:
+  - console
+  - security
+  - passkeys
+---
+
+import ThemedImage from '@theme/ThemedImage';
+import { Frame, Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
+
+import accountSecurityOneLight from './_assets_/account-security-1-light.png';
+import accountSecurityOneDark from './_assets_/account-security-1-dark.png';
+import accountSecurityTwoLight from './_assets_/account-security-2-light.png';
+import accountSecurityTwoDark from './_assets_/account-security-2-dark.png';
+import accountSecurityThreeLight from './_assets_/account-security-3-light.png';
+import accountSecurityThreeDark from './_assets_/account-security-3-dark.png';
+
+Protect console sign-in by keeping the administrator password current and adding an authenticator app or <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkeys</Terminology>. Everything on this page is under **Password and sign-in** in the account menu.
+
+## Why Add Sign-In Security?
+
+1. Adds <Terminology title="a six-digit authenticator app code for sign-in" to="/docs/reference/terminology#totp">TOTP</Terminology>, so password sign-in also needs a code from your phone.
+2. Gives you <Terminology title="a single-use code that stands in for an authenticator code" to="/docs/reference/terminology#recovery-code">recovery codes</Terminology>, so losing the phone doesn't lock you out.
+3. Adds <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkeys</Terminology>, so you can sign in without typing a password.
+4. Asks for your password before any change, so a session left open can't quietly change how you sign in.
+
+## Change the Password
+
+1. Under **Password**, enter the **Current password**.
+2. Enter a **New password** of at least 12 characters, and repeat it in **Confirm new password**. The bar under the field rates it from **Weak** to **Strong**, and any password of 12 or more characters is accepted.
+3. Select **Change password**.
+
+Changing the password signs out every other <Terminology title="a 24-hour console sign-in stored in the database" to="/docs/reference/terminology#browser-session">browser session</Terminology>, while this one stays signed in.
+
+## Change the Username
+
+1. Under **Username**, enter the **New username**, 3 to 64 letters, digits, `.`, `_`, or `-`, starting with a letter or digit.
+2. Enter **Your password** and select **Change username**.
+
+The new username applies at once, including to sessions that are already signed in.
+
+## Turn On an Authenticator App
+
+1. Under **Authenticator app**, select **Set up**. A dialog walks through three steps.
+2. Enter your password and select **Continue**.
+3. Scan the QR code with your authenticator app, or type the **Setup key** into the app. **Copy** puts the key on the clipboard.
+4. Enter the six-digit code from the app in **Code** and select **Turn on**.
+5. Save the ten recovery codes with **Copy all** or **Download .txt**, check **I saved these codes**, and select **Done**.
+
+<Frame caption="Scanning the QR code" style={{ maxWidth: 586, marginInline: 'auto' }}>
+  <ThemedImage sources={{ light: accountSecurityOneLight, dark: accountSecurityOneDark }} alt="Set up authenticator dialog at step 2 of 3, with a QR code, the setup key in blocks of four, a six-digit code in Code, and Cancel and Turn on" width={584} height={416} style={{ maxWidth: '100%', height: 'auto' }} />
+</Frame>
+
+<Frame caption="Recovery codes, shown once" style={{ maxWidth: 586, marginInline: 'auto' }}>
+  <ThemedImage sources={{ light: accountSecurityTwoLight, dark: accountSecurityTwoDark }} alt="Save your recovery codes dialog at step 3 of 3, with ten codes in two columns, Copy all and Download .txt buttons, I saved these codes checked, and Done" width={584} height={458} style={{ maxWidth: '100%', height: 'auto' }} />
+</Frame>
+
+- You have 10 minutes to finish these steps before you need to start again.
+- From then on, password sign-in asks for a code, and each code works only once.
+
+## Recovery Codes
+
+- Each <Terminology title="a single-use code that stands in for an authenticator code" to="/docs/reference/terminology#recovery-code">recovery code</Terminology> works once in place of an authenticator code, and **Authenticator app** shows how many are left.
+- The codes appear only once. pfSense Actions stores a hash of each one, so it can't show them again.
+- **New recovery codes** asks for your password, then shows the new set in the same dialog and replaces the old one, so the old codes stop working.
+- **Done** stays unavailable until **I saved these codes** is checked, and the dialog can't be closed another way, because the codes aren't shown again.
+
+## Add a Passkey
+
+1. Under **Passkeys**, enter a **Passkey name** of up to 80 characters, such as the device it's on.
+2. Enter **Your password** and select **Add passkey**.
+3. Follow your browser's prompt.
+
+A <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkey</Terminology> works only at the hostname it was added on, and the list shows that hostname next to each one. On an IP address or plain HTTP, the console explains why it can't add passkeys there, as described in [HTTPS Reverse Proxy](/docs/getting-started/https-reverse-proxy/#passkeys-and-the-address).
+
+<Frame caption="Passkeys and the form to add one">
+  <ThemedImage sources={{ light: accountSecurityThreeLight, dark: accountSecurityThreeDark }} alt="Passkeys section listing MacBook Pro and iPhone, each with the hostname actions.example.net, when it was added and last used, and Remove, above the passkey name iPad, a password, and Add passkey" width={958} height={364} style={{ maxWidth: '100%', height: 'auto' }} />
+</Frame>
+
+## Remove a Method
+
+- **Authenticator app** — Select **Turn off**, enter your password in the dialog, and select **Turn off** again. The recovery codes are deleted with it.
+- **<Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">Passkey</Terminology>** — Select **Remove** next to the passkey, enter your password in the dialog, and select **Remove passkey**. It stops working right away.
+
+## Before You Rely on TOTP
+
+:::warning
+Keep the <Terminology title="a single-use code that stands in for an authenticator code" to="/docs/reference/terminology#recovery-code">recovery codes</Terminology> somewhere other than the phone with your authenticator app. If you lose both and have no <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkey</Terminology>, getting back in takes access to the Docker host, as described in [Backup and Recovery](/docs/operations/backup-and-recovery/#lost-authenticator).
+:::
+
+A <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkey</Terminology> is another way in, because <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkey</Terminology> sign-in doesn't ask for a <Terminology title="a six-digit authenticator app code for sign-in" to="/docs/reference/terminology#totp">TOTP</Terminology> code. [Backup and Recovery](/docs/operations/backup-and-recovery/#lost-authenticator) covers what to do if you're locked out.

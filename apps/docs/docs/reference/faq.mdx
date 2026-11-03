@@ -1,0 +1,83 @@
+---
+id: faq
+title: FAQ
+description: Find answers to common questions about pfSense Actions, including pfSense versions, hostnames, IPv6, host keys, leaked tokens, and where to get help.
+sidebar_position: 2
+keywords:
+  - pfsense actions
+  - faq
+  - questions
+  - support
+  - compatibility
+tags:
+  - reference
+  - faq
+---
+
+import { Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
+
+Find answers to common questions about what pfSense Actions supports, how it handles security, and where to get help.
+
+## Product
+
+### Can pfSense Actions change firewall rules or run any command?
+
+No. It runs only its <Terminology title="the closed set of commands the controller runs" to="/docs/reference/terminology#allowlist">allowlisted</Terminology> commands, and the <Terminology title="the protected browser admin interface at /admin" to="/docs/reference/terminology#operations-console">operations console</Terminology> manages tokens, activity, the connection, notifications, and the <Terminology title="the single local console login, separate from tokens" to="/docs/reference/terminology#administrator-account">administrator account</Terminology>, not firewall settings.
+
+### Why use pfSense Actions instead of an API package on pfSense?
+
+pfSense Actions needs only SSH and commands that ship with pfSense, so nothing extra gets installed on the firewall. It also limits each client to four <Terminology title="one allowlisted pfSense operation behind an API route" to="/docs/reference/terminology#action">actions</Terminology> and the <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scopes</Terminology> you grant.
+
+### Can one deployment manage several firewalls?
+
+No. Each deployment stores the connection for one <Terminology title="the single pfSense firewall the controller reaches" to="/docs/reference/terminology#target-firewall">target firewall</Terminology>.
+
+### Can pfSense Actions tell me when the firewall goes down?
+
+Yes. Add a <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">notification destination</Terminology> that chose **pfSense can't be reached**, and a <Terminology title="the 5-minute SSH check behind the pfSense alerts" to="/docs/reference/terminology#scheduled-check">scheduled check</Terminology> signs in to pfSense every 5 minutes and sends the alert after two failures in a row, as described in [Notifications](/docs/console/notifications/#the-scheduled-check).
+
+## pfSense
+
+### Which pfSense versions work?
+
+pfSense Actions doesn't check the version, and there's no tested version list yet. It needs SSH and the `whoami`, `uname`, `ping`, and `wol` commands, and bug reports are considered for the releases Netgate lists as supported.
+
+### Can I use a hostname for the firewall?
+
+No. The connection takes an IPv4 or IPv6 address, both in `PFSENSE_SSH_IP` and on the console's [pfSense Connection](/docs/console/pfsense-connection/) page.
+
+### Does it support IPv6?
+
+The request bodies and the connection accept IPv6 addresses, but IPv6 targets aren't covered by tests. <Terminology title="waking a sleeping device with a network packet" to="/docs/reference/terminology#wake-on-lan">Wake-on-LAN</Terminology> needs an IPv4 <Terminology title="the subnet-wide address the wake packet targets" to="/docs/reference/terminology#broadcast-address">broadcast address</Terminology>, because IPv6 doesn't have one.
+
+### Does it check the firewall's SSH host key?
+
+Not yet. It accepts whichever host key the server presents, so it's recommended to keep the path to the firewall on a trusted network, as described in the [Security Model](/docs/operations/security-model/#ssh-credential-and-host-keys).
+
+## Security
+
+### Can I expose pfSense Actions directly to the internet?
+
+It's not recommended, because the listener serves plain HTTP and each token stays valid until it expires or is revoked. A <Terminology title="the HTTPS front end that forwards to the controller" to="/docs/reference/terminology#reverse-proxy">reverse proxy</Terminology> with HTTPS, as in [HTTPS Reverse Proxy](/docs/getting-started/https-reverse-proxy/), keeps tokens encrypted in transit.
+
+### What should I do if a token leaks?
+
+Revoke it on the console's **Access tokens** page, which rejects it from the next request on. Then create a replacement for the client, as described in [Access Tokens](/docs/console/access-tokens/#rotate-a-token).
+
+### Where are secrets stored?
+
+The <Terminology title="the SQLite file that holds the controller's state" to="/docs/reference/terminology#controller-database">controller database</Terminology> holds each <Terminology title="the SHA-256 digest stored instead of the token" to="/docs/reference/terminology#token-hash">token hash</Terminology>, the encrypted pfSense credential, the encrypted <Terminology title="a six-digit authenticator app code for sign-in" to="/docs/reference/terminology#totp">TOTP</Terminology> secret, and the encrypted <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">secret fields</Terminology> of each <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">notification destination</Terminology>, while the <Terminology title="the 64-character key that seals stored secrets" to="/docs/reference/terminology#encryption-key">encryption key</Terminology> stays in its own file. [Data at Rest](/docs/operations/security-model/#data-at-rest) has the details.
+
+### What happens if the encryption key is lost?
+
+pfSense Actions makes a new key at the next start and removes only the saved pfSense password or private key, the authenticator app, and the <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">secret fields</Terminology> of <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">notification destinations</Terminology>, which the console then asks you to enter again. Tokens, <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkeys</Terminology>, settings, and the <Terminology title="a bounded, redacted history of actions and changes" to="/docs/reference/terminology#activity-log">activity log</Terminology> stay, as described in [Backup and Recovery](/docs/operations/backup-and-recovery/#lost-encryption-key).
+
+## Support
+
+### Where do I report a bug or ask for a feature?
+
+Open an issue in the [GitHub repository](https://github.com/mrjackyliang/pfsense-actions/issues) with the bug report or feature request form.
+
+### Can I get one-on-one help?
+
+Support requests are open to [GitHub Sponsors](https://github.com/sponsors/mrjackyliang) and to people who have contributed heavily to the project.

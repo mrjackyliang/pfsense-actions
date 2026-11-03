@@ -1,0 +1,109 @@
+---
+id: sign-in
+title: Sign In
+description: Create the administrator account with the setup code, then sign in to the console with a password, an authenticator or recovery code, or a passkey.
+sidebar_position: 1
+keywords:
+  - pfsense actions
+  - operations console
+  - sign in
+  - setup code
+  - passkey
+  - session
+tags:
+  - console
+  - sign in
+---
+
+import ThemedImage from '@theme/ThemedImage';
+import { Frame, Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
+
+import signInOneLight from './_assets_/sign-in-1-light.png';
+import signInOneDark from './_assets_/sign-in-1-dark.png';
+import signInTwoLight from './_assets_/sign-in-2-light.png';
+import signInTwoDark from './_assets_/sign-in-2-dark.png';
+import signInThreeLight from './_assets_/sign-in-3-light.png';
+import signInThreeDark from './_assets_/sign-in-3-dark.png';
+
+Open the <Terminology title="the protected browser admin interface at /admin" to="/docs/reference/terminology#operations-console">operations console</Terminology> in a browser, create the <Terminology title="the single local console login, separate from tokens" to="/docs/reference/terminology#administrator-account">administrator account</Terminology> on the first visit, and then sign in with a password, an authenticator code, or a <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkey</Terminology>.
+
+## Open the Console
+
+Go to `/admin` on the same address as the API, such as `https://actions.example.net/admin`, and opening the root address in a browser takes you there too. After you sign in, the sidebar has five pages, and the account menu at its bottom holds the rest.
+
+| Page                     | What it's for                                                                                                                                                                                                                                   |
+|--------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Overview**             | The version and uptime, the pfSense connection with a <Terminology title="a live SSH sign-in check against pfSense" to="/docs/reference/terminology#connection-test">connection test</Terminology>, and recent activity.                        |
+| **Activity**             | The <Terminology title="a bounded, redacted history of actions and changes" to="/docs/reference/terminology#activity-log">activity log</Terminology>.                                                                                           |
+| **Access tokens**        | Creating, editing, and revoking each <Terminology title="a scoped credential issued to one API client" to="/docs/reference/terminology#personal-access-token">personal access token</Terminology>, and the address and paths that clients call. |
+| **Connection**           | Testing and changing the SSH connection to the firewall.                                                                                                                                                                                        |
+| **Notifications**        | Sending alerts to ntfy, Telegram, email, and other services when pfSense stops answering, sign-in is locked, or an action fails, as described in [Notifications](/docs/console/notifications/).                                                 |
+| **Password and sign-in** | Your password, username, authenticator app, recovery codes, and <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkeys</Terminology>, opened from the account menu.   |
+
+<Frame caption="Overview and the sidebar">
+  <ThemedImage sources={{ light: signInOneLight, dark: signInOneDark }} alt="Overview page with the sidebar listing Overview, Activity, Access tokens, Connection, and Notifications above the Connected status and the admin account menu, next to the Controller, pfSense, and Recent activity panels" width={1280} height={1187} style={{ maxWidth: '100%', height: 'auto' }} />
+</Frame>
+
+On a phone, the first four pages move to a bar at the bottom of the screen, and the account menu, which then also holds **Notifications**, opens from your initial at the top.
+
+## Create the Administrator Account
+
+On a new installation, the console opens on **Set up your account** instead of the sign-in screen.
+
+1. Enter the **One-time code**, which is the <Terminology title="the one-time code printed in the log for first-run setup" to="/docs/reference/terminology#setup-code">setup code</Terminology> from the container log. Letter case, spaces, and dashes don't matter.
+2. Choose a **Username** and a **Password** of at least 12 characters, and repeat the password in **Confirm password**. The bar under the field rates it from **Weak** to **Strong**, and any password of 12 or more characters is accepted.
+3. Select **Create account**.
+
+<Frame caption="Creating the administrator account" style={{ maxWidth: 450, marginInline: 'auto' }}>
+  <ThemedImage sources={{ light: signInTwoLight, dark: signInTwoDark }} alt="Set up your account screen with a one-time code, the username admin, a password that the bar under it rates Strong, the repeated password, and Create account" width={448} height={735} style={{ maxWidth: '100%', height: 'auto' }} />
+</Frame>
+
+- A username is 3 to 64 letters, digits, `.`, `_`, or `-`, starting with a letter or digit.
+- A code lasts 30 minutes, and restarting pfSense Actions prints a new one.
+- The setup screen appears only while no account exists, so it doesn't come back once you've created one.
+
+## Sign In with a Password
+
+1. Enter the **Username** and **Password** of the <Terminology title="the single local console login, separate from tokens" to="/docs/reference/terminology#administrator-account">administrator account</Terminology>. The username isn't case-sensitive.
+2. Select **Sign in**.
+
+A <Terminology title="a scoped credential issued to one API client" to="/docs/reference/terminology#personal-access-token">personal access token</Terminology> or your pfSense login doesn't work here.
+
+## Enter an Authenticator or Recovery Code
+
+If you've turned on an authenticator app, the console asks for a code after the password.
+
+1. Enter the six-digit code the app shows, or one of your <Terminology title="a single-use code that stands in for an authenticator code" to="/docs/reference/terminology#recovery-code">recovery codes</Terminology>.
+2. Select **Verify**, or select **Start over** to return to the password step.
+
+<Frame caption="The code step" style={{ maxWidth: 450, marginInline: 'auto' }}>
+  <ThemedImage sources={{ light: signInThreeLight, dark: signInThreeDark }} alt="Enter your code screen with a six-digit code in the Code field, the Verify button, and Start over below it" width={448} height={503} style={{ maxWidth: '100%', height: 'auto' }} />
+</Frame>
+
+- You have 5 minutes after the password step, and 5 wrong codes end the attempt.
+- Each authenticator code and each recovery code works only once. A recovery code works with or without its dash, in any letter case.
+
+## Sign In with a Passkey
+
+1. Select **Sign in with a passkey**.
+2. Confirm with your device or password manager when the browser asks.
+
+- A <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkey</Terminology> replaces the username, the password, and the authenticator code.
+- A <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkey</Terminology> works only at the hostname it was added on, as described in [HTTPS Reverse Proxy](/docs/getting-started/https-reverse-proxy/#passkeys-and-the-address).
+
+## Sessions
+
+- A <Terminology title="a 24-hour console sign-in stored in the database" to="/docs/reference/terminology#browser-session">browser session</Terminology> lasts 24 hours from sign-in, and then the console returns to the sign-in screen.
+- Sessions are stored in the <Terminology title="the SQLite file that holds the controller's state" to="/docs/reference/terminology#controller-database">controller database</Terminology>, so restarting or updating pfSense Actions doesn't sign you out.
+- Changing the password signs out every other session, and **Sign out** in the account menu ends your own session right away.
+
+## Failed Sign-Ins
+
+- Each failed sign-in appears in the <Terminology title="a bounded, redacted history of actions and changes" to="/docs/reference/terminology#activity-log">activity log</Terminology> with the actor `anonymous`.
+- Wrong passwords, wrong codes, rejected <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkeys</Terminology>, and wrong passwords entered on **Password and sign-in** from one address share a limit of 10 failures in 15 minutes. After that, sign-in from that address waits until the window passes, and a successful sign-in clears the count.
+- The tenth failure also sends **Sign-in locked** to the <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">notification destinations</Terminology> that chose it, as described in [Notifications](/docs/console/notifications/#events).
+- The setup screen has its own limit of 10 wrong codes in 15 minutes from one address, and those don't send **Sign-in locked**.
+
+## Appearance
+
+Choose **System**, **Light**, or **Dark** under **Appearance** in the account menu. **System** follows your device's setting, and the choice is saved in this browser only.

@@ -1,0 +1,178 @@
+---
+id: backup-and-recovery
+title: Backup and Recovery
+description: Back up the pfSense Actions data volume with its encryption key, restore it, and recover from a lost password or authenticator, or a lost or mismatched key.
+sidebar_position: 2
+keywords:
+  - pfsense actions
+  - backup
+  - restore
+  - recovery
+  - encryption key
+  - data volume
+tags:
+  - operations
+  - backup
+---
+
+import ThemedImage from '@theme/ThemedImage';
+import { Frame, Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
+
+import backupAndRecoveryOneLight from './_assets_/backup-and-recovery-1-light.png';
+import backupAndRecoveryOneDark from './_assets_/backup-and-recovery-1-dark.png';
+
+Back up the <Terminology title="the SQLite file that holds the controller's state" to="/docs/reference/terminology#controller-database">controller database</Terminology> and its <Terminology title="the 64-character key that seals stored secrets" to="/docs/reference/terminology#encryption-key">encryption key</Terminology> so you can restore pfSense Actions without recreating tokens or settings.
+
+## What to Back Up
+
+| Item                                                                                                                                             | Why it matters                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+|--------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| The <Terminology title="the persistent /data volume holding the database" to="/docs/reference/terminology#data-volume">data volume</Terminology> | It holds the database with every token, setting, <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">notification destination</Terminology>, and activity record, and the generated key in `keys/installation.key` that opens the saved pfSense credential, the authenticator app, and each <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology>'s <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">secret fields</Terminology>. |
+
+The backup holds the password hash, each <Terminology title="the SHA-256 digest stored instead of the token" to="/docs/reference/terminology#token-hash">token hash</Terminology>, and the encrypted credentials and notification secrets, and with the generated key it can decrypt them. Raw tokens and raw <Terminology title="a single-use code that stands in for an authenticator code" to="/docs/reference/terminology#recovery-code">recovery codes</Terminology> aren't in it.
+
+It's recommended to store the backup encrypted.
+
+## Back Up the Data Volume
+
+1. Stop the service so the database files are consistent.
+
+   ```bash
+   docker compose stop app
+   ```
+
+2. Copy the volume's contents into an archive, using any image that has `tar`.
+
+   ```bash
+   docker run --rm \
+     -v pfsense-actions_pfsense_actions_data:/data:ro \
+     -v "$PWD":/backup \
+     debian:trixie-slim \
+     tar -czf /backup/pfsense-actions-data.tgz -C /data .
+   ```
+
+3. Start the service again.
+
+   ```bash
+   docker compose start app
+   ```
+
+- Compose names the volume `pfsense-actions_pfsense_actions_data` after the project name in `compose.yml`, and `docker volume ls` lists it.
+- The archive includes the `-wal` and `-shm` files next to `pfsense-actions.sqlite3`, which belong with it, and the `keys` folder.
+
+## Restore
+
+Replace the volume's contents with the archive, so the database and `keys/installation.key` come back from the same backup.
+
+:::danger
+The first command below deletes the current <Terminology title="the persistent /data volume holding the database" to="/docs/reference/terminology#data-volume">data volume</Terminology> before the backup replaces it.
+:::
+
+```bash
+docker compose down --volumes
+docker compose up --no-start
+docker run --rm \
+  -v pfsense-actions_pfsense_actions_data:/data \
+  -v "$PWD":/backup:ro \
+  debian:trixie-slim \
+  tar -xzpf /backup/pfsense-actions-data.tgz -C /data
+docker compose start app
+```
+
+Restored files keep their owner, which needs to match the `PUID` and `PGID` the service runs as.
+
+## Lost Administrator Password
+
+There's no password reset. To get back in, restore a backup from a time you knew the password, or reinitialize as described below.
+
+A <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkey</Terminology> still signs you in, but changing the password asks for the current one.
+
+## Lost Authenticator
+
+- With a <Terminology title="a single-use code that stands in for an authenticator code" to="/docs/reference/terminology#recovery-code">recovery code</Terminology>, sign in with it in place of the authenticator code. Then open **Password and sign-in**, turn off the authenticator app, and set it up again on your new device.
+- With a <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkey</Terminology>, sign in with it and do the same.
+- Without either, delete `keys/installation.key` with the command in [Encryption Key Doesn't Match](#encryption-key-doesnt-match) and restart pfSense Actions. The authenticator app is then turned off so the password signs you in, but the saved pfSense credential and the notification secrets are removed too, as described in [Lost Encryption Key](#lost-encryption-key).
+- Restoring a backup made before the authenticator app was turned on also works.
+
+## Lost Encryption Key
+
+When `keys/installation.key` is missing, pfSense Actions makes a new <Terminology title="the 64-character key that seals stored secrets" to="/docs/reference/terminology#encryption-key">encryption key</Terminology> and starts. Secrets locked with the old key can't be opened anymore, so it removes them and keeps everything else.
+
+- **Removed** — The saved pfSense password or private key, the authenticator app, which is turned off with its <Terminology title="a single-use code that stands in for an authenticator code" to="/docs/reference/terminology#recovery-code">recovery codes</Terminology>, and every <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">notification destination</Terminology>'s <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">secret fields</Terminology>.
+- **Kept** — The administrator account and password, <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkeys</Terminology>, <Terminology title="a 24-hour console sign-in stored in the database" to="/docs/reference/terminology#browser-session">browser sessions</Terminology>, tokens, settings, the <Terminology title="a bounded, redacted history of actions and changes" to="/docs/reference/terminology#activity-log">activity log</Terminology>, the connection's address, port, username, and sign-in method, and each <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology>'s name, <Terminology title="something a destination can get an alert about" to="/docs/reference/terminology#notification-event">events</Terminology>, and plain fields.
+
+### Log and Notice
+
+On that start, the log names what was removed.
+
+```text
+WARN No encryption key was found at /data/keys/installation.key, so pfSense Actions made a new one. These saved secrets were locked with the old key and were removed: the pfSense password, the authenticator app for <username>. Enter them again in the console.
+```
+
+- The list says `the pfSense private key` instead when the connection signs in with a key, and it ends with `the <name> notification` for each <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">notification destination</Terminology> that had <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">secret fields</Terminology>.
+- The <Terminology title="a bounded, redacted history of actions and changes" to="/docs/reference/terminology#activity-log">activity log</Terminology> records `encryption-key-replaced`.
+- The console shows **Saved secrets were removed** at the top of every page, with a link for each item to enter again.
+- <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">Destinations</Terminology> without <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">secret fields</Terminology> that chose the **Saved secrets were removed** <Terminology title="something a destination can get an alert about" to="/docs/reference/terminology#notification-event">event</Terminology> get it as an alert, as described in [Notifications](/docs/console/notifications/#after-a-lost-encryption-key).
+- When nothing depended on the old key, as on a new installation, there's no warning and no notice.
+
+<Frame caption="The saved-secrets notice">
+  <ThemedImage sources={{ light: backupAndRecoveryOneLight, dark: backupAndRecoveryOneDark }} alt="Saved secrets were removed notice saying when pfSense Actions started without its encryption key, with links to enter the pfSense private key, set up the authenticator app, and set up the Firewall alerts, Network alerts, and Ops chat notifications again, above Dismiss" width={992} height={300} style={{ maxWidth: '100%', height: 'auto' }} />
+</Frame>
+
+### Enter the Secrets Again
+
+1. Select **Enter the pfSense password** or **Enter the pfSense private key**, enter it on the **Connection** page, and select **Test and save**.
+2. Select **Set up the authenticator app**, and turn it on again as described in [Account Security](/docs/console/account-security/#turn-on-an-authenticator-app).
+3. Select the item for each <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology>, such as **Set up the Ops chat notification again**. Then select **Edit** on it, enter its <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">secret fields</Terminology>, and select **Save**, as described in [Notifications](/docs/console/notifications/#after-a-lost-encryption-key).
+
+- Each item leaves the notice once it's entered again. **Dismiss** hides the notice, and anything not entered again stays removed.
+- Until the credential is back, every <Terminology title="one allowlisted pfSense operation behind an API route" to="/docs/reference/terminology#action">action</Terminology> answers `503` with `connection_not_configured`, and a <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology> gets no alerts until its <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">secret fields</Terminology> are back.
+- If the deprecated `PFSENSE_*` variables are still set, they fill the credential back in on the same start.
+
+## Encryption Key Doesn't Match
+
+When `keys/installation.key` belongs to another database, for example after a restore that mixed files, startup stops with this message until it's fixed.
+
+```text
+The encryption key at /data/keys/installation.key doesn't belong to this database. Put back the key file this database was created with, or delete /data/keys/installation.key and restart to make a new key, then enter the saved secrets again.
+```
+
+- If a backup has the key file this database was created with, put it back as `keys/installation.key` in the volume.
+- Without that file, delete the key file and start again, which makes a new key as described in [Lost Encryption Key](#lost-encryption-key).
+
+These commands delete the key file from the volume.
+
+```bash
+docker compose stop app
+docker run --rm \
+  -v pfsense-actions_pfsense_actions_data:/data \
+  debian:trixie-slim \
+  rm /data/keys/installation.key
+docker compose start app
+```
+
+- An old key file put back after pfSense Actions made a new one stops startup the same way, because the database now belongs to the new key.
+- A damaged key file stops startup with `The encryption key file at /data/keys/installation.key is not 64 hexadecimal characters.`, and the same two fixes apply.
+
+## Change PUID or PGID with Existing Data
+
+The container's setup step changes the owner of the `/data` folder itself, but not of the files inside it. Before starting with new IDs, change the files' owner to match.
+
+```bash
+docker run --rm \
+  -v pfsense-actions_pfsense_actions_data:/data \
+  debian:trixie-slim \
+  chown -R 1001:1001 /data
+```
+
+## Reinitialize Deliberately
+
+:::danger
+Reinitializing deletes the administrator account, every token, the pfSense connection, the authenticator app and <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkeys</Terminology>, every <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">notification destination</Terminology>, and the <Terminology title="a bounded, redacted history of actions and changes" to="/docs/reference/terminology#activity-log">activity log</Terminology>.
+:::
+
+1. Back up the current volume as described above.
+2. Remove the <Terminology title="the persistent /data volume holding the database" to="/docs/reference/terminology#data-volume">data volume</Terminology> with `docker compose down --volumes`.
+3. Start the service with `docker compose up --detach`, which creates a new database and key.
+4. Create the administrator account with the new <Terminology title="the one-time code printed in the log for first-run setup" to="/docs/reference/terminology#setup-code">setup code</Terminology> from the log.
+5. Set up the pfSense connection, create new tokens, update every client, and add your <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">notification destinations</Terminology> again.

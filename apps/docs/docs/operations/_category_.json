@@ -1,0 +1,10 @@
+{
+  "label": "Run the Controller",
+  "position": 5,
+  "collapsible": true,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "description": "Check container health and logs, back up and restore controller state, review the security model, and troubleshoot common failures."
+  }
+}

@@ -1,0 +1,75 @@
+---
+id: status-codes
+title: Status Codes and Limits
+description: Look up every HTTP status and error code the pfSense Actions API returns, the order its checks run in, per-client rate limits and headers, and retry rules.
+sidebar_position: 5
+keywords:
+  - pfsense actions
+  - status codes
+  - error codes
+  - rate limit
+  - retries
+  - http
+tags:
+  - api
+  - status codes
+  - rate limits
+---
+
+import { Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
+
+Map each status code and error code from the API to its cause, and plan retries around the <Terminology title="a cap on requests per client address" to="/docs/reference/terminology#rate-limit">rate limits</Terminology>.
+
+## Status Codes
+
+| Status | Error code                  | Returned by                                   | Meaning                                                                                                                                                                                                            |
+|--------|-----------------------------|-----------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `200`  | —                           | All four routes                               | The <Terminology title="one allowlisted pfSense operation behind an API route" to="/docs/reference/terminology#action">action</Terminology> succeeded.                                                             |
+| `400`  | `invalid_request`           | Ping, Wake-on-LAN                             | The body failed validation, and `issues` lists each problem.                                                                                                                                                       |
+| `400`  | `invalid_json`              | Any path                                      | The body isn't valid JSON.                                                                                                                                                                                         |
+| `401`  | `authentication_required`   | All four routes                               | The token is missing, malformed, unknown, or expired.                                                                                                                                                              |
+| `403`  | `scope_required`            | All four routes                               | The token lacks the route's <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scope</Terminology>.                                                                 |
+| `404`  | `not_found`                 | Unknown paths                                 | No route matches the method and path.                                                                                                                                                                              |
+| `413`  | `payload_too_large`         | Any path                                      | The JSON body is larger than 64 KB.                                                                                                                                                                                |
+| `415`  | `unsupported_encoding`      | Any path                                      | The body uses a character set other than UTF-8, or a compression pfSense Actions can't read.                                                                                                                       |
+| `429`  | `rate_limited`              | All four routes, and any path under `/api/v1` | The client reached a <Terminology title="a cap on requests per client address" to="/docs/reference/terminology#rate-limit">rate limit</Terminology>.                                                               |
+| `500`  | `internal_error`            | All four routes                               | The <Terminology title="the pfSense Actions service between clients and pfSense" to="/docs/reference/terminology#controller">controller</Terminology> hit an unexpected error.                                     |
+| `502`  | `pfsense_unavailable`       | All four routes                               | pfSense Actions couldn't sign in to pfSense over SSH.                                                                                                                                                              |
+| `502`  | `command_failed`            | All four routes                               | The pfSense command failed, or the system information route got unexpected output.                                                                                                                                 |
+| `503`  | `connection_not_configured` | All four routes                               | No pfSense connection is saved yet, or its credential was removed.                                                                                                                                                 |
+| `503`  | `target_unreachable`        | Ping                                          | Every <Terminology title="one five-packet ping run in a reachability check" to="/docs/reference/terminology#ping-attempt">ping attempt</Terminology> finished without meeting the selected reachability condition. |
+
+The console's own routes, including the notification routes, answer with codes of their own, such as `session_required` for a request with a token, as listed in [Notifications](/docs/console/notifications/#errors).
+
+## Order of Checks
+
+1. The JSON body is parsed, so malformed JSON gets `400`, an oversized body gets `413`, and a body pfSense Actions can't decode gets `415`.
+2. The <Terminology title="a cap on requests per client address" to="/docs/reference/terminology#rate-limit">rate limits</Terminology> apply, so a client over a limit gets `429` before anything else is checked.
+3. The token is checked for `401`, then its <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scope</Terminology> for `403`.
+4. The body is validated for `400`.
+5. A route without a saved pfSense connection, or without its password or private key, answers `503`.
+6. pfSense Actions signs in over SSH and runs the command, which ends in `200`, `502`, or `503`.
+
+## Rate Limits
+
+- The four <Terminology title="one allowlisted pfSense operation behind an API route" to="/docs/reference/terminology#action">action</Terminology> routes share one limit of 3 requests per 10 seconds for each client IP address, whichever path a request uses.
+- Every path under `/api/v1`, including the console's, also counts toward a limit of 120 requests per minute for each address.
+- Requests rejected with `401` or `403` still count, and so do unknown paths under `/api/v1`, which end in `404`.
+- Responses carry `RateLimit-Policy`, `RateLimit-Limit`, `RateLimit-Remaining`, and `RateLimit-Reset` headers. A `429` also carries `Retry-After` in seconds.
+- Behind a <Terminology title="the HTTPS front end that forwards to the controller" to="/docs/reference/terminology#reverse-proxy">reverse proxy</Terminology>, the client address comes from `X-Forwarded-For`, as described in [HTTPS Reverse Proxy](/docs/getting-started/https-reverse-proxy/#forwarded-headers).
+
+The console's sign-in has its own limit on failed attempts, listed in the [Security Model](/docs/operations/security-model/#console-protections).
+
+## Retry Guidance
+
+- **`429`** — Wait for the number of seconds in `Retry-After` before sending again.
+- **`500` or `502`** — Retrying the connectivity, system information, or ping route is safe, because they don't change anything. Retrying Wake-on-LAN sends another wake packet.
+- **`503` with `target_unreachable`** — The device didn't meet the selected reachability condition, so retry later, raise `count`, or turn off strict mode when partial replies are enough.
+- **`503` with `connection_not_configured`** — Save the pfSense connection in the console first, or enter its password or private key again when `error.message` asks for it.
+- **`400`, `401`, `403`, `404`, `413`, or `415`** — The same request keeps failing until something about it changes.
+
+## What Responses Never Contain
+
+- SSH output, the command that ran, or SSH error details.
+- Credentials, token values, or any <Terminology title="the SHA-256 digest stored instead of the token" to="/docs/reference/terminology#token-hash">token hash</Terminology>.
+- The firewall's hostname or configuration.

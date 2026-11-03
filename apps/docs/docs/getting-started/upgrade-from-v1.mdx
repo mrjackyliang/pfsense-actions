@@ -1,0 +1,79 @@
+---
+id: upgrade-from-v1
+title: Upgrade from v1.3.1
+description: Move a pfSense Actions v1.3.1 deployment to 2.0.0, set it up in the console with a one-time code, and give each client its own personal access token.
+sidebar_position: 5
+keywords:
+  - pfsense actions
+  - upgrade
+  - migration
+  - api key
+  - breaking changes
+  - version 2
+tags:
+  - getting started
+  - upgrade
+---
+
+import { Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
+
+Move a pfSense Actions v1.3.1 deployment to 2.0.0, which replaces the shared API key with a <Terminology title="a scoped credential issued to one API client" to="/docs/reference/terminology#personal-access-token">personal access token</Terminology> for each client and adds the <Terminology title="the protected browser admin interface at /admin" to="/docs/reference/terminology#operations-console">operations console</Terminology>.
+
+## What Changed
+
+| Area                    | v1.3.1                                                                              | 2.0.0                                                                                                                                                                                                                                                                                                                                                 |
+|-------------------------|-------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Client sign-in          | One `API_KEY` shared by every client, or a random key at each start when it's unset | A <Terminology title="a scoped credential issued to one API client" to="/docs/reference/terminology#personal-access-token">personal access token</Terminology> per client, each with its own <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scopes</Terminology>                                   |
+| Routes                  | `GET /`, `POST /ping`, `GET /reload-filter`, `GET /update-dyndns`, `POST /wol`      | `GET /api/v1/connectivity`, `POST /api/v1/ping`, and `POST /api/v1/wol`, with `GET /`, `POST /ping`, and `POST /wol` kept as aliases, and the new `GET /api/v1/system`, also at `GET /system`                                                                                                                                                         |
+| Responses               | The status code and its standard text                                               | JSON, with an error code and message when a request fails                                                                                                                                                                                                                                                                                             |
+| Failed pfSense commands | `GET /` and `POST /wol` still returned `200`                                        | `502`                                                                                                                                                                                                                                                                                                                                                 |
+| `count` on `POST /ping` | Any number of attempts                                                              | 1 to 10 <Terminology title="one five-packet ping run in a reachability check" to="/docs/reference/terminology#ping-attempt">ping attempts</Terminology>                                                                                                                                                                                               |
+| Published port          | `9898` on every interface                                                           | `22603` on every interface                                                                                                                                                                                                                                                                                                                            |
+| Image                   | `mrjackyliang/pfsense-actions` from Docker Hub                                      | Built on your host by the repository's `compose.yml`                                                                                                                                                                                                                                                                                                  |
+| Settings                | Environment variables, read at every start                                          | The <Terminology title="the protected browser admin interface at /admin" to="/docs/reference/terminology#operations-console">operations console</Terminology>, which stores them in the <Terminology title="the SQLite file that holds the controller's state" to="/docs/reference/terminology#controller-database">controller database</Terminology> |
+| Administration          | None                                                                                | The <Terminology title="the protected browser admin interface at /admin" to="/docs/reference/terminology#operations-console">operations console</Terminology> at `/admin`, set up with a one-time <Terminology title="the one-time code printed in the log for first-run setup" to="/docs/reference/terminology#setup-code">setup code</Terminology>  |
+| Alerts                  | None                                                                                | The console's [Notifications](/docs/console/notifications/) page, which sends alerts to ntfy, Telegram, email, and eight other services when pfSense stops answering, sign-in is locked, or an action fails                                                                                                                                           |
+
+## Before You Upgrade
+
+- List each client that uses the v1 API key, and the routes it calls.
+- `/reload-filter` and `/update-dyndns` have no replacement in 2.0.0, so plan to handle filter reloads and Dynamic DNS updates in pfSense itself.
+- Note your v1 `PFSENSE_SSH_IP`, `PFSENSE_SSH_PORT`, `PFSENSE_USERNAME`, and `PFSENSE_PASSWORD` or `PFSENSE_PRIVATE_KEY` values, because you'll enter them in the console.
+
+:::warning
+The v1 workflow published `mrjackyliang/pfsense-actions:latest` along with a tag for each release, such as `v1.3.1`. The 2.0.0 workflow also tags stable releases as `latest` in that repository, so it's recommended to pin the v1 tag until you upgrade.
+:::
+
+## Upgrade Steps
+
+1. Stop the v1 container, for example with `docker stop pfsense-actions`.
+2. Start 2.0.0 from the repository root with `docker compose up --build --detach`.
+3. Read the <Terminology title="the one-time code printed in the log for first-run setup" to="/docs/reference/terminology#setup-code">setup code</Terminology> with `docker compose logs app`, then create the <Terminology title="the single local console login, separate from tokens" to="/docs/reference/terminology#administrator-account">administrator account</Terminology> as described in [Install with Docker](/docs/getting-started/install-with-docker/#create-the-administrator-account).
+4. Open **Connection**, enter your v1 `PFSENSE_*` values, and select **Test and save**.
+5. Create one token per client in **Access tokens**, with only the <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scopes</Terminology> it needs.
+6. Update each client as described below, then remove the v1 container and image.
+
+:::info
+To skip retyping the connection, add your v1 `PFSENSE_*` variables under `environment` in `compose.yml` before the first start. pfSense Actions imports them as the saved connection, without testing it, and logs a warning because they're deprecated. Select **Test connection** to check it, then remove the variables.
+:::
+
+2.0.0 doesn't read `API_KEY`, so you can delete it from your environment files.
+
+## Update Each Client
+
+- Replace the v1 API key with the client's own token, sent in the same `Authorization: Bearer` header.
+- Point the client at port 22603 instead of 9898, or set `PFSENSE_ACTIONS_PORT` to `9898` in the root `.env` to keep the old port. The HTTPS address of a <Terminology title="the HTTPS front end that forwards to the controller" to="/docs/reference/terminology#reverse-proxy">reverse proxy</Terminology> works too.
+- Keep `count` on `POST /ping` between 1 and 10, since larger values now return `400`.
+- Treat `502` as a failed request, and expect `503` from the ping route when the target never answers.
+- Move each client to its `/api/v1` path when it's convenient. The v1 paths keep working, and both return the same JSON.
+
+| Route                      | v1 path                                      | Scope               |
+|----------------------------|----------------------------------------------|---------------------|
+| `GET /api/v1/connectivity` | `GET /`                                      | `pfsense:read`      |
+| `GET /api/v1/system`       | None, new in 2.0.0 and also at `GET /system` | `pfsense:read`      |
+| `POST /api/v1/ping`        | `POST /ping`                                 | `reachability:read` |
+| `POST /api/v1/wol`         | `POST /wol`                                  | `wol:execute`       |
+
+## Roll Back
+
+v1.3.1 kept no state on disk, so rolling back means stopping 2.0.0 and starting the v1 container again. `docker compose down` stops 2.0.0 and keeps its <Terminology title="the persistent /data volume holding the database" to="/docs/reference/terminology#data-volume">data volume</Terminology> for a later attempt.

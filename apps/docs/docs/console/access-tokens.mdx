@@ -1,0 +1,93 @@
+---
+id: access-tokens
+title: Access Tokens
+description: Create, edit, rotate, and revoke personal access tokens in the pfSense Actions operations console, giving each script only the scopes it needs.
+sidebar_position: 2
+keywords:
+  - pfsense actions
+  - access tokens
+  - scopes
+  - expiration
+  - revocation
+  - token name
+tags:
+  - console
+  - access tokens
+---
+
+import ThemedImage from '@theme/ThemedImage';
+import { Frame, Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
+
+import accessTokensOneLight from './_assets_/access-tokens-1-light.png';
+import accessTokensOneDark from './_assets_/access-tokens-1-dark.png';
+import accessTokensTwoLight from './_assets_/access-tokens-2-light.png';
+import accessTokensTwoDark from './_assets_/access-tokens-2-dark.png';
+import accessTokensThreeLight from './_assets_/access-tokens-3-light.png';
+import accessTokensThreeDark from './_assets_/access-tokens-3-dark.png';
+
+Create a <Terminology title="a scoped credential issued to one API client" to="/docs/reference/terminology#personal-access-token">personal access token</Terminology> for each script or integration, and edit or revoke it in the console whenever you need to.
+
+## Why Use Separate Tokens?
+
+1. Gives each client only the <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scopes</Terminology> it needs.
+2. Lets you revoke one client without affecting the others.
+3. Shows which client did what, because the <Terminology title="a bounded, redacted history of actions and changes" to="/docs/reference/terminology#activity-log">activity log</Terminology> records the <Terminology title="the label you give a token, shown in the activity log" to="/docs/reference/terminology#token-name">token name</Terminology> behind each request.
+4. Ends temporary access on its own when you set an expiration.
+
+## Create a Token
+
+1. Open **Access tokens** and select **Create token**.
+2. Enter a **Name** you'll recognize, like the app that uses it, up to 80 characters. Each token needs its own <Terminology title="the label you give a token, shown in the activity log" to="/docs/reference/terminology#token-name">name</Terminology>, and names that differ only in letter case count as the same.
+3. Under **Scopes**, choose what the client can do. Each one lists the paths it opens.
+   - **`pfsense:read`** — <Terminology title="the route that tests pfSense access" to="/docs/reference/terminology#connectivity-check">Connectivity checks</Terminology> and <Terminology title="the OS, release, and architecture from uname" to="/docs/reference/terminology#system-information">system information</Terminology>.
+   - **`reachability:read`** — <Terminology title="asking pfSense whether it can ping an address" to="/docs/reference/terminology#reachability-check">Reachability checks</Terminology> from the firewall.
+   - **`wol:execute`** — Sending <Terminology title="waking a sleeping device with a network packet" to="/docs/reference/terminology#wake-on-lan">Wake-on-LAN</Terminology> packets.
+4. Under **Expires**, choose **Never**, **In 30 days**, **In 90 days**, or **In 1 year**.
+5. Select **Create token**.
+
+<Frame caption="Creating a token" style={{ maxWidth: 586, marginInline: 'auto' }}>
+  <ThemedImage sources={{ light: accessTokensOneLight, dark: accessTokensOneDark }} alt="Create token dialog with the name Node-RED, the pfsense:read and reachability:read scopes checked and wol:execute unchecked, each with the paths it opens, and Expires set to In 90 days" width={584} height={646} style={{ maxWidth: '100%', height: 'auto' }} />
+</Frame>
+
+## Store the Token Once
+
+The new token appears once, at the top of **Access tokens**, under **Token for** and its name.
+
+1. Select the copy button next to the token, and save the token in the client's secret store.
+2. Select **Done**.
+
+<Frame caption="A new token, shown once">
+  <ThemedImage sources={{ light: accessTokensTwoLight, dark: accessTokensTwoDark }} alt="Access tokens page with the Token for Node-RED panel at the top, showing the new token with a copy button, the note that it won't be shown again, and Done" width={992} height={291} style={{ maxWidth: '100%', height: 'auto' }} />
+</Frame>
+
+pfSense Actions keeps only a <Terminology title="the SHA-256 digest stored instead of the token" to="/docs/reference/terminology#token-hash">token hash</Terminology>, so a lost token can't be shown again. Create a new token instead and revoke the old one.
+
+## Edit a Token
+
+- **Edit** changes a token's name, <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scopes</Terminology>, and expiration, and the token's value stays the same. Changes apply to the client's next request.
+- Under **Expires**, the current expiration stays selected as **Keep** and its date, and **Never** removes it.
+- Events already in the <Terminology title="a bounded, redacted history of actions and changes" to="/docs/reference/terminology#activity-log">activity log</Terminology> keep the name the token had when they happened.
+
+## Revoke a Token
+
+Select **Revoke**, then **Revoke** again to confirm. The token is deleted, clients using it are rejected on their next request, and its name becomes free to use again.
+
+## Rotate a Token
+
+1. Create a replacement with a new name and the same <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scopes</Terminology>.
+2. Update the client and check that one request works.
+3. Revoke the old token.
+
+## Expired Tokens
+
+An expired token stays in the list, and requests that use it are rejected. Edit it to set a new expiration, or revoke it.
+
+## Calling the API
+
+The **Calling the API** section shows the address clients call, the `Authorization` header they send, and each path with the <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scope</Terminology> it needs. Select the copy button next to **Base URL** to copy the address the console is open at.
+
+<Frame caption="The Calling the API section">
+  <ThemedImage sources={{ light: accessTokensThreeLight, dark: accessTokensThreeDark }} alt="Calling the API section with the base URL https://actions.example.net and its copy button, the Authorization header, the four API paths with the scope each one needs, and a note that the short paths from version 1 also work" width={984} height={397} style={{ maxWidth: '100%', height: 'auto' }} />
+</Frame>
+
+The console's own routes, such as the ones in [Manage Notifications from Scripts](/docs/console/notifications/#manage-notifications-from-scripts), need a signed-in <Terminology title="a 24-hour console sign-in stored in the database" to="/docs/reference/terminology#browser-session">browser session</Terminology>, so they answer a token with `403`.

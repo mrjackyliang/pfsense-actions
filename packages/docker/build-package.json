@@ -1,0 +1,21 @@
+{
+  "name": "pfsense-actions-tool-docker-build",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": [
+    "apps/api"
+  ],
+  "allowScripts": {
+    "core-js": true,
+    "cpu-features@0.0.10": true,
+    "es5-ext": false,
+    "esbuild": true,
+    "fsevents": true,
+    "ssh2@1.17.0": true,
+    "unrs-resolver": true
+  },
+  "engines": {
+    "node": "^22 || ^24 || ^26"
+  },
+  "packageManager": "npm@11.18.0"
+}

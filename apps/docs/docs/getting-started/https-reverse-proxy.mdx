@@ -1,0 +1,86 @@
+---
+id: https-reverse-proxy
+title: HTTPS Reverse Proxy
+description: Put pfSense Actions behind an HTTPS reverse proxy on the Docker host, with forwarded headers read from private addresses and passkeys tied to the hostname.
+sidebar_position: 3
+keywords:
+  - pfsense actions
+  - reverse proxy
+  - https
+  - caddy
+  - passkeys
+  - tls
+tags:
+  - getting started
+  - https
+  - reverse proxy
+---
+
+import { Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
+
+Put pfSense Actions behind an HTTPS <Terminology title="the HTTPS front end that forwards to the controller" to="/docs/reference/terminology#reverse-proxy">reverse proxy</Terminology> so tokens and console sign-ins stay encrypted between clients and the Docker host.
+
+## Why Use a Reverse Proxy?
+
+1. Encrypts each <Terminology title="a scoped credential issued to one API client" to="/docs/reference/terminology#personal-access-token">personal access token</Terminology> in transit, which matters because a token stays valid until it expires or is revoked.
+2. Gives the console an HTTPS address, which <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkeys</Terminology> and the `Secure` flag on its cookies rely on.
+3. Lets you limit the plain-HTTP listener to `127.0.0.1`, where only the proxy on the same host can reach it.
+
+## Use a Loopback Binding
+
+The included `compose.yml` publishes the port as `${PFSENSE_ACTIONS_PORT:-22603}:22603`, on every IPv4 and IPv6 address, so devices on your network can reach the plain-HTTP listener. When the proxy runs on the same host, change it to `127.0.0.1:${PFSENSE_ACTIONS_PORT:-22603}:22603` for a <Terminology title="publishing the port only on 127.0.0.1" to="/docs/reference/terminology#loopback-binding">loopback binding</Terminology> and point the proxy at that address, unless another encrypted boundary protects the listener.
+
+## Configure Caddy
+
+Caddy is one option, and it gets certificates and adds the forwarding headers that pfSense Actions reads.
+
+```caddyfile title="Caddyfile"
+actions.example.net {
+  reverse_proxy 127.0.0.1:22603
+}
+```
+
+Any other proxy works the same way if it sets `X-Forwarded-For` and `X-Forwarded-Proto`, and either sets `X-Forwarded-Host` or passes the browser's `Host` header through.
+
+## Forwarded Headers
+
+pfSense Actions reads the `X-Forwarded-*` headers only from connections that come from a private or loopback address, such as a proxy on the same host or on the Docker network. There's nothing to configure.
+
+- **Client address** — The <Terminology title="a cap on requests per client address" to="/docs/reference/terminology#rate-limit">rate limits</Terminology> and the sign-in limit use the client address from `X-Forwarded-For`, which the [Sign-in locked](/docs/console/notifications/#events) alert also names. pfSense Actions reads the list from the end and stops at the first public address, or at the first entry when every address is private, so a chain of proxies on your own network still reports the real client.
+- **HTTPS** — `X-Forwarded-Proto: https` tells pfSense Actions that the browser used HTTPS, which adds the `Secure` flag to the console's cookies and allows <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkeys</Terminology>.
+- **Hostname** — `X-Forwarded-Host`, or the `Host` header when it's missing, gives the hostname that <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkeys</Terminology> are tied to.
+- **Missing headers** — A proxy that doesn't send `X-Forwarded-For` makes every client share the proxy's address, and with it one <Terminology title="a cap on requests per client address" to="/docs/reference/terminology#rate-limit">rate limit</Terminology>.
+- **Devices on your network** — A device with a private address that can reach the listener directly can set these headers itself, which is another reason to use the <Terminology title="publishing the port only on 127.0.0.1" to="/docs/reference/terminology#loopback-binding">loopback binding</Terminology>.
+
+## Serve at the Origin Root
+
+The API routes, the console at `/admin`, and its cookies all assume pfSense Actions owns the root of its address. Give it its own hostname, such as `https://actions.example.net`, because a sub-path such as `https://example.net/actions/` isn't supported.
+
+## Passkeys and the Address
+
+Passkeys need no settings. pfSense Actions ties each <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkey</Terminology> to the hostname in the browser when you add it, which becomes its <Terminology title="the hostname a passkey is bound to" to="/docs/reference/terminology#relying-party">relying party</Terminology>.
+
+- The console offers **Add passkey** on a domain name served over HTTPS, such as `actions.example.net`, or on `localhost`. On an IP address or plain HTTP, it explains why passkeys aren't available there.
+- A <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkey</Terminology> added at one hostname doesn't work at another, so moving the console to a new hostname means adding your passkeys again there.
+- Password and <Terminology title="a six-digit authenticator app code for sign-in" to="/docs/reference/terminology#totp">TOTP</Terminology> sign-in work at any address.
+
+:::warning
+A <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkey</Terminology> added at `localhost`, for example through an SSH tunnel, works only at `localhost`. Add the passkeys you'll use every day at the HTTPS address you plan to keep.
+:::
+
+## Verify over HTTPS
+
+Run a <Terminology title="the route that tests pfSense access" to="/docs/reference/terminology#connectivity-check">connectivity check</Terminology> through the proxy, then open `https://actions.example.net/admin` in a browser.
+
+```bash
+read -r -s PFSENSE_ACTIONS_TOKEN
+
+printf 'header = "Authorization: Bearer %s"\n' "$PFSENSE_ACTIONS_TOKEN" \
+  | curl --config - --silent --show-error \
+      --write-out '\nHTTP %{http_code}\n' \
+      https://actions.example.net/api/v1/connectivity
+
+unset PFSENSE_ACTIONS_TOKEN
+```
+
+`HTTP 200` confirms the whole path from the proxy to the firewall.

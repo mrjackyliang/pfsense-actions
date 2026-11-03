@@ -1,0 +1,123 @@
+---
+id: configuration
+title: Configuration Reference
+description: Look up every environment variable, Compose setting, and npm script for pfSense Actions, with defaults and encryption key rules.
+sidebar_position: 1
+keywords:
+  - pfsense actions
+  - configuration
+  - environment variables
+  - docker compose
+  - encryption key
+  - npm scripts
+tags:
+  - reference
+  - configuration
+---
+
+import { Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
+
+Look up every setting pfSense Actions reads, its default, when it takes effect, and how it's validated.
+
+## How Settings Apply
+
+- **Every start** — `PORT`, `DATA_DIRECTORY`, `ADMIN_WEBAUTHN_RP_NAME`, `LOG_LEVEL`, and `LOG_TIME` take effect each time the service starts.
+- **Only when nothing is saved** — The deprecated `PFSENSE_*` values are <Terminology title="an optional setting that fills a new database" to="/docs/reference/terminology#bootstrap-value">bootstrap values</Terminology>. They fill the <Terminology title="the SQLite file that holds the controller's state" to="/docs/reference/terminology#controller-database">controller database</Terminology> only while nothing of their kind is saved yet, and the service still validates them at every start.
+- **Empty values** — An empty string counts as unset, and every variable can be left empty.
+
+:::info
+None of these values are needed to start. A new installation prints a <Terminology title="the one-time code printed in the log for first-run setup" to="/docs/reference/terminology#setup-code">setup code</Terminology> in its log, and you set up the administrator account, the pfSense connection, and notifications in the <Terminology title="the protected browser admin interface at /admin" to="/docs/reference/terminology#operations-console">operations console</Terminology>.
+:::
+
+## API Environment Variables
+
+These go in `apps/api/.env` for a source run. For Docker, add them under `environment` in `compose.yml`.
+
+| Variable                 | Default                          | Description                                                                                                                                                                                                                                                       |
+|--------------------------|----------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `PORT`                   | `22603`                          | Port for the HTTP listener, from 1 to 65535. A warning is logged when it's unset, and the container fixes it at `22603`.                                                                                                                                          |
+| `DATA_DIRECTORY`         | `.data` in the working directory | Folder for the <Terminology title="the SQLite file that holds the controller's state" to="/docs/reference/terminology#controller-database">controller database</Terminology> and the generated key in `keys/installation.key`. The container fixes it at `/data`. |
+| `ADMIN_WEBAUTHN_RP_NAME` | `pfSense Actions`                | Name shown in <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">passkey</Terminology> prompts, up to 64 characters.                                                                         |
+| `LOG_LEVEL`              | Every level                      | `warn` or `error` hides the levels below it. Any other value, including `auto`, `debug`, and `info`, logs every level.                                                                                                                                            |
+| `LOG_TIME`               | `false`                          | `true` adds an ISO 8601 timestamp to each log line.                                                                                                                                                                                                               |
+| `NODE_ENV`               | Set by the scripts               | `production` in the container and `npm run prod`, and `development` in `npm run dev`. Express shows less error detail in `production`.                                                                                                                            |
+
+- pfSense Actions works out its public address from each request, so there's no setting for it. <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">Passkeys</Terminology> are tied to the hostname they were added on, as described in [HTTPS Reverse Proxy](/docs/getting-started/https-reverse-proxy/#passkeys-and-the-address).
+
+## Deprecated Variables
+
+These still work, but the console replaces them, so it's recommended to leave them unset.
+
+- **`PFSENSE_*`** — When they're set and no connection is saved yet, or its password or private key was removed, pfSense Actions imports them as the connection on its next start, without testing them. Change the connection on the [pfSense Connection](/docs/console/pfsense-connection/) page instead.
+- **Warnings** — Every start logs a `WARN` line while any of them is set, saying whether it was imported or ignored.
+- **Removal** — A later major version may stop reading them.
+
+| Variable              | Default | Description                                                                                          |
+|-----------------------|---------|------------------------------------------------------------------------------------------------------|
+| `PFSENSE_SSH_IP`      | None    | The firewall's IPv4 or IPv6 address, not a hostname.                                                 |
+| `PFSENSE_SSH_PORT`    | `22`    | SSH port, from 1 to 65535.                                                                           |
+| `PFSENSE_USERNAME`    | None    | SSH username.                                                                                        |
+| `PFSENSE_PASSWORD`    | None    | SSH password.                                                                                        |
+| `PFSENSE_PRIVATE_KEY` | None    | SSH private key contents, not a path, without a passphrase. When both are set, the password is used. |
+
+Set `PFSENSE_SSH_IP`, `PFSENSE_USERNAME`, and `PFSENSE_PASSWORD` or `PFSENSE_PRIVATE_KEY` together, or leave all of them empty, because partial values stop the service from starting.
+
+## Compose and Container Variables
+
+The root `.env` file sets these values for `compose.yml`, and every one is optional.
+
+| Variable               | Default | Description                                                                                                                                                                                                                     |
+|------------------------|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `PFSENSE_ACTIONS_PORT` | `22603` | Host port, published on every IPv4 and IPv6 address.                                                                                                                                                                            |
+| `PUID`                 | `1000`  | User ID the service runs as, from 1 to 2147483647.                                                                                                                                                                              |
+| `PGID`                 | `1000`  | Group ID the service runs as, from 1 to 2147483647.                                                                                                                                                                             |
+| `TZ`                   | `UTC`   | Time zone name from the image's time zone database.                                                                                                                                                                             |
+| `S6_READ_ONLY_ROOT`    | `0`     | Passed through to <Terminology title="the container's process supervisor and init system" to="/docs/reference/terminology#s6-overlay">s6-overlay</Terminology>. Compose doesn't make the container's root filesystem read-only. |
+
+- The container sets `DATA_DIRECTORY` to `/data`, `PORT` to `22603`, and `NODE_ENV` to `production`.
+- The root `.env` also has `NODE_ENV`, `LOG_LEVEL`, and `LOG_TIME` from its sample, but Compose doesn't pass them into the container.
+- The Compose file turns on IPv6 for the container's network, so the rate limits and the sign-in limit count each IPv6 client by its own address. Docker Engine 27 or later picks the IPv6 subnet on its own, and on a host without IPv6, you can delete the `networks` block. IPv6 addresses are often reachable from the internet, so it's recommended to check that your router or host firewall blocks inbound connections to the port.
+
+## Encryption Key
+
+pfSense Actions keeps its <Terminology title="the 64-character key that seals stored secrets" to="/docs/reference/terminology#encryption-key">encryption key</Terminology> in `keys/installation.key` in the data folder, which is `/data/keys/installation.key` in the container, and generates it there on the first start.
+
+| Rule           | Detail                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+|----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Format         | Exactly 64 hexadecimal characters, with surrounding whitespace trimmed. A file in any other format stops startup.                                                                                                                                                                                                                                                                                                                                                                |
+| Missing file   | pfSense Actions makes a new key and removes the secrets the old one sealed: the saved pfSense password or private key, the authenticator app, and the <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">secret fields</Terminology> of each <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">notification destination</Terminology>. |
+| Matching       | The key file has to belong to this database, and startup stops when it doesn't.                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Generated file | Created readable only by the service's user, in a folder only that user can open.                                                                                                                                                                                                                                                                                                                                                                                                |
+
+[Backup and Recovery](/docs/operations/backup-and-recovery/#lost-encryption-key) covers a missing key file and one that doesn't match.
+
+## npm Scripts
+
+| Command                                             | Description                                                                                                          |
+|-----------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|
+| `npm run dev --workspace pfsense-actions-app-api`   | Runs the API with `tsx watch`, loading `apps/api/.env`, and the console with Vite at `http://localhost:5174/admin/`. |
+| `npm run build --workspace pfsense-actions-app-api` | Compiles the API into `apps/api/build` and the console into `apps/api/build/admin`.                                  |
+| `npm run prod --workspace pfsense-actions-app-api`  | Runs `node build/index.js` without loading `apps/api/.env`.                                                          |
+| `npm run deploy:container`                          | Runs `docker compose up --build --detach`.                                                                           |
+
+## Limits
+
+| Limit                                                                                                                                                                                                                                                                        | Value                                                                                                                                                                                                                       |
+|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| JSON body size                                                                                                                                                                                                                                                               | 64 KB                                                                                                                                                                                                                       |
+| <Terminology title="one allowlisted pfSense operation behind an API route" to="/docs/reference/terminology#action">Action</Terminology> route <Terminology title="a cap on requests per client address" to="/docs/reference/terminology#rate-limit">rate limit</Terminology> | 3 requests per 10 seconds per client address                                                                                                                                                                                |
+| `/api/v1` <Terminology title="a cap on requests per client address" to="/docs/reference/terminology#rate-limit">rate limit</Terminology>                                                                                                                                     | 120 requests per minute per client address                                                                                                                                                                                  |
+| Console sign-in limit                                                                                                                                                                                                                                                        | 10 failed attempts per 15 minutes per client address                                                                                                                                                                        |
+| Setup screen limit                                                                                                                                                                                                                                                           | 10 wrong codes per 15 minutes per client address                                                                                                                                                                            |
+| <Terminology title="the one-time code printed in the log for first-run setup" to="/docs/reference/terminology#setup-code">Setup code</Terminology>                                                                                                                           | 30 minutes, and one use                                                                                                                                                                                                     |
+| `count` on the ping route                                                                                                                                                                                                                                                    | 1 to 10 <Terminology title="one five-packet ping run in a reachability check" to="/docs/reference/terminology#ping-attempt">ping attempts</Terminology>, 5 packets each                                                     |
+| <Terminology title="a 24-hour console sign-in stored in the database" to="/docs/reference/terminology#browser-session">Browser session</Terminology>                                                                                                                         | 24 hours from sign-in                                                                                                                                                                                                       |
+| Code step after a password                                                                                                                                                                                                                                                   | 5 minutes, and 5 wrong codes                                                                                                                                                                                                |
+| Authenticator setup                                                                                                                                                                                                                                                          | 10 minutes                                                                                                                                                                                                                  |
+| <Terminology title="a device-held credential for passwordless console sign-in" to="/docs/reference/terminology#passkey">Passkey</Terminology> prompt                                                                                                                         | 60 seconds                                                                                                                                                                                                                  |
+| SSH connection attempt                                                                                                                                                                                                                                                       | 20 seconds                                                                                                                                                                                                                  |
+| <Terminology title="a bounded, redacted history of actions and changes" to="/docs/reference/terminology#activity-log">Activity log</Terminology>                                                                                                                             | 250 events stored and shown                                                                                                                                                                                                 |
+| <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">Notification destination</Terminology> name                                                                                                           | 80 characters, different from every other <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology>'s name regardless of letter case |
+| Notification send                                                                                                                                                                                                                                                            | 10 seconds, with no retries                                                                                                                                                                                                 |
+| <Terminology title="the 5-minute SSH check behind the pfSense alerts" to="/docs/reference/terminology#scheduled-check">Scheduled check</Terminology>                                                                                                                         | Every 5 minutes, with **pfSense can't be reached** after 2 failures in a row                                                                                                                                                |
+| **Sign-in locked** alert                                                                                                                                                                                                                                                     | Once per client address per 15 minutes                                                                                                                                                                                      |

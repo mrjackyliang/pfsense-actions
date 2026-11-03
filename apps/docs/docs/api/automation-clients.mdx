@@ -1,0 +1,143 @@
+---
+id: automation-clients
+title: Automation Clients
+description: Download a ready-made Mac Wake-on-LAN script, call pfSense Actions from a shell script, Shortcuts, or Home Assistant, and handle each status code.
+sidebar_position: 6
+keywords:
+  - pfsense actions
+  - automation
+  - applescript
+  - macos keychain
+  - shell script
+  - curl
+  - wake-on-lan
+  - shortcuts
+  - home assistant
+tags:
+  - api
+  - automation
+  - macos
+---
+
+import { Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
+
+Connect scripts and shortcuts to pfSense Actions while keeping each <Terminology title="a scoped credential issued to one API client" to="/docs/reference/terminology#personal-access-token">personal access token</Terminology> in the client's own secret store.
+
+## Why Use Personal Access Tokens for Scripts?
+
+1. Works with curl, shell scripts, and shortcuts that can't complete an interactive sign-in.
+2. Gives each script only the <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scopes</Terminology> it needs, so a lost token can't reach other <Terminology title="one allowlisted pfSense operation behind an API route" to="/docs/reference/terminology#action">actions</Terminology>.
+3. Lets you revoke one script's access in the <Terminology title="the protected browser admin interface at /admin" to="/docs/reference/terminology#operations-console">operations console</Terminology> without touching the others.
+
+## Store the Token on macOS
+
+1. Create a token in the console and copy it while the console shows it.
+2. Open Keychain Access and create a new password item with these values.
+   - **Keychain Item Name** — `pfsense-actions`
+   - **Account Name** — Your macOS short user name.
+   - **Password** — The `pfa_` token.
+
+Keychain Access keeps the token out of your shell history and the process list while you store it.
+
+## Create a Wake-on-LAN Script
+
+Save this script as `~/bin/pfsense-wol`, then make it executable with `chmod 700 ~/bin/pfsense-wol`.
+
+```bash title="~/bin/pfsense-wol"
+#!/bin/zsh
+set -euo pipefail
+
+api_base_url="https://actions.example.net"
+token="$(/usr/bin/security find-generic-password -a "$USER" -s "pfsense-actions" -w)"
+
+printf 'header = "Authorization: Bearer %s"\n' "$token" \
+  | /usr/bin/curl --config - --silent --show-error --fail-with-body \
+      --header 'Content-Type: application/json' \
+      --request POST \
+      --data '{"broadcastAddress":"192.0.2.255","macAddress":"00:11:22:33:44:55"}' \
+      "$api_base_url/api/v1/wol"
+
+unset token
+```
+
+- `printf` here is the zsh builtin, so the token never appears in a process's arguments. Calling `/usr/bin/printf` instead would expose it to anyone who can list processes.
+- curl reads the header from standard input through `--config -`, and `--fail-with-body` makes it exit with an error for any HTTP error status.
+
+## Call It from AppleScript
+
+Keep the AppleScript small and let it run the script, so the token lookup and the request live in one place.
+
+```applescript title="Wake Gaming Computer.applescript"
+set scriptPath to (POSIX path of (path to home folder)) & "bin/pfsense-wol"
+
+try
+  do shell script quoted form of scriptPath
+  display notification "Wake-on-LAN request sent" with title "pfSense Actions"
+on error errorMessage number errorNumber
+  display alert "pfSense Actions failed" message errorMessage as critical
+  error number errorNumber
+end try
+```
+
+The script exits with an error for any HTTP error, so AppleScript shows the alert instead of the notification.
+
+## Download the Mac Wake-on-LAN Script
+
+[Wake on LAN via pfSense Actions](pathname:///downloads/wake-on-lan-via-pfsense-actions.zip) is a ready-made AppleScript that wakes a computer, waits until it answers pings, and then opens Moonlight, Parsec, or Windows App so you can connect to it. It keeps a list of computers and stores each computer's <Terminology title="a scoped credential issued to one API client" to="/docs/reference/terminology#personal-access-token">personal access token</Terminology> in the macOS Keychain.
+
+- **Needs** — pfSense Actions at an HTTPS address, such as behind the [HTTPS reverse proxy](/docs/getting-started/https-reverse-proxy/), and a token with the `wol:execute` and `reachability:read` <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scopes</Terminology>.
+- **Asks for** — A name for the computer, the HTTPS address, the token, the broadcast address, the computer's IP address and MAC address, and how many seconds to wait for it to boot.
+- **Keeps** — The computers in `~/.config/pfsense-actions-wol/config.plist`, and each token in the Keychain under **Wake on LAN via pfSense Actions**.
+- **Waits politely** — It checks the computer with repeated reachability checks of up to 10 attempts each, and pauses whenever it reaches the rate limit of 3 requests per 10 seconds.
+
+### Set It Up
+
+1. Download the ZIP file, open it to get **Wake on LAN via pfSense Actions.applescript**, and open that script in Script Editor.
+2. Choose **File** > **Export**, set **File Format** to **Application**, and save it in your Applications folder.
+3. Open the app and select **Add PC** to enter the first computer.
+4. Pick a computer to wake it. Once it answers, choose the app to connect with.
+
+### Ways to Use It
+
+- **From the Dock or Spotlight** — Keep the app in the Dock, or open it from Spotlight by name.
+- **With a keyboard shortcut** — In the Shortcuts app, make a shortcut with the **Open App** action for the app, then add a keyboard shortcut in the shortcut's details.
+- **From the menu bar** — Turn on **Show Script menu in menu bar** in Script Editor's settings, then save a copy of the script in `~/Library/Scripts` to run it from that menu.
+- **For several computers** — Add each computer with its own token, so revoking one token in the console stops only that computer's entry.
+
+## Handle Status Codes
+
+| Status       | What it means for the script                                                                                                                                                                            |
+|--------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `200`        | pfSense carried out the request.                                                                                                                                                                        |
+| `401`        | The token was revoked, has expired, or was stored incorrectly, so the script needs a valid one.                                                                                                         |
+| `403`        | The token lacks the route's <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scope</Terminology>.                                                      |
+| `429`        | The script sent too many requests in 10 seconds, so it's worth waiting before trying again.                                                                                                             |
+| `502`        | The sign-in to pfSense or the command failed.                                                                                                                                                           |
+| `503`        | No pfSense connection is saved yet, its credential was removed, or, for the ping route, no attempt met the condition.                                                                                   |
+| `400`, `500` | The body was invalid, or the <Terminology title="the pfSense Actions service between clients and pfSense" to="/docs/reference/terminology#controller">controller</Terminology> hit an unexpected error. |
+
+Every error response carries a JSON body with `error.code` and `error.message`, so a script can show the message or branch on the code, as listed in [Status Codes and Limits](/docs/api/status-codes/).
+
+## Other Clients
+
+Any client that can send an HTTPS request with a header can call pfSense Actions. [Request Basics](/docs/api/request-basics/) covers the header, the request bodies, and how to keep the token out of process arguments.
+
+- **iPhone and iPad** — In the Shortcuts app, add **Get Contents of URL** with `https://actions.example.net/api/v1/wol`, set **Method** to **POST**, add an `Authorization` header with `Bearer` followed by the token, and set **Request Body** to **JSON** with `broadcastAddress` and `macAddress`. Add the shortcut to the Home Screen, or run it with Siri. The shortcut keeps the token, so it's worth giving it a token with only `wol:execute`.
+- **Home Assistant** — A `rest_command` sends the same request from automations, scripts, and dashboard buttons, and keeps the token in `secrets.yaml`.
+
+```yaml title="configuration.yaml"
+rest_command:
+  wake_gaming_computer:
+    url: "https://actions.example.net/api/v1/wol"
+    method: post
+    headers:
+      Authorization: !secret pfsense_actions_authorization
+    content_type: "application/json"
+    payload: '{"broadcastAddress":"192.0.2.255","macAddress":"00:11:22:33:44:55"}'
+```
+
+```yaml title="secrets.yaml"
+pfsense_actions_authorization: "Bearer pfa_..."
+```
+
+Replace `pfa_...` with the whole token, then call `rest_command.wake_gaming_computer` from an automation or a button.

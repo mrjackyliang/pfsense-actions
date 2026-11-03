@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "services": [
+    {
+      "command": "node build/index.js",
+      "critical": false,
+      "dependencies": [],
+      "environment": {
+        "DATA_DIRECTORY": "/data",
+        "PORT": "22603"
+      },
+      "healthCommand": "node -e \"const net = require('node:net'); const socket = net.connect(22603, '127.0.0.1'); socket.on('connect', () => { socket.end(); process.exit(0); }); socket.on('error', () => process.exit(1));\"",
+      "kind": "longrun",
+      "name": "pfsense-actions",
+      "port": 22603,
+      "requiredForHealth": true,
+      "runAsRoot": false,
+      "workspace": "apps/api",
+      "writablePaths": [
+        "/data"
+      ]
+    }
+  ],
+  "workspaces": [
+    {
+      "packageName": "pfsense-actions-app-api",
+      "path": "apps/api",
+      "profile": "background-service",
+      "runtimePaths": []
+    }
+  ]
+}

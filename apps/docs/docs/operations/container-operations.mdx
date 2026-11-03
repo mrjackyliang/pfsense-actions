@@ -1,0 +1,97 @@
+---
+id: container-operations
+title: Container Operations
+description: Check pfSense Actions container health, inspect s6 supervision, read the logs, and stop, start, rebuild, or update the Compose deployment safely.
+sidebar_position: 1
+keywords:
+  - pfsense actions
+  - docker compose
+  - health check
+  - s6-overlay
+  - logs
+  - updates
+tags:
+  - operations
+  - docker
+---
+
+import { Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
+
+Run day-to-day checks on the pfSense Actions container without opening an SSH session to the firewall.
+
+## Why Use These Procedures?
+
+1. Separates container health from pfSense reachability, so monitoring doesn't sign in to the firewall every few seconds.
+2. Shows when <Terminology title="the container's process supervisor and init system" to="/docs/reference/terminology#s6-overlay">s6-overlay</Terminology> keeps restarting a service that exits.
+3. Keeps the <Terminology title="the persistent /data volume holding the database" to="/docs/reference/terminology#data-volume">data volume</Terminology> in place across stops, starts, and rebuilds.
+
+## Check Health
+
+```bash
+docker compose ps
+```
+
+- The <Terminology title="the container probe that confirms the service is up" to="/docs/reference/terminology#health-check">health check</Terminology> runs every 30 seconds with a 5-second timeout, and it marks the container unhealthy after 3 failures in a row. Failures in the first 10 seconds after a start don't count.
+- It confirms that s6 is supervising the service and that port 22603 accepts a TCP connection inside the container.
+- It doesn't call the API or contact pfSense, so a <Terminology title="the route that tests pfSense access" to="/docs/reference/terminology#connectivity-check">connectivity check</Terminology> is the way to test the whole path.
+- To get an alert when pfSense stops answering, the <Terminology title="the 5-minute SSH check behind the pfSense alerts" to="/docs/reference/terminology#scheduled-check">scheduled check</Terminology> described in [Notifications](/docs/console/notifications/#the-scheduled-check) watches the firewall for you.
+
+## Inspect s6 Supervision
+
+```bash
+docker compose top
+```
+
+The process list shows `/init` from <Terminology title="the container's process supervisor and init system" to="/docs/reference/terminology#s6-overlay">s6-overlay</Terminology>, its supervisor processes, and `node build/index.js` running as the `PUID` and `PGID` user. If Node exits, <Terminology title="the container's process supervisor and init system" to="/docs/reference/terminology#s6-overlay">s6-overlay</Terminology> starts it again, so repeated startup lines in the logs point to a crash loop.
+
+## Read the Logs
+
+```bash
+docker compose logs --follow --tail 100 app
+```
+
+- Each line reads `LEVEL message`, with `INFO` on standard output and `WARN` and `ERROR` on standard error.
+- `LOG_TIME="true"` adds an ISO 8601 timestamp to each line, and `LOG_LEVEL="warn"` or `LOG_LEVEL="error"` hides the levels below it. Both go under `environment` in `compose.yml`.
+- The logs show the startup lines, the <Terminology title="the one-time code printed in the log for first-run setup" to="/docs/reference/terminology#setup-code">setup code</Terminology> while no administrator account exists, warnings about deprecated variables or a missing <Terminology title="the 64-character key that seals stored secrets" to="/docs/reference/terminology#encryption-key">encryption key</Terminology>, the message of any unexpected error, and startup failures.
+- They don't show requests, the cause of a `502`, console activity, or whether an alert arrived, so the <Terminology title="a bounded, redacted history of actions and changes" to="/docs/reference/terminology#activity-log">activity log</Terminology> and the [Notifications](/docs/console/notifications/) page are better places to look for those.
+
+## Stop and Start
+
+```bash
+docker compose down
+docker compose up --detach
+```
+
+- `docker compose down` removes the container but keeps the image and the <Terminology title="the persistent /data volume holding the database" to="/docs/reference/terminology#data-volume">data volume</Terminology>.
+- Stopping ends any request that's still running, because pfSense Actions doesn't wait for active requests or SSH sessions to finish.
+- A restart keeps the console signed in, because each <Terminology title="a 24-hour console sign-in stored in the database" to="/docs/reference/terminology#browser-session">browser session</Terminology> is stored in the database.
+
+:::danger
+`docker compose down --volumes` deletes the <Terminology title="the persistent /data volume holding the database" to="/docs/reference/terminology#data-volume">data volume</Terminology>, including every token, setting, and activity record.
+:::
+
+## Rebuild or Update
+
+```bash
+git pull
+docker compose up --build --detach
+```
+
+- The <Terminology title="the persistent /data volume holding the database" to="/docs/reference/terminology#data-volume">data volume</Terminology> carries over, so tokens and settings stay as they were.
+- The `Dockerfile` pins its base images by digest, so their versions change only when the `Dockerfile` does.
+
+:::info
+The image build installs npm packages without the repository's lockfile, so a rebuild can pick up newer versions of the packages that the pinned dependencies rely on.
+:::
+
+## Operational Boundaries
+
+| Check                                                                                                                                                                      | Contacts pfSense                                                                                                                                                                       | Needs a token            |
+|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------|
+| Docker <Terminology title="the container probe that confirms the service is up" to="/docs/reference/terminology#health-check">health check</Terminology>                   | No                                                                                                                                                                                     | No                       |
+| `docker compose ps`                                                                                                                                                        | No                                                                                                                                                                                     | No                       |
+| `docker compose top`                                                                                                                                                       | No                                                                                                                                                                                     | No                       |
+| **Test connection** in the console                                                                                                                                         | Yes                                                                                                                                                                                    | No, a console session    |
+| The <Terminology title="the 5-minute SSH check behind the pfSense alerts" to="/docs/reference/terminology#scheduled-check">scheduled check</Terminology> for notifications | Yes, every 5 minutes while a <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">destination</Terminology> wants it | No                       |
+| `GET /api/v1/connectivity`                                                                                                                                                 | Yes                                                                                                                                                                                    | Yes, with `pfsense:read` |
+| `GET /api/v1/system`                                                                                                                                                       | Yes                                                                                                                                                                                    | Yes, with `pfsense:read` |
