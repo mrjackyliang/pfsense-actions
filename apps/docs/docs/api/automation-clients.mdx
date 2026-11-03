@@ -83,7 +83,7 @@ The script exits with an error for any HTTP error, so AppleScript shows the aler
 
 ## Download the Mac Wake-on-LAN Script
 
-[Wake on LAN via pfSense Actions](pathname:///downloads/wake-on-lan-via-pfsense-actions.zip) is a ready-made AppleScript that wakes a computer, waits until it answers pings, and then opens Moonlight, Parsec, or Windows App so you can connect to it. It keeps a list of computers and stores each computer's <Terminology title="a scoped credential issued to one API client" to="/docs/reference/terminology#personal-access-token">personal access token</Terminology> in the macOS Keychain.
+[Wake on LAN via pfSense Actions](https://github.com/mrjackyliang/mrjackyliang/blob/main/applescript/pfsense-actions-wol/script.applescript) is a ready-made AppleScript that wakes a computer, waits until it answers pings, and then opens Moonlight, Parsec, or Windows App so you can connect to it. It keeps a list of computers and stores each computer's <Terminology title="a scoped credential issued to one API client" to="/docs/reference/terminology#personal-access-token">personal access token</Terminology> in the macOS Keychain.
 
 - **Needs** — pfSense Actions at an HTTPS address, such as behind the [HTTPS reverse proxy](/docs/getting-started/https-reverse-proxy/), and a token with the `wol:execute` and `reachability:read` <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scopes</Terminology>.
 - **Asks for** — A name for the computer, the HTTPS address, the token, the broadcast address, the computer's IP address and MAC address, and how many seconds to wait for it to boot.
@@ -92,8 +92,8 @@ The script exits with an error for any HTTP error, so AppleScript shows the aler
 
 ### Set It Up
 
-1. Download the ZIP file, open it to get **Wake on LAN via pfSense Actions.applescript**, and open that script in Script Editor.
-2. Choose **File** > **Export**, set **File Format** to **Application**, and save it in your Applications folder.
+1. Open the script on GitHub, select **Download raw file**, and open the downloaded file in Script Editor.
+2. Choose **File** > **Export**, name it **Wake on LAN via pfSense Actions**, set **File Format** to **Application**, and save it in your Applications folder.
 3. Open the app and select **Add PC** to enter the first computer.
 4. Pick a computer to wake it. Once it answers, choose the app to connect with.
 
