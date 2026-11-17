@@ -1,6 +1,9 @@
 import {
+  existsSync,
   mkdtempSync,
   readFileSync,
+  renameSync,
+  rmdirSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -35,13 +38,19 @@ import type {
   Tests_Lib_State_CreatedToken,
   Tests_Lib_State_CreateEnvironment_Overrides,
   Tests_Lib_State_CreateEnvironment_Returns,
+  Tests_Lib_State_CreateEnvironment_StateDirectory,
   Tests_Lib_State_Database,
+  Tests_Lib_State_DatabaseDirectory,
+  Tests_Lib_State_DatabasePath,
   Tests_Lib_State_DataDirectory,
   Tests_Lib_State_GetDataDirectory_Returns,
+  Tests_Lib_State_KeyFile,
   Tests_Lib_State_KeyPath,
+  Tests_Lib_State_LegacyDatabasePath,
   Tests_Lib_State_Mode,
   Tests_Lib_State_NotificationTarget,
   Tests_Lib_State_OldKey,
+  Tests_Lib_State_OriginalKey,
   Tests_Lib_State_PersonalAccessToken,
   Tests_Lib_State_RecoveryCodes,
   Tests_Lib_State_Secret,
@@ -93,9 +102,13 @@ function getDataDirectory(): Tests_Lib_State_GetDataDirectory_Returns {
  * @since 2.0.0
  */
 function createEnvironment(overrides: Tests_Lib_State_CreateEnvironment_Overrides = {}): Tests_Lib_State_CreateEnvironment_Returns {
+  const stateDirectory: Tests_Lib_State_CreateEnvironment_StateDirectory = getDataDirectory();
+
   return {
     adminWebauthnRpName: 'pfSense Actions',
-    dataDirectory: getDataDirectory(),
+    dataDirectory: stateDirectory,
+    databaseDirectory: join(stateDirectory, 'database'),
+    installationKeyFile: join(stateDirectory, 'keys', 'installation.key'),
     ...overrides,
   };
 }
@@ -141,11 +154,12 @@ describe('first-run setup', () => {
     return;
   });
 
-  it('starts without an account and keeps a generated key beside the data', () => {
+  it('starts without an account and creates the contract state layout', () => {
     const state: Tests_Lib_State_State = new State(createEnvironment());
     const keyPath: Tests_Lib_State_KeyPath = join(getDataDirectory(), 'keys', 'installation.key');
+    const keyFile: Tests_Lib_State_KeyFile = readFileSync(keyPath, 'utf8');
     const keyMode: Tests_Lib_State_Mode = (statSync(keyPath).mode % 512).toString(8);
-    const databaseMode: Tests_Lib_State_Mode = (statSync(join(getDataDirectory(), 'pfsense-actions.sqlite3')).mode % 512).toString(8);
+    const databaseMode: Tests_Lib_State_Mode = (statSync(join(getDataDirectory(), 'database', 'pfsense-actions.sqlite3')).mode % 512).toString(8);
 
     expect(state.hasAdministrator()).toBe(false);
 
@@ -157,7 +171,9 @@ describe('first-run setup', () => {
       claimRequired: true,
     });
 
-    expect(readFileSync(keyPath, 'utf8').trim()).toMatch(textEncryptionKey);
+    expect(keyFile.trim()).toMatch(textEncryptionKey);
+
+    expect(keyFile).toBe(`${keyFile.trim().toLowerCase()}\n`);
 
     expect(keyMode).toBe('600');
 
@@ -180,6 +196,93 @@ describe('first-run setup', () => {
       pfsenseSshPort: 22,
       pfsenseUsername: 'fixture-user',
     });
+
+    reopenedState.close();
+
+    return;
+  });
+
+  it('moves the old flat database without changing encrypted state', () => {
+    const state: Tests_Lib_State_State = new State(createEnvironment());
+
+    state.updateConnection({
+      pfsensePassword: 'fixture-password',
+      pfsenseSshIp: '192.0.2.1',
+      pfsenseSshPort: 22,
+      pfsenseUsername: 'fixture-user',
+    }, 'admin');
+
+    state.close();
+
+    const databaseDirectory: Tests_Lib_State_DatabaseDirectory = join(getDataDirectory(), 'database');
+    const databasePath: Tests_Lib_State_DatabasePath = join(databaseDirectory, 'pfsense-actions.sqlite3');
+    const legacyDatabasePath: Tests_Lib_State_LegacyDatabasePath = join(getDataDirectory(), 'pfsense-actions.sqlite3');
+
+    renameSync(databasePath, legacyDatabasePath);
+
+    rmdirSync(databaseDirectory);
+
+    const reopenedState: Tests_Lib_State_State = new State(createEnvironment());
+
+    expect(existsSync(legacyDatabasePath)).toBe(false);
+
+    expect(existsSync(databasePath)).toBe(true);
+
+    expect(reopenedState.getPfsenseConnection()).toEqual({
+      pfsensePassword: 'fixture-password',
+      pfsenseSshIp: '192.0.2.1',
+      pfsenseSshPort: 22,
+      pfsenseUsername: 'fixture-user',
+    });
+
+    reopenedState.close();
+
+    return;
+  });
+
+  it('refuses to overwrite a contract database with an old flat database', () => {
+    const state: Tests_Lib_State_State = new State(createEnvironment());
+
+    state.close();
+
+    const databasePath: Tests_Lib_State_DatabasePath = join(getDataDirectory(), 'database', 'pfsense-actions.sqlite3');
+    const legacyDatabasePath: Tests_Lib_State_LegacyDatabasePath = join(getDataDirectory(), 'pfsense-actions.sqlite3');
+
+    writeFileSync(legacyDatabasePath, 'legacy database');
+
+    expect(() => new State(createEnvironment())).toThrow('will not overwrite either layout');
+
+    expect(readFileSync(legacyDatabasePath, 'utf8')).toBe('legacy database');
+
+    expect(existsSync(databasePath)).toBe(true);
+
+    return;
+  });
+
+  it('normalizes a legacy textual key without changing its bytes', () => {
+    const state: Tests_Lib_State_State = new State(createEnvironment());
+    const keyPath: Tests_Lib_State_KeyPath = join(getDataDirectory(), 'keys', 'installation.key');
+
+    state.updateConnection({
+      pfsensePassword: 'fixture-password',
+      pfsenseSshIp: '192.0.2.1',
+      pfsenseSshPort: 22,
+      pfsenseUsername: 'fixture-user',
+    }, 'admin');
+
+    state.close();
+
+    const originalKey: Tests_Lib_State_OriginalKey = readFileSync(keyPath, 'utf8').trim();
+
+    writeFileSync(keyPath, originalKey.toUpperCase());
+
+    const reopenedState: Tests_Lib_State_State = new State(createEnvironment());
+
+    expect(readFileSync(keyPath, 'utf8')).toBe(`${originalKey}\n`);
+
+    expect(reopenedState.getPfsenseConnection()).toEqual(expect.objectContaining({
+      pfsensePassword: 'fixture-password',
+    }));
 
     reopenedState.close();
 
@@ -778,7 +881,7 @@ describe('console state', () => {
       scopes: ['wol:execute'],
     }, 'admin')).toBeUndefined();
 
-    expect(readFileSync(join(getDataDirectory(), 'pfsense-actions.sqlite3')).includes(createdToken['personalAccessToken'])).toBe(false);
+    expect(readFileSync(join(getDataDirectory(), 'database', 'pfsense-actions.sqlite3')).includes(createdToken['personalAccessToken'])).toBe(false);
 
     expect(state.authenticateToken(createdToken['personalAccessToken'])).toEqual({
       id: tokenId,
@@ -803,7 +906,7 @@ describe('console state', () => {
       throw new Error('The second token was not created.');
     }
 
-    const database: Tests_Lib_State_Database = new DatabaseSync(join(getDataDirectory(), 'pfsense-actions.sqlite3'));
+    const database: Tests_Lib_State_Database = new DatabaseSync(join(getDataDirectory(), 'database', 'pfsense-actions.sqlite3'));
 
     database.prepare('UPDATE api_tokens SET created_at = ? WHERE id = ?').run('2026-01-01T00:00:00.000Z', tokenId);
 
@@ -1200,7 +1303,7 @@ describe('console state', () => {
       pfsenseUsername: 'original-operator',
     }, 'admin');
 
-    const database: Tests_Lib_State_Database = new DatabaseSync(join(getDataDirectory(), 'pfsense-actions.sqlite3'));
+    const database: Tests_Lib_State_Database = new DatabaseSync(join(getDataDirectory(), 'database', 'pfsense-actions.sqlite3'));
 
     database.exec('CREATE TRIGGER fail_backup_token BEFORE INSERT ON api_tokens WHEN NEW.name = \'Fail imported token\' BEGIN SELECT RAISE(ABORT, \'fixture import failure\'); END;');
 

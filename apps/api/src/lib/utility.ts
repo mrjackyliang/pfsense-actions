@@ -1,5 +1,8 @@
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import {
+  join,
+  resolve,
+} from 'node:path';
 
 import { env } from './schema.js';
 
@@ -12,7 +15,9 @@ import type {
   Lib_Utility_GetDeprecationWarnings_Returns,
   Lib_Utility_GetDeprecationWarnings_Warnings,
   Lib_Utility_GetEnvironmentVariables_AdminWebauthnRpName,
+  Lib_Utility_GetEnvironmentVariables_DatabaseDirectory,
   Lib_Utility_GetEnvironmentVariables_DataDirectory,
+  Lib_Utility_GetEnvironmentVariables_InstallationKeyFile,
   Lib_Utility_GetEnvironmentVariables_PfsensePassword,
   Lib_Utility_GetEnvironmentVariables_PfsensePrivateKey,
   Lib_Utility_GetEnvironmentVariables_PfsenseSshIp,
@@ -83,17 +88,21 @@ export function getDeprecationWarnings(environment: Lib_Utility_GetDeprecationWa
  * @since 2.0.0
  */
 export function getEnvironmentVariables(): Lib_Utility_GetEnvironmentVariables_Returns {
+  const adminWebauthnRpName: Lib_Utility_GetEnvironmentVariables_AdminWebauthnRpName = (typeof process.env['ADMIN_WEBAUTHN_RP_NAME'] === 'string' && process.env['ADMIN_WEBAUTHN_RP_NAME'] !== '') ? process.env['ADMIN_WEBAUTHN_RP_NAME'] : 'pfSense Actions';
   const dataDirectory: Lib_Utility_GetEnvironmentVariables_DataDirectory = (typeof process.env['DATA_DIRECTORY'] === 'string' && process.env['DATA_DIRECTORY'] !== '') ? process.env['DATA_DIRECTORY'] : resolve(process.cwd(), '.data');
+  const databaseDirectory: Lib_Utility_GetEnvironmentVariables_DatabaseDirectory = (typeof process.env['NOVA_DATABASE_DIRECTORY'] === 'string' && process.env['NOVA_DATABASE_DIRECTORY'] !== '') ? process.env['NOVA_DATABASE_DIRECTORY'] : join(dataDirectory, 'database');
+  const installationKeyFile: Lib_Utility_GetEnvironmentVariables_InstallationKeyFile = (typeof process.env['NOVA_INSTALLATION_KEY_FILE'] === 'string' && process.env['NOVA_INSTALLATION_KEY_FILE'] !== '') ? process.env['NOVA_INSTALLATION_KEY_FILE'] : join(dataDirectory, 'keys', 'installation.key');
   const pfsensePassword: Lib_Utility_GetEnvironmentVariables_PfsensePassword = (typeof process.env['PFSENSE_PASSWORD'] === 'string' && process.env['PFSENSE_PASSWORD'] !== '') ? process.env['PFSENSE_PASSWORD'] : undefined;
   const pfsensePrivateKey: Lib_Utility_GetEnvironmentVariables_PfsensePrivateKey = (typeof process.env['PFSENSE_PRIVATE_KEY'] === 'string' && process.env['PFSENSE_PRIVATE_KEY'] !== '') ? process.env['PFSENSE_PRIVATE_KEY'] : undefined;
   const pfsenseSshIp: Lib_Utility_GetEnvironmentVariables_PfsenseSshIp = (typeof process.env['PFSENSE_SSH_IP'] === 'string' && process.env['PFSENSE_SSH_IP'] !== '') ? process.env['PFSENSE_SSH_IP'] : undefined;
   const pfsenseSshPort: Lib_Utility_GetEnvironmentVariables_PfsenseSshPort = (typeof process.env['PFSENSE_SSH_PORT'] === 'string' && process.env['PFSENSE_SSH_PORT'] !== '') ? process.env['PFSENSE_SSH_PORT'] : undefined;
   const pfsenseUsername: Lib_Utility_GetEnvironmentVariables_PfsenseUsername = (typeof process.env['PFSENSE_USERNAME'] === 'string' && process.env['PFSENSE_USERNAME'] !== '') ? process.env['PFSENSE_USERNAME'] : undefined;
-  const adminWebauthnRpName: Lib_Utility_GetEnvironmentVariables_AdminWebauthnRpName = (typeof process.env['ADMIN_WEBAUTHN_RP_NAME'] === 'string' && process.env['ADMIN_WEBAUTHN_RP_NAME'] !== '') ? process.env['ADMIN_WEBAUTHN_RP_NAME'] : 'pfSense Actions';
 
   return env.parse({
     adminWebauthnRpName,
     dataDirectory,
+    databaseDirectory,
+    installationKeyFile,
     pfsensePassword,
     pfsensePrivateKey,
     pfsenseSshIp,

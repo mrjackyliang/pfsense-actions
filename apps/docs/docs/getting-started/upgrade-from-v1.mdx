@@ -62,7 +62,7 @@ To skip retyping the connection, add your v1 `PFSENSE_*` variables under `enviro
 ## Update Each Client
 
 - Replace the v1 API key with the client's own token, sent in the same `Authorization: Bearer` header.
-- Point the client at port 22603 instead of 9898, or change the host side of the port mapping to `"9898:22603"` in `compose.yml` (`-p 9898:22603` with `docker run`) to keep the old port. The HTTPS address of a <Terminology title="The HTTPS front door, like Caddy, ahead of the controller" to="/docs/reference/terminology#deployment-and-container">reverse proxy</Terminology> works too.
+- Point the client at port 22603 instead of 9898. The supplied container uses host networking, so it has no host-side port mapping; a <Terminology title="The HTTPS front door, like Caddy, ahead of the controller" to="/docs/reference/terminology#deployment-and-container">reverse proxy</Terminology> can keep an existing public address or port while forwarding to 22603.
 - Keep `count` on `POST /ping` between 1 and 10, since larger values now return `400`.
 - Treat `502` as a failed request, and expect `503` from the ping route when the target never answers.
 - Move each client to its `/api/v1` path when it's convenient. The v1 paths keep working, and both return the same JSON.

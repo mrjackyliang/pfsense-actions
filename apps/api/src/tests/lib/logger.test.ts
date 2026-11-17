@@ -22,6 +22,8 @@ describe('debug logging', () => {
   afterEach(() => {
     setDebugLogging(false);
 
+    vi.useRealTimers();
+
     vi.unstubAllEnvs();
 
     vi.restoreAllMocks();
@@ -31,7 +33,10 @@ describe('debug logging', () => {
 
   it('writes DEBUG lines only while debug logging is on', () => {
     vi.stubEnv('LOG_LEVEL', '');
-    vi.stubEnv('LOG_TIME', '');
+
+    vi.useFakeTimers();
+
+    vi.setSystemTime(new Date('2026-11-17T12:34:56.000Z'));
 
     const write: Tests_Lib_Logger_Write = vi.spyOn(process.stdout, 'write').mockReturnValue(true);
 
@@ -43,15 +48,18 @@ describe('debug logging', () => {
 
     logDebug('shown while on');
 
-    logInfo('still shown');
+    logInfo([
+      'still',
+      'shown',
+    ].join('\r\n'));
 
     const lines: Tests_Lib_Logger_Lines = write.mock.calls.map((call) => String(call[0]));
 
     expect(isDebugLogging()).toBe(true);
 
     expect(lines).toEqual([
-      'DEBUG shown while on\n',
-      'INFO still shown\n',
+      '2026-11-17T12:34:56.000Z DEBUG pfsense-actions: shown while on\n',
+      '2026-11-17T12:34:56.000Z INFO pfsense-actions: still shown\n',
     ]);
 
     return;
@@ -59,7 +67,6 @@ describe('debug logging', () => {
 
   it('leaves DEBUG lines out while LOG_LEVEL hides info', () => {
     vi.stubEnv('LOG_LEVEL', 'warn');
-    vi.stubEnv('LOG_TIME', '');
 
     const write: Tests_Lib_Logger_Write = vi.spyOn(process.stdout, 'write').mockReturnValue(true);
 

@@ -234,6 +234,8 @@ export type Lib_State_Runner_Constructor_DirectoryMode = number;
 
 export type Lib_State_Runner_Constructor_FileMode = number;
 
+export type Lib_State_Runner_Constructor_KeyDirectory = string;
+
 export type Lib_State_Runner_Constructor_DatabasePath = string;
 
 /**
@@ -908,6 +910,33 @@ export type Lib_State_Runner_PrepareSetupClaim_Returns = {
 } | undefined;
 
 /**
+ * Lib - State - Runner - Prepare State Layout.
+ *
+ * @since 2.2.0
+ */
+export type Lib_State_Runner_PrepareStateLayout_Environment = Shared_EnvironmentVariables;
+
+export type Lib_State_Runner_PrepareStateLayout_Returns = void;
+
+export type Lib_State_Runner_PrepareStateLayout_LegacyDatabaseFileNames = string[];
+
+export type Lib_State_Runner_PrepareStateLayout_LegacyDatabasePaths = string[];
+
+export type Lib_State_Runner_PrepareStateLayout_LegacyDatabaseMainPath = string | undefined;
+
+export type Lib_State_Runner_PrepareStateLayout_StagingDirectory = string;
+
+export type Lib_State_Runner_PrepareStateLayout_ExistingLegacyDatabasePaths = string[];
+
+export type Lib_State_Runner_PrepareStateLayout_DatabaseDirectoryEntries = string[];
+
+export type Lib_State_Runner_PrepareStateLayout_DatabaseParentDirectory = string;
+
+export type Lib_State_Runner_PrepareStateLayout_FileName = string;
+
+export type Lib_State_Runner_PrepareStateLayout_StagingPath = string;
+
+/**
  * Lib - State - Runner - Prune Expired.
  *
  * @since 2.0.0
@@ -1022,7 +1051,15 @@ export type Lib_State_Runner_ReplaceRecoveryCodes_Returns = string[] | undefined
  */
 export type Lib_State_Runner_ResolveEncryptionKey_Returns = string;
 
+export type Lib_State_Runner_ResolveEncryptionKey_StoredKeyFile = string;
+
 export type Lib_State_Runner_ResolveEncryptionKey_StoredKey = string;
+
+export type Lib_State_Runner_ResolveEncryptionKey_NormalizedKey = string;
+
+export type Lib_State_Runner_ResolveEncryptionKey_NormalizedKeyFile = string;
+
+export type Lib_State_Runner_ResolveEncryptionKey_TemporaryKeyPath = string;
 
 /**
  * Lib - State - Runner - Save Encryption Key.

@@ -44,6 +44,10 @@ export type Lib_Utility_GetEnvironmentVariables_AdminWebauthnRpName = string;
 
 export type Lib_Utility_GetEnvironmentVariables_DataDirectory = string;
 
+export type Lib_Utility_GetEnvironmentVariables_DatabaseDirectory = string;
+
+export type Lib_Utility_GetEnvironmentVariables_InstallationKeyFile = string;
+
 export type Lib_Utility_GetEnvironmentVariables_PfsensePassword = string | undefined;
 
 export type Lib_Utility_GetEnvironmentVariables_PfsensePrivateKey = string | undefined;

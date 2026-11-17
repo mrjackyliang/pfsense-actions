@@ -68,6 +68,8 @@ export type Tests_Lib_State_CreateEnvironment_Overrides = Partial<Shared_Environ
 
 export type Tests_Lib_State_CreateEnvironment_Returns = Shared_EnvironmentVariables;
 
+export type Tests_Lib_State_CreateEnvironment_StateDirectory = string;
+
 /**
  * Tests - Lib - State - Created Token.
  *
@@ -89,6 +91,10 @@ export type Tests_Lib_State_DataDirectory = string | undefined;
  */
 export type Tests_Lib_State_Database = DatabaseSync;
 
+export type Tests_Lib_State_DatabaseDirectory = string;
+
+export type Tests_Lib_State_DatabasePath = string;
+
 /**
  * Tests - Lib - State - Get Data Directory.
  *
@@ -101,7 +107,11 @@ export type Tests_Lib_State_GetDataDirectory_Returns = string;
  *
  * @since 2.0.0
  */
+export type Tests_Lib_State_KeyFile = string;
+
 export type Tests_Lib_State_KeyPath = string;
+
+export type Tests_Lib_State_LegacyDatabasePath = string;
 
 /**
  * Tests - Lib - State - Mode.
@@ -130,6 +140,8 @@ export type Tests_Lib_State_PersonalAccessToken = string;
  * @since 2.0.0
  */
 export type Tests_Lib_State_OldKey = string;
+
+export type Tests_Lib_State_OriginalKey = string;
 
 /**
  * Tests - Lib - State - Recovery Codes.

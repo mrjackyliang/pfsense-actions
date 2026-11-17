@@ -140,6 +140,13 @@ export type Tests_Routes_Api_CreateClient_Returns = Tests_Routes_Api_Client;
 export type Tests_Routes_Api_CreateClient_Cookies = Map<string, string>;
 
 /**
+ * Tests - Routes - API - Create Environment.
+ *
+ * @since 2.2.0
+ */
+export type Tests_Routes_Api_CreateEnvironment_StateDirectory = string;
+
+/**
  * Tests - Routes - API - Create Registration.
  *
  * @since 2.0.0

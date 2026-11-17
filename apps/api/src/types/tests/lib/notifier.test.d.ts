@@ -24,6 +24,8 @@ export type Tests_Lib_Notifier_GetDataDirectory_Returns = string;
 
 export type Tests_Lib_Notifier_OpenState_Returns = State;
 
+export type Tests_Lib_Notifier_OpenState_StateDirectory = string;
+
 export type Tests_Lib_Notifier_Reachable = {
   current: boolean;
 };

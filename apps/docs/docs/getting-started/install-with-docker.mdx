@@ -18,11 +18,11 @@ tags:
 
 import { Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
 
-Run pfSense Actions with the repository's Docker Compose file, which builds the image on your host and publishes the console and API on port 22603.
+Run pfSense Actions with the repository's Docker Compose file, which builds the image on your host and gives the container host-network access on port 22603.
 
 ## Why Use This Deployment?
 
-1. Publishes port 22603 on every IPv4 and IPv6 address of the Docker host, so devices on your network can open the console. The [HTTPS reverse proxy](/docs/getting-started/https-reverse-proxy/) guide covers a <Terminology title="Listen on 127.0.0.1 only, so just the host can reach it" to="/docs/reference/terminology#deployment-and-container">loopback binding</Terminology> that limits it to the Docker host.
+1. Uses the Docker host's network on port 22603, so devices that can reach that port can open the console. The [HTTPS reverse proxy](/docs/getting-started/https-reverse-proxy/) guide covers limiting the plain-HTTP listener when the proxy runs on the same host.
 2. Needs no passwords or keys in files, because you create the <Terminology title="The one login for the console; tokens can't sign in" to="/docs/reference/terminology#console-sign-in">administrator account</Terminology> in the browser with a one-time <Terminology title="The one-time code from the log that creates your login" to="/docs/reference/terminology#console-sign-in">setup code</Terminology> from the container log.
 3. Keeps the <Terminology title="The one SQLite file that holds everything" to="/docs/reference/terminology#storage-and-backups">controller database</Terminology> and its generated <Terminology title="Locks saved secrets; lose it and they're wiped" to="/docs/reference/terminology#storage-and-backups">encryption key</Terminology> on a named <Terminology title="The Docker volume that keeps your data across updates" to="/docs/reference/terminology#storage-and-backups">data volume</Terminology> that survives rebuilds.
 4. Runs the service as a non-root user under <Terminology title="Starts the controller in the container and restarts it" to="/docs/reference/terminology#deployment-and-container">s6-overlay</Terminology>, with a built-in <Terminology title="Docker's 30-second check that the service is listening" to="/docs/reference/terminology#deployment-and-container">health check</Terminology>.
@@ -50,7 +50,7 @@ TZ="UTC"
 
 Every variable and its default is listed in the [Configuration Reference](/docs/reference/configuration/).
 
-The service always listens on port 22603 inside the container. To publish a different host port, change the left side of the `ports` mapping in `compose.yml`, such as `"8080:22603"`, or use `-p 8080:22603` with `docker run`. With host networking, the port is always 22603.
+`PUID` and `PGID` must each be an integer from 1 through 60000. The container starts as root so its initialization can set ownership, then s6 runs the controller as those IDs. Compose uses host networking, and the service always listens on host port 22603.
 
 ## Build and Start
 
@@ -60,7 +60,11 @@ Build the image and start the service from the repository root.
 docker compose up --build --detach
 ```
 
-`npm run deploy:container` runs the same command. On the first start, pfSense Actions creates the <Terminology title="The one SQLite file that holds everything" to="/docs/reference/terminology#storage-and-backups">controller database</Terminology> and an <Terminology title="Locks saved secrets; lose it and they're wiped" to="/docs/reference/terminology#storage-and-backups">encryption key</Terminology>, which it saves as `keys/installation.key` in the <Terminology title="The Docker volume that keeps your data across updates" to="/docs/reference/terminology#storage-and-backups">data volume</Terminology>.
+`npm run deploy:container` runs the same command. On the first start, pfSense Actions creates the <Terminology title="The one SQLite file that holds everything" to="/docs/reference/terminology#storage-and-backups">controller database</Terminology> at `/config/database/pfsense-actions.sqlite3` and an <Terminology title="Locks saved secrets; lose it and they're wiped" to="/docs/reference/terminology#storage-and-backups">encryption key</Terminology> at `/config/keys/installation.key`.
+
+:::info[State Mount Upgrade]
+Earlier versions mounted the state folder at `/data`. Stop the old container and mount that same host folder at `/config`. On the first start, pfSense Actions moves the old flat database and its `-wal` and `-shm` files into `database/` only when the new database folder is empty. An unchanged old run line that mounts only `/data` is also detected and migrated in place. Existing destination files are never replaced, and a partial or conflicting migration stops startup.
+:::
 
 ## Find the Setup Code
 
@@ -71,8 +75,8 @@ docker compose logs app
 ```
 
 ```text
-WARN No administrator account exists yet. Open the console at /admin/ to create it.
-WARN Setup code: ABCDE-FGHJK-LMNPQ (valid until 2026-01-01T12:30:00.000Z; restart the container for a new one)
+2026-01-01T12:00:00.000Z WARN pfsense-actions: No administrator account exists yet. Open the console at /admin/ to create it.
+2026-01-01T12:00:00.000Z WARN pfsense-actions: Setup code: ABCDE-FGHJK-LMNPQ (valid until 2026-01-01T12:30:00.000Z; restart the container for a new one)
 ```
 
 - The code works once and lasts 30 minutes, and `docker compose restart app` prints a new one.
@@ -80,7 +84,7 @@ WARN Setup code: ABCDE-FGHJK-LMNPQ (valid until 2026-01-01T12:30:00.000Z; restar
 
 ## Create the Administrator Account
 
-1. Open `http://<docker-host>:22603/admin/`, where `<docker-host>` is the name or address of the machine that runs Docker. Use your host port if you changed the mapping, or your HTTPS address once the proxy is in place.
+1. Open `http://<docker-host>:22603/admin/`, where `<docker-host>` is the name or address of the machine that runs Docker, or use your HTTPS address once the proxy is in place.
 2. Enter the **One-time code** from the log. Letter case, spaces, and dashes don't matter.
 3. Choose a **Username** and a **Password** of 12 to 1,024 characters, repeat the password in **Confirm password**, and select **Create account**. The bar under the field rates it from **Weak** to **Strong**, and any password in that range is accepted.
 
@@ -122,10 +126,10 @@ To hear when pfSense stops answering or sign-in is locked, add a <Terminology ti
 
 ## What the Data Volume Holds
 
-The <Terminology title="The Docker volume that keeps your data across updates" to="/docs/reference/terminology#storage-and-backups">data volume</Terminology> `pfsense_actions_data` is mounted at `/data` and holds two things.
+The <Terminology title="The Docker volume that keeps your data across updates" to="/docs/reference/terminology#storage-and-backups">data volume</Terminology> `pfsense_actions_data` is mounted at `/config`. Initialization creates its contract layout, assigns the whole tree to `PUID:PGID` on every start, and holds two kinds of state.
 
-- **`pfsense-actions.sqlite3`** — The <Terminology title="The one SQLite file that holds everything" to="/docs/reference/terminology#storage-and-backups">controller database</Terminology>, with its `-wal` and `-shm` files. It holds the <Terminology title="The one login for the console; tokens can't sign in" to="/docs/reference/terminology#console-sign-in">administrator account</Terminology> with an Argon2id password hash, <Terminology title="Keeps you signed in to the console for 24 hours" to="/docs/reference/terminology#console-sign-in">browser sessions</Terminology>, each <Terminology title="All that's stored of a token; lose it and you replace it" to="/docs/reference/terminology#access-tokens">token hash</Terminology> and its <Terminology title="What a token may do; each action needs exactly one" to="/docs/reference/terminology#access-tokens">scopes</Terminology>, the encrypted pfSense connection, the encrypted <Terminology title="The six-digit code from your authenticator app" to="/docs/reference/terminology#console-sign-in">TOTP</Terminology> secret, <Terminology title="A one-use backup code for when your phone is gone" to="/docs/reference/terminology#console-sign-in">recovery code</Terminology> hashes, <Terminology title="Sign in with your device, no password or code needed" to="/docs/reference/terminology#console-sign-in">passkey</Terminology> public keys, <Terminology title="Where an alert goes: ntfy, Telegram, email, webhook" to="/docs/reference/terminology#notifications">notification destinations</Terminology> with their encrypted <Terminology title="A destination's token or password, saved but never shown" to="/docs/reference/terminology#notifications">secret fields</Terminology>, and the <Terminology title="Who did what and when, for the newest 250 events" to="/docs/reference/terminology#console-activity-and-secrets">activity log</Terminology>.
-- **`keys/installation.key`** — The generated <Terminology title="Locks saved secrets; lose it and they're wiped" to="/docs/reference/terminology#storage-and-backups">encryption key</Terminology>, readable only by the service's user. If it goes missing, pfSense Actions makes a new one and removes the saved pfSense password or private key, the authenticator app, and every <Terminology title="Where an alert goes: ntfy, Telegram, email, webhook" to="/docs/reference/terminology#notifications">destination</Terminology>'s <Terminology title="A destination's token or password, saved but never shown" to="/docs/reference/terminology#notifications">secret fields</Terminology>, as described in [Backup and Recovery](/docs/operations/backup-and-recovery/#lost-encryption-key).
+- **`database/pfsense-actions.sqlite3`** — The <Terminology title="The one SQLite file that holds everything" to="/docs/reference/terminology#storage-and-backups">controller database</Terminology>, with its `-wal` and `-shm` files. It holds the <Terminology title="The one login for the console; tokens can't sign in" to="/docs/reference/terminology#console-sign-in">administrator account</Terminology> with an Argon2id password hash, <Terminology title="Keeps you signed in to the console for 24 hours" to="/docs/reference/terminology#console-sign-in">browser sessions</Terminology>, each <Terminology title="All that's stored of a token; lose it and you replace it" to="/docs/reference/terminology#access-tokens">token hash</Terminology> and its <Terminology title="What a token may do; each action needs exactly one" to="/docs/reference/terminology#access-tokens">scopes</Terminology>, the encrypted pfSense connection, the encrypted <Terminology title="The six-digit code from your authenticator app" to="/docs/reference/terminology#console-sign-in">TOTP</Terminology> secret, <Terminology title="A one-use backup code for when your phone is gone" to="/docs/reference/terminology#console-sign-in">recovery code</Terminology> hashes, <Terminology title="Sign in with your device, no password or code needed" to="/docs/reference/terminology#console-sign-in">passkey</Terminology> public keys, <Terminology title="Where an alert goes: ntfy, Telegram, email, webhook" to="/docs/reference/terminology#notifications">notification destinations</Terminology> with their encrypted <Terminology title="A destination's token or password, saved but never shown" to="/docs/reference/terminology#notifications">secret fields</Terminology>, and the <Terminology title="Who did what and when, for the newest 250 events" to="/docs/reference/terminology#console-activity-and-secrets">activity log</Terminology>.
+- **`keys/installation.key`** — The generated <Terminology title="Locks saved secrets; lose it and they're wiped" to="/docs/reference/terminology#storage-and-backups">encryption key</Terminology>, stored as 64 lowercase hexadecimal characters plus a newline. The `keys/` folder has mode `0700`, and the file has mode `0600`. If it goes missing, pfSense Actions makes a new one and removes the saved pfSense password or private key, the authenticator app, and every <Terminology title="Where an alert goes: ntfy, Telegram, email, webhook" to="/docs/reference/terminology#notifications">destination</Terminology>'s <Terminology title="A destination's token or password, saved but never shown" to="/docs/reference/terminology#notifications">secret fields</Terminology>, as described in [Backup and Recovery](/docs/operations/backup-and-recovery/#lost-encryption-key).
 
 Raw tokens, raw recovery codes, and plaintext passwords or private keys aren't stored in the volume. The pfSense credential and notification secrets leave it in plain text only inside an export file you download.
 

@@ -24,11 +24,11 @@ Put pfSense Actions behind an HTTPS <Terminology title="The HTTPS front door, li
 
 1. Encrypts each <Terminology title="The pfa_ key a script sends to call the API" to="/docs/reference/terminology#access-tokens">personal access token</Terminology> in transit, which matters because a token stays valid until it expires or is revoked.
 2. Gives the console an HTTPS address, which <Terminology title="Sign in with your device, no password or code needed" to="/docs/reference/terminology#console-sign-in">passkeys</Terminology> and the `Secure` flag on its cookies rely on.
-3. Lets you limit the plain-HTTP listener to `127.0.0.1`, where only the proxy on the same host can reach it.
+3. Lets you block direct access to the plain-HTTP port with the host firewall, so clients enter through the proxy.
 
-## Use a Loopback Binding
+## Limit the Plain-HTTP Port
 
-The included `compose.yml` publishes the port as `22603:22603`, on every IPv4 and IPv6 address, so devices on your network can reach the plain-HTTP listener. When the proxy runs on the same host, change it to `127.0.0.1:22603:22603` for a <Terminology title="Listen on 127.0.0.1 only, so just the host can reach it" to="/docs/reference/terminology#deployment-and-container">loopback binding</Terminology> and point the proxy at that address, unless another encrypted boundary protects the listener.
+The included `compose.yml` uses host networking, so pfSense Actions listens directly on host port 22603 and Docker port publishing doesn't apply. Point a proxy on the same host at `127.0.0.1:22603`, then use the host firewall to reject connections to port 22603 from other machines unless another encrypted boundary protects the listener.
 
 ## Configure Caddy
 
@@ -50,7 +50,7 @@ pfSense Actions reads the `X-Forwarded-*` headers only from connections that com
 - **HTTPS** — `X-Forwarded-Proto: https` tells pfSense Actions that the browser used HTTPS, which adds the `Secure` flag to the console's cookies and allows <Terminology title="Sign in with your device, no password or code needed" to="/docs/reference/terminology#console-sign-in">passkeys</Terminology>.
 - **Hostname** — `X-Forwarded-Host`, or the `Host` header when it's missing, gives the hostname that <Terminology title="Sign in with your device, no password or code needed" to="/docs/reference/terminology#console-sign-in">passkeys</Terminology> are tied to.
 - **Missing headers** — A proxy that doesn't send `X-Forwarded-For` makes every client share the proxy's address, and with it one <Terminology title="How many requests one IP gets before it's turned away" to="/docs/reference/terminology#access-tokens">rate limit</Terminology>.
-- **Devices on your network** — A device with a private address that can reach the listener directly can set these headers itself, which is another reason to use the <Terminology title="Listen on 127.0.0.1 only, so just the host can reach it" to="/docs/reference/terminology#deployment-and-container">loopback binding</Terminology>.
+- **Devices on your network** — A device with a private address that can reach the listener directly can set these headers itself, which is another reason to block direct access to port 22603.
 
 ## Serve at the Origin Root
 

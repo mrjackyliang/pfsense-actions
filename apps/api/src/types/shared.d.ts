@@ -103,6 +103,10 @@ export type Shared_EnvironmentVariables_AdminWebauthnRpName = string;
 
 export type Shared_EnvironmentVariables_DataDirectory = string;
 
+export type Shared_EnvironmentVariables_DatabaseDirectory = string;
+
+export type Shared_EnvironmentVariables_InstallationKeyFile = string;
+
 export type Shared_EnvironmentVariables_PfsensePassword = string;
 
 export type Shared_EnvironmentVariables_PfsensePrivateKey = string;
@@ -116,6 +120,8 @@ export type Shared_EnvironmentVariables_PfsenseUsername = string;
 export type Shared_EnvironmentVariables = {
   adminWebauthnRpName: Shared_EnvironmentVariables_AdminWebauthnRpName;
   dataDirectory: Shared_EnvironmentVariables_DataDirectory;
+  databaseDirectory: Shared_EnvironmentVariables_DatabaseDirectory;
+  installationKeyFile: Shared_EnvironmentVariables_InstallationKeyFile;
   pfsensePassword?: Shared_EnvironmentVariables_PfsensePassword | undefined;
   pfsensePrivateKey?: Shared_EnvironmentVariables_PfsensePrivateKey | undefined;
   pfsenseSshIp?: Shared_EnvironmentVariables_PfsenseSshIp | undefined;

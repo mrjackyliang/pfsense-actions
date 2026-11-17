@@ -27,7 +27,7 @@ docker compose logs --tail 100 app
 docker compose top
 ```
 
-A healthy container shows `healthy`, logs `Listening on port 22603`, and runs `node build/index.js` under `/init`. Repeated startup errors in the logs mean <Terminology title="Starts the controller in the container and restarts it" to="/docs/reference/terminology#deployment-and-container">s6-overlay</Terminology> keeps restarting a service that fails as it starts.
+A healthy container shows `healthy`, logs `Listening on port 22603`, and runs `node build/index.js` under `/init`. A nonzero exit from that essential service stops the container, and Compose's restart policy starts it again, so repeated startup errors point to a container crash loop.
 
 ## Match the HTTP Status
 
@@ -60,18 +60,18 @@ The `PFSENSE_*` values go together, so set `PFSENSE_SSH_IP`, `PFSENSE_USERNAME`,
 
 ### Encryption Key Doesn't Match
 
-- `The encryption key at /data/keys/installation.key doesn't belong to this database.` means the key file comes from another database, for example after a restore that mixed files.
-- `The encryption key file at /data/keys/installation.key is not 64 hexadecimal characters.` means the key file is damaged.
+- `The encryption key at /config/keys/installation.key doesn't belong to this database.` means the key file comes from another database, for example after a restore that mixed files.
+- `The encryption key file at /config/keys/installation.key is not 64 hexadecimal characters.` means the key file is damaged.
 
 [Backup and Recovery](/docs/operations/backup-and-recovery/#encryption-key-doesnt-match) covers the way out. A missing key file doesn't stop startup, as described in [Lost Encryption Key](/docs/operations/backup-and-recovery/#lost-encryption-key).
 
 ### PUID, PGID, or TZ Rejected
 
-The container's setup step stops with messages such as `PUID must be a positive integer.`, `PGID must be between 1 and 2147483647.`, or `Unknown timezone: ...`. A value of `0` is rejected so the service can't run as root, and `TZ` has to name a zone in the image's time zone database.
+The container's setup step stops with messages such as `PUID must be an integer between 1 and 60000.`, `PGID must be an integer between 1 and 60000.`, or `Unknown timezone: ...`. The container itself starts as root, but the controller always runs as the accepted `PUID:PGID`. `TZ` has to name a zone in the image's time zone database.
 
 ### Permission Errors on the Data Folder
 
-An `EACCES` error for `/data` or the database files means they belong to a different user than `PUID` and `PGID`. Change their owner as described in [Backup and Recovery](/docs/operations/backup-and-recovery/#change-puid-or-pgid-with-existing-data).
+Initialization recursively assigns the selected state directory to `PUID:PGID` on every start. An `EACCES` error for `/config` or its database files therefore means the root container process can't change or write the mounted storage; check the host mount's permissions and that the container starts as user `0:0`.
 
 ### Build Stops on the Architecture
 
@@ -176,7 +176,7 @@ The <Terminology title="Where an alert goes: ntfy, Telegram, email, webhook" to=
 ## Changed Settings Had No Effect
 
 - The deprecated `PFSENSE_*` values are <Terminology title="Old PFSENSE_* settings that only seed an empty database" to="/docs/reference/terminology#console-sign-in">bootstrap values</Terminology>, so they only matter while no connection is saved, and every start logs a warning while they're set. Change the connection in the console instead, and remove them.
-- `LOG_LEVEL` and `LOG_TIME` apply at the next start, so recreate the container after changing them.
-- The container fixes `DATA_DIRECTORY` at `/data`, so changing it has no effect in Docker.
-- The service always listens on port 22603 inside the container. To reach it on another host port, change the host side of the port mapping, such as `-p 8080:22603` or `"8080:22603"` in `compose.yml`.
+- `LOG_LEVEL` applies at the next start, so recreate the container after changing it. Timestamps are always present.
+- Nova resolves `DATA_DIRECTORY` to `/config`, or to `/data` only while supporting an old run line that mounts legacy state there. A user-supplied value has no effect in Docker.
+- Compose uses host networking, so the service listens directly on host port 22603 and has no port mapping to change.
 - In a source run, pointing `DATA_DIRECTORY` somewhere new starts an empty database with a new <Terminology title="Locks saved secrets; lose it and they're wiped" to="/docs/reference/terminology#storage-and-backups">encryption key</Terminology>, where the setup screen and the <Terminology title="Old PFSENSE_* settings that only seed an empty database" to="/docs/reference/terminology#console-sign-in">bootstrap values</Terminology> apply again.

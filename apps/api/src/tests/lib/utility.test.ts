@@ -39,6 +39,8 @@ describe('environment', () => {
 
     for (const name of [
       'ADMIN_WEBAUTHN_RP_NAME',
+      'NOVA_DATABASE_DIRECTORY',
+      'NOVA_INSTALLATION_KEY_FILE',
       'PFSENSE_PASSWORD',
       'PFSENSE_PRIVATE_KEY',
       'PFSENSE_SSH_IP',
@@ -68,6 +70,8 @@ describe('environment', () => {
     expect(getEnvironmentVariables()).toEqual({
       adminWebauthnRpName: 'pfSense Actions',
       dataDirectory: join(directory, 'data'),
+      databaseDirectory: join(directory, 'data', 'database'),
+      installationKeyFile: join(directory, 'data', 'keys', 'installation.key'),
     });
 
     return;
@@ -77,6 +81,8 @@ describe('environment', () => {
     const environment: Tests_Lib_Utility_Environment = {
       adminWebauthnRpName: 'pfSense Actions',
       dataDirectory: join(directory, 'data'),
+      databaseDirectory: join(directory, 'data', 'database'),
+      installationKeyFile: join(directory, 'data', 'keys', 'installation.key'),
       pfsensePrivateKey: 'fixture-private-key',
       pfsenseSshIp: '192.0.2.1',
       pfsenseUsername: 'fixture-user',
@@ -93,6 +99,8 @@ describe('environment', () => {
     expect(getDeprecationWarnings({
       adminWebauthnRpName: 'pfSense Actions',
       dataDirectory: join(directory, 'data'),
+      databaseDirectory: join(directory, 'data', 'database'),
+      installationKeyFile: join(directory, 'data', 'keys', 'installation.key'),
     }, {
       connection: false,
     })).toEqual([]);
@@ -104,6 +112,20 @@ describe('environment', () => {
     vi.stubEnv('PFSENSE_SSH_IP', '192.0.2.1');
 
     expect(() => getEnvironmentVariables()).toThrow('PFSENSE_USERNAME');
+
+    return;
+  });
+
+  it('uses Nova\'s exact database and installation key paths', () => {
+    vi.stubEnv('NOVA_DATABASE_DIRECTORY', join(directory, 'nova-database'));
+    vi.stubEnv('NOVA_INSTALLATION_KEY_FILE', join(directory, 'nova-keys', 'installation.key'));
+
+    expect(getEnvironmentVariables()).toEqual({
+      adminWebauthnRpName: 'pfSense Actions',
+      dataDirectory: join(directory, 'data'),
+      databaseDirectory: join(directory, 'nova-database'),
+      installationKeyFile: join(directory, 'nova-keys', 'installation.key'),
+    });
 
     return;
   });

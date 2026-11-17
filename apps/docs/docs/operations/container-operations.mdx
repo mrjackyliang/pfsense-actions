@@ -31,9 +31,9 @@ Run day-to-day checks on the pfSense Actions container without opening an SSH se
 docker compose ps
 ```
 
-- The <Terminology title="Docker's 30-second check that the service is listening" to="/docs/reference/terminology#deployment-and-container">health check</Terminology> runs every 30 seconds with a 5-second timeout, and it marks the container unhealthy after 3 failures in a row. Failures in the first 10 seconds after a start don't count.
-- It confirms that s6 is supervising the service and that port 22603 accepts a TCP connection inside the container.
-- It doesn't call the API or contact pfSense, so a <Terminology title="Can pfSense Actions sign in to pfSense? Yes or no" to="/docs/reference/terminology#api-actions">connectivity check</Terminology> is the way to test the whole path.
+- The <Terminology title="Docker's 30-second check that the service is listening" to="/docs/reference/terminology#deployment-and-container">health check</Terminology> runs every 30 seconds with a 5-second timeout, and it marks the container unhealthy after 3 failures in a row. Failures in the first 30 seconds after a start don't count.
+- It confirms every required s6 service is up, then requires `GET /health` on port 22603 to answer `200`.
+- The endpoint doesn't authenticate, read state, or contact pfSense, so a <Terminology title="Can pfSense Actions sign in to pfSense? Yes or no" to="/docs/reference/terminology#api-actions">connectivity check</Terminology> is the way to test the whole path.
 - To get an alert when pfSense stops answering, the <Terminology title="A sign-in every 5 minutes to notice pfSense going down" to="/docs/reference/terminology#notifications">scheduled check</Terminology> described in [Notifications](/docs/console/notifications/#the-scheduled-check) watches the firewall for you.
 
 ## Inspect s6 Supervision
@@ -42,7 +42,7 @@ docker compose ps
 docker compose top
 ```
 
-The process list shows `/init` from <Terminology title="Starts the controller in the container and restarts it" to="/docs/reference/terminology#deployment-and-container">s6-overlay</Terminology>, its supervisor processes, and `node build/index.js` running as the `PUID` and `PGID` user. If Node exits, <Terminology title="Starts the controller in the container and restarts it" to="/docs/reference/terminology#deployment-and-container">s6-overlay</Terminology> starts it again, so repeated startup lines in the logs point to a crash loop.
+The process list shows `/init` from <Terminology title="Starts the controller in the container and restarts it" to="/docs/reference/terminology#deployment-and-container">s6-overlay</Terminology>, its supervisor processes, and `node build/index.js` running as the `PUID` and `PGID` user. The controller is essential, so a nonzero exit asks s6 to stop the whole container. Compose's `restart: always` then starts the container again, and repeated startup lines point to a crash loop.
 
 ## Read the Logs
 
@@ -50,8 +50,8 @@ The process list shows `/init` from <Terminology title="Starts the controller in
 docker compose logs --follow --tail 100 app
 ```
 
-- Each line reads `LEVEL message`, with `INFO` and `DEBUG` on standard output and `WARN` and `ERROR` on standard error.
-- `LOG_TIME="true"` adds an ISO 8601 timestamp to each line, and `LOG_LEVEL="warn"` or `LOG_LEVEL="error"` hides the levels below it. Both go under `environment` in `compose.yml`.
+- Every record is one plain-text line in the shape `<ISO time> <LEVEL> <component>: <message>`; the runtime never emits JSON or a multiline record.
+- `INFO` and `DEBUG` go to standard output, while `WARN` and `ERROR` go to standard error. `LOG_LEVEL="warn"` or `LOG_LEVEL="error"` hides the levels below it.
 - The logs show the startup lines, the <Terminology title="The one-time code from the log that creates your login" to="/docs/reference/terminology#console-sign-in">setup code</Terminology> while no administrator account exists, warnings about deprecated variables or a missing <Terminology title="Locks saved secrets; lose it and they're wiped" to="/docs/reference/terminology#storage-and-backups">encryption key</Terminology>, the message of any unexpected error, and startup failures.
 - [Debug logging](/docs/console/pfsense-connection/#debug-logging) on the **Connection** page adds `DEBUG` lines for each SSH sign-in and command, the scheduled check, each notification sent, and slow or canceled requests, without a restart.
 - With it off, they don't show requests, the cause of a `502`, console activity, or whether an alert arrived, so the <Terminology title="Who did what and when, for the newest 250 events" to="/docs/reference/terminology#console-activity-and-secrets">activity log</Terminology> and the [Notifications](/docs/console/notifications/) page are better places to look for those.
@@ -65,6 +65,7 @@ docker compose up --detach
 
 - `docker compose down` removes the container but keeps the image and the <Terminology title="The Docker volume that keeps your data across updates" to="/docs/reference/terminology#storage-and-backups">data volume</Terminology>.
 - Stopping ends any request that's still running, because pfSense Actions doesn't wait for active requests or SSH sessions to finish.
+- The s6 stop and kill timers fit within Docker's default 10-second stop window.
 - A restart keeps the console signed in, because each <Terminology title="Keeps you signed in to the console for 24 hours" to="/docs/reference/terminology#console-sign-in">browser session</Terminology> is stored in the database.
 
 :::danger

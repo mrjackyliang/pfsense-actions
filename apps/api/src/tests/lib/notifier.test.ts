@@ -28,6 +28,7 @@ import type {
   Tests_Lib_Notifier_Login,
   Tests_Lib_Notifier_Logout,
   Tests_Lib_Notifier_OpenState_Returns,
+  Tests_Lib_Notifier_OpenState_StateDirectory,
   Tests_Lib_Notifier_Reachable,
   Tests_Lib_Notifier_Send,
   Tests_Lib_Notifier_Session,
@@ -77,9 +78,13 @@ function getDataDirectory(): Tests_Lib_Notifier_GetDataDirectory_Returns {
  * @since 2.0.0
  */
 function openState(): Tests_Lib_Notifier_OpenState_Returns {
+  const stateDirectory: Tests_Lib_Notifier_OpenState_StateDirectory = getDataDirectory();
+
   return new State({
     adminWebauthnRpName: 'pfSense Actions',
-    dataDirectory: getDataDirectory(),
+    dataDirectory: stateDirectory,
+    databaseDirectory: join(stateDirectory, 'database'),
+    installationKeyFile: join(stateDirectory, 'keys', 'installation.key'),
   });
 }
 

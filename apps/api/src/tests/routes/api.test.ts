@@ -65,6 +65,7 @@ import type {
   Tests_Routes_Api_CreateClient_DefaultHeaders,
   Tests_Routes_Api_CreateClient_Returns,
   Tests_Routes_Api_CreatedToken,
+  Tests_Routes_Api_CreateEnvironment_StateDirectory,
   Tests_Routes_Api_CreateRegistration_AttestationObject,
   Tests_Routes_Api_CreateRegistration_Attested,
   Tests_Routes_Api_CreateRegistration_Authenticator,
@@ -206,9 +207,13 @@ let harness: Tests_Routes_Api_Harness = undefined;
  * @since 2.0.0
  */
 function createEnvironment(): Tests_Routes_Api_Environment {
+  const stateDirectory: Tests_Routes_Api_CreateEnvironment_StateDirectory = join(baseDirectory, 'data');
+
   return {
     adminWebauthnRpName: 'pfSense Actions',
-    dataDirectory: join(baseDirectory, 'data'),
+    dataDirectory: stateDirectory,
+    databaseDirectory: join(stateDirectory, 'database'),
+    installationKeyFile: join(stateDirectory, 'keys', 'installation.key'),
   };
 }
 
@@ -700,6 +705,20 @@ describe('console API', () => {
       force: true,
       recursive: true,
     });
+
+    return;
+  });
+
+  it('answers the unauthenticated container health probe', async () => {
+    if (harness === undefined) {
+      throw new Error('The test server is not running.');
+    }
+
+    const client: Tests_Routes_Api_Client = createClient(harness['baseUrl']);
+
+    expect(await client.request('GET', '/health')).toEqual(expect.objectContaining({
+      status: 200,
+    }));
 
     return;
   });

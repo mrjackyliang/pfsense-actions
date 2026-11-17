@@ -8,17 +8,12 @@ services:
     environment:
       PGID: "${PGID:-1000}"
       PUID: "${PUID:-1000}"
-      S6_READ_ONLY_ROOT: "${S6_READ_ONLY_ROOT:-0}"
       TZ: "${TZ:-UTC}"
-    ports:
-      - "22603:22603"
-    restart: unless-stopped
+    network_mode: host
+    restart: always
+    user: "0:0"
     volumes:
-      - pfsense_actions_data:/data
-
-networks:
-  default:
-    enable_ipv6: true
+      - pfsense_actions_data:/config
 
 volumes:
   pfsense_actions_data:

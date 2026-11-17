@@ -1,5 +1,3 @@
-import { join } from 'node:path';
-
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 
@@ -68,6 +66,9 @@ import type {
   Server_Runner_RegisterRoutes_Access,
   Server_Runner_RegisterRoutes_Attempts,
   Server_Runner_RegisterRoutes_Returns,
+  Server_Runner_RouteHealth_Request,
+  Server_Runner_RouteHealth_Response,
+  Server_Runner_RouteHealth_Returns,
   Server_Runner_Run_Instance,
   Server_Runner_Run_Returns,
   Server_Runner_SlowRequestMilliseconds,
@@ -256,7 +257,7 @@ export class Runner {
   public start(): Server_Runner_Start_Returns {
     const setupClaim: Server_Runner_Start_SetupClaim = this.#state.prepareSetupClaim();
     const removedSecrets: Server_Runner_Start_RemovedSecrets = this.#state.getKeyReplacement();
-    const keyPath: Server_Runner_Start_KeyPath = join(this.#environment['dataDirectory'], 'keys', 'installation.key');
+    const keyPath: Server_Runner_Start_KeyPath = this.#environment['installationKeyFile'];
 
     setDebugLogging(this.#state.getDebugLogging());
 
@@ -501,6 +502,8 @@ export class Runner {
     const access: Server_Runner_RegisterRoutes_Access = new Access(this.#state);
     const attempts: Server_Runner_RegisterRoutes_Attempts = new Attempts((key) => this.#notifier.notifySignInLimit(key));
 
+    this.#app.get('/health', this['routeHealth'].bind(this));
+
     new Web(this.#webRoot).register(this.#app);
 
     new Actions(this.#state, access, this.#notifier).register(this.#app);
@@ -522,6 +525,27 @@ export class Runner {
     this.#app.use(this['handleNotFound'].bind(this));
 
     this.#app.use(this['handleError'].bind(this));
+
+    return;
+  }
+
+  /**
+   * Server - Route Health.
+   *
+   * Answers Docker's local probe after startup without touching pfSense or secrets.
+   * Nova combines this HTTP result with the s6 supervision state.
+   *
+   * @param {Server_Runner_RouteHealth_Request}  _request - Request.
+   * @param {Server_Runner_RouteHealth_Response} response - Response.
+   *
+   * @private
+   *
+   * @returns {Server_Runner_RouteHealth_Returns}
+   *
+   * @since 2.2.0
+   */
+  private routeHealth(_request: Server_Runner_RouteHealth_Request, response: Server_Runner_RouteHealth_Response): Server_Runner_RouteHealth_Returns {
+    response.status(200).end();
 
     return;
   }

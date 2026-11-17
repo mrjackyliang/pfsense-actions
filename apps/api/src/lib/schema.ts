@@ -591,6 +591,8 @@ export const storedRemovedSecret = z.object({
 export const env = z.object({
   adminWebauthnRpName: z.string().min(1).max(64),
   dataDirectory: z.string().min(1),
+  databaseDirectory: z.string().min(1),
+  installationKeyFile: z.string().min(1),
   pfsensePassword: z.string().min(1).optional(),
   pfsensePrivateKey: z.string().min(1).optional(),
   pfsenseSshIp: z.union(ipAddressFormats).optional(),

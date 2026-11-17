@@ -2,10 +2,10 @@ import type {
   Lib_Logger_DebugLogging,
   Lib_Logger_Emit_Level,
   Lib_Logger_Emit_LevelLabel,
-  Lib_Logger_Emit_LogTime,
   Lib_Logger_Emit_Message,
-  Lib_Logger_Emit_Prefix,
+  Lib_Logger_Emit_MessageWithoutCarriageReturns,
   Lib_Logger_Emit_Returns,
+  Lib_Logger_Emit_SanitizedMessage,
   Lib_Logger_Emit_Stream,
   Lib_Logger_Emit_Timestamp,
   Lib_Logger_IsDebugLogging_Returns,
@@ -73,15 +73,15 @@ function isEnabled(level: Lib_Logger_IsEnabled_Level): Lib_Logger_IsEnabled_Retu
 /**
  * Lib - Logger - Emit.
  *
- * Writes one line to the level-appropriate process stream.
- * Optional timestamps preserve the existing runtime environment contract.
+ * Writes one timestamped component line to the level-appropriate process stream.
+ * Line breaks are flattened so each emitted record remains one plain-text fact.
  *
  * @param {Lib_Logger_Emit_Level}   level   - Level.
  * @param {Lib_Logger_Emit_Message} message - Message.
  *
  * @returns {Lib_Logger_Emit_Returns}
  *
- * @since 2.0.0
+ * @since 2.2.0
  */
 function emit(level: Lib_Logger_Emit_Level, message: Lib_Logger_Emit_Message): Lib_Logger_Emit_Returns {
   if (isEnabled(level) === false) {
@@ -89,12 +89,12 @@ function emit(level: Lib_Logger_Emit_Level, message: Lib_Logger_Emit_Message): L
   }
 
   const levelLabel: Lib_Logger_Emit_LevelLabel = level.toUpperCase();
-  const logTime: Lib_Logger_Emit_LogTime = process.env['LOG_TIME'] === 'true';
-  const timestamp: Lib_Logger_Emit_Timestamp = (logTime === true) ? new Date().toISOString() : undefined;
-  const prefix: Lib_Logger_Emit_Prefix = (timestamp === undefined) ? levelLabel : `${timestamp} ${levelLabel}`;
+  const timestamp: Lib_Logger_Emit_Timestamp = new Date().toISOString();
+  const messageWithoutCarriageReturns: Lib_Logger_Emit_MessageWithoutCarriageReturns = message.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+  const sanitizedMessage: Lib_Logger_Emit_SanitizedMessage = messageWithoutCarriageReturns.replaceAll('\n', ' ');
   const stream: Lib_Logger_Emit_Stream = (level === 'warn' || level === 'error') ? process.stderr : process.stdout;
 
-  stream.write(`${prefix} ${message}\n`);
+  stream.write(`${timestamp} ${levelLabel} pfsense-actions: ${sanitizedMessage}\n`);
 
   return;
 }

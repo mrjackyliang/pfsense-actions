@@ -81,7 +81,29 @@ describe('Project root', () => {
 
     expect(readFileSync(new URL('../Dockerfile', import.meta.url), 'utf8')).toContain('COPY packages/docker/rootfs/ /');
 
+    expect(readFileSync(new URL('../Dockerfile', import.meta.url), 'utf8')).toContain('RUN mkdir -p /config /data');
+
+    expect(readFileSync(new URL('../Dockerfile', import.meta.url), 'utf8')).toContain('S6_BEHAVIOUR_IF_STAGE2_FAILS=2');
+
+    expect(readFileSync(new URL('../Dockerfile', import.meta.url), 'utf8')).toContain('util-linux');
+
+    expect(readFileSync(new URL('../Dockerfile', import.meta.url), 'utf8')).toContain('HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3');
+
+    expect(readFileSync(new URL('../Dockerfile', import.meta.url), 'utf8')).not.toContain('VOLUME');
+
+    expect(readFileSync(new URL('../compose.yml', import.meta.url), 'utf8')).toContain('pfsense_actions_data:/config');
+
+    expect(readFileSync(new URL('../compose.yml', import.meta.url), 'utf8')).toContain('network_mode: host');
+
+    expect(readFileSync(new URL('../compose.yml', import.meta.url), 'utf8')).toContain('user: "0:0"');
+
     expect(readFileSync(new URL('../packages/docker/manifest.json', import.meta.url), 'utf8')).toContain('"runtimePaths"');
+
+    expect(readFileSync(new URL('../packages/docker/manifest.json', import.meta.url), 'utf8')).toContain('"stateEnvironment": "DATA_DIRECTORY"');
+
+    expect(readFileSync(new URL('../packages/docker/manifest.json', import.meta.url), 'utf8')).toContain('"critical": true');
+
+    expect(readFileSync(new URL('../packages/docker/manifest.json', import.meta.url), 'utf8')).toContain('"healthPath": "/health"');
 
     expect(existsSync(new URL('../packages/docker/rootfs/etc/s6-overlay/s6-rc.d/nova-container-init/dependencies.d/base', import.meta.url))).toBe(true);
 
@@ -95,9 +117,38 @@ describe('Project root', () => {
 
     expect(readFileSync(new URL('../packages/docker/rootfs/usr/local/libexec/nova-docker/init-user', import.meta.url), 'utf8')).toContain('done < /etc/nova-docker/writable-paths');
 
+    expect(readFileSync(new URL('../packages/docker/rootfs/usr/local/libexec/nova-docker/init-user', import.meta.url), 'utf8')).toContain([
+      'chown -R "$',
+      '{PUID_VALUE}:$',
+      '{PGID_VALUE}" -- "$',
+      '{STATE_DIRECTORY}"',
+    ].join(''));
+
+    expect(readFileSync(new URL('../packages/docker/rootfs/usr/local/libexec/nova-docker/init-user', import.meta.url), 'utf8')).toContain('export NOVA_INSTALLATION_KEY_FILE=%s/keys/installation.key');
+
+    expect(readFileSync(new URL('../packages/docker/rootfs/usr/local/libexec/nova-docker/init-user', import.meta.url), 'utf8')).toContain('export NOVA_DATABASE_DIRECTORY=%s/database');
+
     expect(readFileSync(new URL('../packages/docker/rootfs/etc/s6-overlay/s6-rc.d/pfsense-actions/run', import.meta.url), 'utf8')).toContain('exec /command/s6-applyuidgid');
 
-    expect(readFileSync(new URL('../packages/docker/rootfs/etc/s6-overlay/s6-rc.d/pfsense-actions/run', import.meta.url), 'utf8')).toContain('export DATA_DIRECTORY=\'/data\'');
+    expect(readFileSync(new URL('../packages/docker/rootfs/etc/s6-overlay/s6-rc.d/pfsense-actions/run', import.meta.url), 'utf8')).toContain('. /run/nova-docker/environment');
+
+    expect(existsSync(new URL('../packages/docker/rootfs/etc/s6-overlay/s6-rc.d/pfsense-actions/finish', import.meta.url))).toBe(true);
+
+    expect(readFileSync(new URL('../packages/docker/rootfs/usr/local/libexec/nova-docker/healthcheck', import.meta.url), 'utf8')).toContain('http://127.0.0.1:22603/health');
+
+    expect(readFileSync(new URL('../packages/docker/rootfs/etc/nova-docker/legacy-state-paths', import.meta.url), 'utf8')).toBe([
+      'keys/installation.key',
+      'pfsense-actions.sqlite3',
+      'pfsense-actions.sqlite3-shm',
+      'pfsense-actions.sqlite3-wal',
+      '',
+    ].join('\n'));
+
+    expect(readFileSync(new URL('../packages/docker/rootfs/etc/nova-docker/writable-paths', import.meta.url), 'utf8')).toBe('');
+
+    expect(existsSync(new URL('../packages/docker/rootfs/usr/local/libexec/nova-docker/state-mount', import.meta.url))).toBe(false);
+
+    expect(existsSync(new URL('../packages/docker/tests/state-mount.test.sh', import.meta.url))).toBe(false);
 
     return;
   });

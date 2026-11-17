@@ -40,23 +40,23 @@ export type Lib_Logger_SetDebugLogging_Returns = void;
 /**
  * Lib - Logger - Emit.
  *
- * @since 2.0.0
+ * @since 2.2.0
  */
 export type Lib_Logger_Emit_Level = Lib_Logger_Level;
 
-export type Lib_Logger_Emit_LevelLabel = string;
-
-export type Lib_Logger_Emit_LogTime = boolean;
-
 export type Lib_Logger_Emit_Message = string;
-
-export type Lib_Logger_Emit_Prefix = string;
 
 export type Lib_Logger_Emit_Returns = void;
 
-export type Lib_Logger_Emit_Stream = NodeJS.WriteStream;
+export type Lib_Logger_Emit_LevelLabel = string;
 
-export type Lib_Logger_Emit_Timestamp = string | undefined;
+export type Lib_Logger_Emit_Timestamp = string;
+
+export type Lib_Logger_Emit_MessageWithoutCarriageReturns = string;
+
+export type Lib_Logger_Emit_SanitizedMessage = string;
+
+export type Lib_Logger_Emit_Stream = NodeJS.WriteStream;
 
 /**
  * Lib - Logger - Is Enabled.

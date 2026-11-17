@@ -137,6 +137,17 @@ export type Server_Runner_RegisterRoutes_Access = Access;
 export type Server_Runner_RegisterRoutes_Attempts = Attempts;
 
 /**
+ * Server - Runner - Route Health.
+ *
+ * @since 2.2.0
+ */
+export type Server_Runner_RouteHealth_Request = express.Request;
+
+export type Server_Runner_RouteHealth_Response = express.Response;
+
+export type Server_Runner_RouteHealth_Returns = void;
+
+/**
  * Server - Runner - Run.
  *
  * @since 2.0.0

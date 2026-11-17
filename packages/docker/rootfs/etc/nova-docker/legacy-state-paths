@@ -1,0 +1,4 @@
+keys/installation.key
+pfsense-actions.sqlite3
+pfsense-actions.sqlite3-shm
+pfsense-actions.sqlite3-wal

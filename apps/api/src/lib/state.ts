@@ -5,10 +5,19 @@ import {
   existsSync,
   mkdirSync,
   openSync,
+  readdirSync,
   readFileSync,
+  renameSync,
+  rmdirSync,
+  unlinkSync,
+  writeFileSync,
   writeSync,
 } from 'node:fs';
-import { dirname, join } from 'node:path';
+import {
+  basename,
+  dirname,
+  join,
+} from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
 import {
@@ -27,6 +36,7 @@ import {
   normalizeSetupCode,
   verifyAdministratorPassword,
 } from './auth.js';
+import { logInfo } from './logger.js';
 import { textEncryptionKey } from './regex.js';
 import {
   activityEvent,
@@ -146,6 +156,7 @@ import type {
   Lib_State_Runner_Constructor_DirectoryMode,
   Lib_State_Runner_Constructor_Environment,
   Lib_State_Runner_Constructor_FileMode,
+  Lib_State_Runner_Constructor_KeyDirectory,
   Lib_State_Runner_ConsumeRecoveryCode_AdministratorId,
   Lib_State_Runner_ConsumeRecoveryCode_Code,
   Lib_State_Runner_ConsumeRecoveryCode_NormalizedCode,
@@ -323,6 +334,17 @@ import type {
   Lib_State_Runner_PrepareSetupClaim_Code,
   Lib_State_Runner_PrepareSetupClaim_ExpiresAt,
   Lib_State_Runner_PrepareSetupClaim_Returns,
+  Lib_State_Runner_PrepareStateLayout_DatabaseDirectoryEntries,
+  Lib_State_Runner_PrepareStateLayout_DatabaseParentDirectory,
+  Lib_State_Runner_PrepareStateLayout_Environment,
+  Lib_State_Runner_PrepareStateLayout_ExistingLegacyDatabasePaths,
+  Lib_State_Runner_PrepareStateLayout_FileName,
+  Lib_State_Runner_PrepareStateLayout_LegacyDatabaseFileNames,
+  Lib_State_Runner_PrepareStateLayout_LegacyDatabaseMainPath,
+  Lib_State_Runner_PrepareStateLayout_LegacyDatabasePaths,
+  Lib_State_Runner_PrepareStateLayout_Returns,
+  Lib_State_Runner_PrepareStateLayout_StagingDirectory,
+  Lib_State_Runner_PrepareStateLayout_StagingPath,
   Lib_State_Runner_PruneExpired_Now,
   Lib_State_Runner_PruneExpired_Returns,
   Lib_State_Runner_RecordActivity_Action,
@@ -361,8 +383,12 @@ import type {
   Lib_State_Runner_ReplaceRecoveryCodes_ActorId,
   Lib_State_Runner_ReplaceRecoveryCodes_AdministratorId,
   Lib_State_Runner_ReplaceRecoveryCodes_Returns,
+  Lib_State_Runner_ResolveEncryptionKey_NormalizedKey,
+  Lib_State_Runner_ResolveEncryptionKey_NormalizedKeyFile,
   Lib_State_Runner_ResolveEncryptionKey_Returns,
   Lib_State_Runner_ResolveEncryptionKey_StoredKey,
+  Lib_State_Runner_ResolveEncryptionKey_StoredKeyFile,
+  Lib_State_Runner_ResolveEncryptionKey_TemporaryKeyPath,
   Lib_State_Runner_SaveEncryptionKey_KeyFile,
   Lib_State_Runner_SaveEncryptionKey_Returns,
   Lib_State_Runner_SealNotificationSecrets_Returns,
@@ -665,7 +691,8 @@ export class Runner {
 
     const directoryMode: Lib_State_Runner_Constructor_DirectoryMode = parseInt('700', 8);
     const fileMode: Lib_State_Runner_Constructor_FileMode = parseInt('600', 8);
-    const databasePath: Lib_State_Runner_Constructor_DatabasePath = join(environment['dataDirectory'], 'pfsense-actions.sqlite3');
+
+    process.umask(parseInt('077', 8));
 
     mkdirSync(environment['dataDirectory'], {
       mode: directoryMode,
@@ -674,10 +701,28 @@ export class Runner {
 
     chmodSync(environment['dataDirectory'], directoryMode);
 
-    process.umask(parseInt('077', 8));
+    this.prepareStateLayout(environment);
+
+    mkdirSync(environment['databaseDirectory'], {
+      mode: directoryMode,
+      recursive: true,
+    });
+
+    chmodSync(environment['databaseDirectory'], directoryMode);
+
+    const keyDirectory: Lib_State_Runner_Constructor_KeyDirectory = dirname(environment['installationKeyFile']);
+
+    mkdirSync(keyDirectory, {
+      mode: directoryMode,
+      recursive: true,
+    });
+
+    chmodSync(keyDirectory, directoryMode);
+
+    const databasePath: Lib_State_Runner_Constructor_DatabasePath = join(environment['databaseDirectory'], 'pfsense-actions.sqlite3');
 
     this.#databasePath = databasePath;
-    this.#keyPath = join(environment['dataDirectory'], 'keys', 'installation.key');
+    this.#keyPath = environment['installationKeyFile'];
     this.#database = new DatabaseSync(databasePath);
     this.#dummyPasswordHash = hashAdministratorPassword('pfsense-actions-invalid-administrator');
 
@@ -3483,6 +3528,82 @@ export class Runner {
   }
 
   /**
+   * Lib - State - Prepare State Layout.
+   *
+   * Moves the old flat SQLite files into the contract database directory as one
+   * staged unit. Conflicts and interrupted staging fail before SQLite can open.
+   *
+   * @param {Lib_State_Runner_PrepareStateLayout_Environment} environment - Environment.
+   *
+   * @private
+   *
+   * @returns {Lib_State_Runner_PrepareStateLayout_Returns}
+   *
+   * @since 2.2.0
+   */
+  private prepareStateLayout(environment: Lib_State_Runner_PrepareStateLayout_Environment): Lib_State_Runner_PrepareStateLayout_Returns {
+    const legacyDatabaseFileNames: Lib_State_Runner_PrepareStateLayout_LegacyDatabaseFileNames = [
+      'pfsense-actions.sqlite3',
+      'pfsense-actions.sqlite3-shm',
+      'pfsense-actions.sqlite3-wal',
+    ];
+    const legacyDatabasePaths: Lib_State_Runner_PrepareStateLayout_LegacyDatabasePaths = legacyDatabaseFileNames.map((legacyDatabaseFileName) => join(environment['dataDirectory'], legacyDatabaseFileName));
+    const legacyDatabaseMainPath: Lib_State_Runner_PrepareStateLayout_LegacyDatabaseMainPath = legacyDatabasePaths[0];
+    const stagingDirectory: Lib_State_Runner_PrepareStateLayout_StagingDirectory = `${environment['databaseDirectory']}.nova-migration`;
+
+    if (existsSync(stagingDirectory) === true) {
+      throw new Error(`A previous database migration is incomplete at "${stagingDirectory}". Restore the old layout or finish moving its files before starting pfSense Actions.`);
+    }
+
+    const existingLegacyDatabasePaths: Lib_State_Runner_PrepareStateLayout_ExistingLegacyDatabasePaths = legacyDatabasePaths.filter((legacyDatabasePath) => existsSync(legacyDatabasePath) === true);
+
+    if (existingLegacyDatabasePaths.length === 0) {
+      return;
+    }
+
+    if (legacyDatabaseMainPath === undefined || existsSync(legacyDatabaseMainPath) === false) {
+      throw new Error('The old database layout contains SQLite sidecar files without "pfsense-actions.sqlite3". Restore a complete database backup before starting pfSense Actions.');
+    }
+
+    const databaseDirectoryEntries: Lib_State_Runner_PrepareStateLayout_DatabaseDirectoryEntries = (existsSync(environment['databaseDirectory']) === true) ? readdirSync(environment['databaseDirectory']) : [];
+
+    if (databaseDirectoryEntries.length > 0) {
+      throw new Error('The old and contract database layouts both contain files. pfSense Actions will not overwrite either layout; keep one complete database and remove the other before starting.');
+    }
+
+    const databaseParentDirectory: Lib_State_Runner_PrepareStateLayout_DatabaseParentDirectory = dirname(environment['databaseDirectory']);
+
+    mkdirSync(databaseParentDirectory, {
+      recursive: true,
+    });
+
+    mkdirSync(stagingDirectory, {
+      mode: parseInt('700', 8),
+    });
+
+    for (const existingLegacyDatabasePath of existingLegacyDatabasePaths) {
+      const fileName: Lib_State_Runner_PrepareStateLayout_FileName = basename(existingLegacyDatabasePath);
+      const stagingPath: Lib_State_Runner_PrepareStateLayout_StagingPath = join(stagingDirectory, fileName);
+
+      renameSync(existingLegacyDatabasePath, stagingPath);
+    }
+
+    if (existsSync(environment['databaseDirectory']) === true) {
+      rmdirSync(environment['databaseDirectory']);
+    }
+
+    renameSync(stagingDirectory, environment['databaseDirectory']);
+
+    for (const existingLegacyDatabasePath of existingLegacyDatabasePaths) {
+      const fileName: Lib_State_Runner_PrepareStateLayout_FileName = basename(existingLegacyDatabasePath);
+
+      logInfo(`Moved app state "${fileName}" to "database/${fileName}".`);
+    }
+
+    return;
+  }
+
+  /**
    * Lib - State - Prune Expired.
    *
    * Deletes expired sessions, challenges, enrollments, and passkey ceremonies.
@@ -3588,13 +3709,43 @@ export class Runner {
    */
   private resolveEncryptionKey(): Lib_State_Runner_ResolveEncryptionKey_Returns {
     if (existsSync(this.#keyPath) === true) {
-      const storedKey: Lib_State_Runner_ResolveEncryptionKey_StoredKey = readFileSync(this.#keyPath, 'utf8').trim();
+      const storedKeyFile: Lib_State_Runner_ResolveEncryptionKey_StoredKeyFile = readFileSync(this.#keyPath, 'utf8');
+      const storedKey: Lib_State_Runner_ResolveEncryptionKey_StoredKey = storedKeyFile.trim();
 
       if (textEncryptionKey.test(storedKey) === false) {
         throw new Error(`The encryption key file at ${this.#keyPath} is not 64 hexadecimal characters.`);
       }
 
-      return storedKey.toLowerCase();
+      const normalizedKey: Lib_State_Runner_ResolveEncryptionKey_NormalizedKey = storedKey.toLowerCase();
+      const normalizedKeyFile: Lib_State_Runner_ResolveEncryptionKey_NormalizedKeyFile = `${normalizedKey}\n`;
+
+      if (storedKeyFile !== normalizedKeyFile) {
+        const temporaryKeyPath: Lib_State_Runner_ResolveEncryptionKey_TemporaryKeyPath = `${this.#keyPath}.nova-migration-${String(process.pid)}`;
+
+        try {
+          writeFileSync(temporaryKeyPath, normalizedKeyFile, {
+            encoding: 'utf8',
+            flag: 'wx',
+            mode: parseInt('600', 8),
+          });
+
+          renameSync(temporaryKeyPath, this.#keyPath);
+        } catch (error) {
+          if (existsSync(temporaryKeyPath) === true) {
+            unlinkSync(temporaryKeyPath);
+          }
+
+          throw new Error(`The encryption key at ${this.#keyPath} could not be converted to the contract format.`, {
+            cause: error,
+          });
+        }
+
+        logInfo(`Converted the installation key at "${this.#keyPath}" to lowercase hexadecimal contract format.`);
+      }
+
+      chmodSync(this.#keyPath, parseInt('600', 8));
+
+      return normalizedKey;
     }
 
     this.#keyWasMissing = true;

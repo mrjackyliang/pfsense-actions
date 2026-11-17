@@ -1,5 +1,10 @@
 # pfsense-actions-app-api
 
+## 2.2.0 - 2026-11-17
+
+### UPDATED
+- App state lives at /config, with the installation key in keys/ and the database in database/, all owned by PUID and PGID; an existing /data install moves over on its first start, and the container uses the shared health check, shutdown timing and plain log lines of the other Docker apps.
+
 ## 2.1.0 - 2026-11-17
 
 ### UPDATED

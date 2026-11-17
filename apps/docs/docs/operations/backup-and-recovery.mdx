@@ -33,9 +33,9 @@ Use a complete <Terminology title="The Docker volume that keeps your data across
 
 ## What to Back Up
 
-| Item                                                                                                                                                          | Why it matters                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-|---------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| The <Terminology title="The Docker volume that keeps your data across updates" to="/docs/reference/terminology#storage-and-backups">data volume</Terminology> | It holds the database with every token, setting, <Terminology title="Where an alert goes: ntfy, Telegram, email, webhook" to="/docs/reference/terminology#notifications">notification destination</Terminology>, and activity record, and the generated key in `keys/installation.key` that opens the saved pfSense credential, the authenticator app, and each <Terminology title="Where an alert goes: ntfy, Telegram, email, webhook" to="/docs/reference/terminology#notifications">destination</Terminology>'s <Terminology title="A destination's token or password, saved but never shown" to="/docs/reference/terminology#notifications">secret fields</Terminology>. |
+| Item                                                                                                                                                          | Why it matters                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+|---------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| The <Terminology title="The Docker volume that keeps your data across updates" to="/docs/reference/terminology#storage-and-backups">data volume</Terminology> | It holds `database/pfsense-actions.sqlite3` with every token, setting, <Terminology title="Where an alert goes: ntfy, Telegram, email, webhook" to="/docs/reference/terminology#notifications">notification destination</Terminology>, and activity record, and the generated key in `keys/installation.key` that opens the saved pfSense credential, the authenticator app, and each <Terminology title="Where an alert goes: ntfy, Telegram, email, webhook" to="/docs/reference/terminology#notifications">destination</Terminology>'s <Terminology title="A destination's token or password, saved but never shown" to="/docs/reference/terminology#notifications">secret fields</Terminology>. |
 
 The backup holds the password hash, each <Terminology title="All that's stored of a token; lose it and you replace it" to="/docs/reference/terminology#access-tokens">token hash</Terminology>, and the encrypted credentials and notification secrets, and with the generated key it can decrypt them. Raw tokens and raw <Terminology title="A one-use backup code for when your phone is gone" to="/docs/reference/terminology#console-sign-in">recovery codes</Terminology> aren't in it.
 
@@ -53,10 +53,10 @@ It's recommended to store the backup encrypted.
 
    ```bash
    docker run --rm \
-     -v pfsense-actions_pfsense_actions_data:/data:ro \
+     -v pfsense-actions_pfsense_actions_data:/config:ro \
      -v "$PWD":/backup \
      debian:trixie-slim \
-     tar -czf /backup/pfsense-actions-data.tgz -C /data .
+     tar -czf /backup/pfsense-actions-data.tgz -C /config .
    ```
 
 3. Start the service again.
@@ -66,7 +66,7 @@ It's recommended to store the backup encrypted.
    ```
 
 - Compose names the volume `pfsense-actions_pfsense_actions_data` after the project name in `compose.yml`, and `docker volume ls` lists it.
-- The archive includes the `-wal` and `-shm` files next to `pfsense-actions.sqlite3`, which belong with it, and the `keys` folder.
+- The archive includes the `database/` folder with the `-wal` and `-shm` files next to `pfsense-actions.sqlite3`, and the `keys/` folder.
 
 ## Restore
 
@@ -80,14 +80,14 @@ The first command below deletes the current <Terminology title="The Docker volum
 docker compose down --volumes
 docker compose up --no-start
 docker run --rm \
-  -v pfsense-actions_pfsense_actions_data:/data \
+  -v pfsense-actions_pfsense_actions_data:/config \
   -v "$PWD":/backup:ro \
   debian:trixie-slim \
-  tar -xzpf /backup/pfsense-actions-data.tgz -C /data
+  tar -xzpf /backup/pfsense-actions-data.tgz -C /config
 docker compose start app
 ```
 
-Restored files keep their owner, which needs to match the `PUID` and `PGID` the service runs as.
+On the next start, initialization assigns the restored tree to `PUID:PGID` and restores the contract modes on `keys/` and `keys/installation.key`.
 
 ## Lost Administrator Password
 
@@ -114,7 +114,7 @@ When `keys/installation.key` is missing, pfSense Actions makes a new <Terminolog
 On that start, the log names what was removed.
 
 ```text
-WARN No encryption key was found at /data/keys/installation.key, so pfSense Actions made a new one. These saved secrets were locked with the old key and were removed: the pfSense password, the authenticator app for <username>. Enter them again in the console.
+2026-01-01T12:00:00.000Z WARN pfsense-actions: No encryption key was found at /config/keys/installation.key, so pfSense Actions made a new one. These saved secrets were locked with the old key and were removed: the pfSense password, the authenticator app for <username>. Enter them again in the console.
 ```
 
 - The list says `the pfSense private key` instead when the connection signs in with a key, and it ends with `the <name> notification` for each <Terminology title="Where an alert goes: ntfy, Telegram, email, webhook" to="/docs/reference/terminology#notifications">notification destination</Terminology> that had <Terminology title="A destination's token or password, saved but never shown" to="/docs/reference/terminology#notifications">secret fields</Terminology>.
@@ -142,7 +142,7 @@ WARN No encryption key was found at /data/keys/installation.key, so pfSense Acti
 When `keys/installation.key` belongs to another database, for example after a restore that mixed files, startup stops with this message until it's fixed.
 
 ```text
-The encryption key at /data/keys/installation.key doesn't belong to this database. Put back the key file this database was created with, or delete /data/keys/installation.key and restart to make a new key, then enter the saved secrets again.
+The encryption key at /config/keys/installation.key doesn't belong to this database. Put back the key file this database was created with, or delete /config/keys/installation.key and restart to make a new key, then enter the saved secrets again.
 ```
 
 - If a backup has the key file this database was created with, put it back as `keys/installation.key` in the volume.
@@ -153,25 +153,18 @@ These commands delete the key file from the volume.
 ```bash
 docker compose stop app
 docker run --rm \
-  -v pfsense-actions_pfsense_actions_data:/data \
+  -v pfsense-actions_pfsense_actions_data:/config \
   debian:trixie-slim \
-  rm /data/keys/installation.key
+  rm /config/keys/installation.key
 docker compose start app
 ```
 
 - An old key file put back after pfSense Actions made a new one stops startup the same way, because the database now belongs to the new key.
-- A damaged key file stops startup with `The encryption key file at /data/keys/installation.key is not 64 hexadecimal characters.`, and the same two fixes apply.
+- A damaged key file stops startup with `The encryption key file at /config/keys/installation.key is not 64 hexadecimal characters.`, and the same two fixes apply.
 
 ## Change PUID or PGID with Existing Data
 
-The container's setup step changes the owner of the `/data` folder itself, but not of the files inside it. Before starting with new IDs, change the files' owner to match.
-
-```bash
-docker run --rm \
-  -v pfsense-actions_pfsense_actions_data:/data \
-  debian:trixie-slim \
-  chown -R 1001:1001 /data
-```
+Set the new `PUID` and `PGID`, each from 1 through 60000, and recreate or restart the container. Initialization changes the owner of `/config` and everything under it on every start before the controller runs, so no separate `chown` container is needed.
 
 ## Reinitialize Deliberately
 
