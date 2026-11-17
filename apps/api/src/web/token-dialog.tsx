@@ -7,6 +7,7 @@ import {
   issueFor,
   summaryFor,
 } from '@/web/api.ts';
+import { appConfig } from '@/web/app-config.ts';
 import { FieldLabel } from '@/web/field-label.tsx';
 import { formatDate } from '@/web/format.ts';
 import {
@@ -21,7 +22,10 @@ import type {
   ReactElement,
 } from 'react';
 
-import type { Web_Api_Scope } from '@/types/web/api.d.ts';
+import type {
+  Web_Api_CreatedToken,
+  Web_Api_Scope,
+} from '@/types/web/api.d.ts';
 import type {
   Web_Components_ScopeOption,
   Web_Components_TokenDialog_Expiry,
@@ -36,26 +40,7 @@ import type {
  *
  * @since 2.0.0
  */
-export const scopeOptions: Web_Components_ScopeOption[] = [
-  {
-    description: 'Check that pfSense answers, and read its operating system and release.',
-    endpoints: [
-      'GET /api/v1/connectivity',
-      'GET /api/v1/system',
-    ],
-    id: 'pfsense:read',
-  },
-  {
-    description: 'Ping an address from the firewall.',
-    endpoints: ['POST /api/v1/ping'],
-    id: 'reachability:read',
-  },
-  {
-    description: 'Send Wake-on-LAN packets.',
-    endpoints: ['POST /api/v1/wol'],
-    id: 'wol:execute',
-  },
-];
+export const scopeOptions: Web_Components_ScopeOption[] = appConfig['tokenScopes'];
 
 // expiryDate turns a choice like "in 90 days" into the timestamp the API stores.
 
@@ -80,6 +65,23 @@ const expiryDate = (expiry: Web_Components_TokenDialog_Expiry): string | null | 
 };
 
 /**
+ * Token Dialog - Including scope.
+ *
+ * Finds a selected scope that already grants another configured scope.
+ * Included scopes stay checked and disabled until their parent is removed.
+ *
+ * @param {Web_Api_Scope[]} scopes - Scopes.
+ * @param {Web_Api_Scope}   scope  - Scope.
+ *
+ * @returns {Web_Api_Scope | undefined}
+ *
+ * @since 2.1.0
+ */
+const includingScope = (scopes: Web_Api_Scope[], scope: Web_Api_Scope): Web_Api_Scope | undefined => scopeOptions.find(
+  (option: Web_Components_ScopeOption): boolean => option['includes'] === scope && scopes.includes(option['id']),
+)?.['id'];
+
+/**
  * Token Dialog.
  *
  * Stores this module-level value in one named location.
@@ -88,6 +90,7 @@ const expiryDate = (expiry: Web_Components_TokenDialog_Expiry): string | null | 
  * @since 2.0.0
  */
 export const TokenDialog = ({
+  allowedScopes = scopeOptions.map((option: Web_Components_ScopeOption): Web_Api_Scope => option['id']),
   onClose,
   onCreate,
   onUpdate,
@@ -101,7 +104,7 @@ export const TokenDialog = ({
   const [
     scopes,
     setScopes,
-  ] = useState<Web_Api_Scope[]>(['pfsense:read']);
+  ] = useState<Web_Api_Scope[]>(appConfig['tokenDefaultScopes']);
   const [
     expiry,
     setExpiry,
@@ -114,6 +117,14 @@ export const TokenDialog = ({
     busy,
     setBusy,
   ] = useState<boolean>(false);
+  const [
+    createdToken,
+    setCreatedToken,
+  ] = useState<Web_Api_CreatedToken | null>(null);
+  const [
+    copied,
+    setCopied,
+  ] = useState<boolean>(false);
 
   useEscapeKey(onClose, open);
 
@@ -123,9 +134,11 @@ export const TokenDialog = ({
     }
 
     setName((token === null) ? '' : token['name']);
-    setScopes((token === null) ? ['pfsense:read'] : token['scopes']);
+    setScopes((token === null) ? [...appConfig['tokenDefaultScopes']] : token['scopes']);
     setExpiry((token === null || token['expiresAt'] === null) ? 'never' : 'keep');
     setError(null);
+    setCreatedToken(null);
+    setCopied(false);
   }, [
     open,
     token,
@@ -145,13 +158,27 @@ export const TokenDialog = ({
    *
    * @since 2.0.0
    */
-  const toggleScope = (scope: Web_Api_Scope): void => {
-    setScopes((current: Web_Api_Scope[]): Web_Api_Scope[] => (
-      (current.includes(scope)) ? current.filter((candidate: Web_Api_Scope): boolean => candidate !== scope) : [
+  const toggleScope = (option: Web_Components_ScopeOption): void => {
+    setScopes((current: Web_Api_Scope[]): Web_Api_Scope[] => {
+      if (current.includes(option['id'])) {
+        return current.filter((candidate: Web_Api_Scope): boolean => candidate !== option['id']);
+      }
+
+      const included: Web_Api_Scope | undefined = option['includes'];
+
+      if (included === undefined || current.includes(included)) {
+        return [
+          ...current,
+          option['id'],
+        ];
+      }
+
+      return [
         ...current,
-        scope,
-      ]
-    ));
+        option['id'],
+        included,
+      ];
+    });
   };
 
   /**
@@ -174,11 +201,12 @@ export const TokenDialog = ({
 
     try {
       if (token === null) {
-        await onCreate({
+        const nextToken: Web_Api_CreatedToken = await onCreate({
           ...((typeof expiresAt === 'string') ? { expiresAt } : {}),
           name,
           scopes: orderedScopes,
         });
+        setCreatedToken(nextToken);
       } else {
         await onUpdate(token['id'], {
           ...((expiresAt === undefined) ? {} : { expiresAt }),
@@ -188,7 +216,9 @@ export const TokenDialog = ({
         showToast(`${name.trim()} saved.`, true);
       }
 
-      onClose();
+      if (token !== null) {
+        onClose();
+      }
     } catch (caughtError) {
       setError(caughtError);
     } finally {
@@ -202,6 +232,48 @@ export const TokenDialog = ({
     'name',
     'scopes',
   ], 'The token could not be saved.');
+
+  if (createdToken !== null) {
+    return (
+      <div className="dialog-backdrop" role="presentation">
+        <section aria-labelledby="token-dialog-title" aria-modal="true" className="dialog" role="dialog">
+          <div className="dialog-heading">
+            <div>
+              <h2 id="token-dialog-title">{`Token for ${createdToken['token']['name']}`}</h2>
+              <p>{'Copy it now. It won\'t be shown again.'}</p>
+            </div>
+            <button aria-label="Close" className="icon-button" onClick={onClose} type="button">
+              <Icon name="x" size={18} />
+            </button>
+          </div>
+          <div className="dialog-body" aria-live="polite">
+            <label className="field">
+              <span>Token</span>
+              <span className="generated-secret-field">
+                <input className="monospace" readOnly type="text" value={createdToken['plaintext']} />
+                <button
+                  aria-label="Copy token"
+                  className="icon-button generated-secret-copy"
+                  onClick={(): void => {
+                    void navigator.clipboard.writeText(createdToken['plaintext']).then((): void => setCopied(true)).catch((): void => {
+                      showToast('The token could not be copied.', false);
+                    });
+                  }}
+                  title="Copy token"
+                  type="button"
+                >
+                  <Icon name={(copied) ? 'check' : 'copy'} size={16} />
+                </button>
+              </span>
+            </label>
+            <div className="dialog-actions">
+              <Button onClick={onClose} variant="primary">Done</Button>
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="dialog-backdrop" role="presentation">
@@ -222,7 +294,7 @@ export const TokenDialog = ({
             <input
               aria-invalid={nameIssue !== ''}
               onChange={(event): void => setName(event.currentTarget.value)}
-              placeholder="e.g. Home automation"
+              placeholder={appConfig['tokenNamePlaceholder']}
               value={name}
             />
             {(nameIssue === '') ? <small>{'A name you\'ll recognize, like the app that uses it.'}</small> : <small className="field-error">{nameIssue}</small>}
@@ -230,22 +302,33 @@ export const TokenDialog = ({
 
           <fieldset className="scope-fieldset">
             <legend>Scopes</legend>
-            {scopeOptions.map((option: Web_Components_ScopeOption): ReactElement => (
-              <label aria-label={option['id']} className="check-row" key={option['id']}>
-                <input
-                  checked={scopes.includes(option['id'])}
-                  onChange={(): void => toggleScope(option['id'])}
-                  type="checkbox"
-                />
-                <span>
-                  <strong className="mono">{option['id']}</strong>
-                  <small>{option['description']}</small>
-                  <small className="mono scope-endpoints">
-                    {option['endpoints'].map((endpoint: string): ReactElement => <span key={endpoint}>{endpoint}</span>)}
-                  </small>
-                </span>
-              </label>
-            ))}
+            {scopeOptions.map((option: Web_Components_ScopeOption): ReactElement => {
+              const allowed: boolean = allowedScopes.includes(option['id']);
+              const includedBy: Web_Api_Scope | undefined = includingScope(scopes, option['id']);
+              const endpoints: string[] = option['endpoints'] ?? [];
+
+              return (
+                <label aria-label={option['id']} className="check-row" key={option['id']}>
+                  <input
+                    checked={includedBy !== undefined || scopes.includes(option['id'])}
+                    disabled={includedBy !== undefined || (!allowed && !scopes.includes(option['id']))}
+                    onChange={(): void => toggleScope(option)}
+                    type="checkbox"
+                  />
+                  <span>
+                    <strong className="mono">{option['id']}</strong>
+                    <small>{option['description']}</small>
+                    {(option['includes'] === undefined) ? null : <small>{`Includes ${option['includes']}.`}</small>}
+                    {(allowed) ? null : <small>{'Your role can\'t grant this scope.'}</small>}
+                    {(endpoints.length === 0) ? null : (
+                      <small className="mono scope-endpoints">
+                        {endpoints.map((endpoint: string): ReactElement => <span key={endpoint}>{endpoint}</span>)}
+                      </small>
+                    )}
+                  </span>
+                </label>
+              );
+            })}
             {(scopesIssue === '') ? null : <small className="field-error">{scopesIssue}</small>}
           </fieldset>
 

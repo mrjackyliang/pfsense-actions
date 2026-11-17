@@ -305,15 +305,21 @@ export const NotificationsView = ({
               {targets.map((target: Web_Notifications_Target): ReactElement => {
                 return (
                   <div className="select-list-row token-row" key={target['id']}>
-                    <span className="select-list-main">
+                    <div className="select-list-main">
                       <span className="token-title">
                         <span className="token-name">{target['name']}</span>
                         <span className="tag">{findNotificationService(target['service'])['label']}</span>
                       </span>
                       <small>{describeTarget(target)}</small>
                       {(failedSendText(target) === '') ? null : <small className="field-error">{failedSendText(target)}</small>}
+                      {(target['lastErrorDetails'] === null || target['lastErrorDetails'] === undefined) ? null : (
+                        <details className="notification-error-details">
+                          <summary>Details</summary>
+                          <code>{target['lastErrorDetails']}</code>
+                        </details>
+                      )}
                       {(target['secretsMissing'].length === 0) ? null : <small className="field-error">{missingSecretsText(target)}</small>}
-                    </span>
+                    </div>
                     <span className="token-actions">
                       <Button
                         disabled={testing !== '' || target['secretsMissing'].length > 0}
@@ -336,6 +342,7 @@ export const NotificationsView = ({
                         Edit
                       </Button>
                       <Button
+                        icon="remove"
                         onClick={(): void => {
                           setRemoveError('');
                           setRemoving(target);

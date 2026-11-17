@@ -80,7 +80,6 @@ function openState(): Tests_Lib_Notifier_OpenState_Returns {
   return new State({
     adminWebauthnRpName: 'pfSense Actions',
     dataDirectory: getDataDirectory(),
-    port: 0,
   });
 }
 

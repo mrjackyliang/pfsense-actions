@@ -17,11 +17,11 @@ tags:
 
 import { Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
 
-Send every pfSense Actions request to its HTTPS address with a <Terminology title="a scoped credential issued to one API client" to="/docs/reference/terminology#personal-access-token">personal access token</Terminology>, a JSON body where the route needs one, and read the status code and JSON reply as the result.
+Send every pfSense Actions request to its HTTPS address with a <Terminology title="The pfa_ key a script sends to call the API" to="/docs/reference/terminology#access-tokens">personal access token</Terminology>, a JSON body where the route needs one, and read the status code and JSON reply as the result.
 
 ## Base URL
 
-Use the HTTPS origin of your <Terminology title="the HTTPS front end that forwards to the controller" to="/docs/reference/terminology#reverse-proxy">reverse proxy</Terminology>, such as `https://actions.example.net`. The routes live under `/api/v1`, and serving them under a sub-path isn't supported.
+Use the HTTPS origin of your <Terminology title="The HTTPS front door, like Caddy, ahead of the controller" to="/docs/reference/terminology#deployment-and-container">reverse proxy</Terminology>, such as `https://actions.example.net`. The routes live under `/api/v1`, and serving them under a sub-path isn't supported.
 
 | Route                      | Also at       | Scope               |
 |----------------------------|---------------|---------------------|
@@ -44,9 +44,9 @@ Authorization: Bearer pfa_...
 
 - The `Bearer` scheme name is matched without regard to case, and a token is `pfa_` followed by 43 URL-safe base64 characters.
 - A missing, malformed, unknown, expired, or revoked token returns `401` with the code `authentication_required`, with no detail about which check failed.
-- A valid token without the route's <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scope</Terminology> returns `403` with the code `scope_required`.
-- A console sign-in can't run an <Terminology title="one allowlisted pfSense operation behind an API route" to="/docs/reference/terminology#action">action</Terminology>, so only tokens work here.
-- The console's own routes work the other way around. They need a signed-in <Terminology title="a 24-hour console sign-in stored in the database" to="/docs/reference/terminology#browser-session">browser session</Terminology>, so a request with a token gets `403` with the code `session_required`, as described in [Notifications](/docs/console/notifications/#manage-notifications-from-scripts).
+- A valid token without the route's <Terminology title="What a token may do; each action needs exactly one" to="/docs/reference/terminology#access-tokens">scope</Terminology> returns `403` with the code `scope_required`.
+- A console sign-in can't run an <Terminology title="One fixed pfSense task you can call, like ping or wake" to="/docs/reference/terminology#core-concepts">action</Terminology>, so only tokens work here.
+- The console's own routes work the other way around. They need a signed-in <Terminology title="Keeps you signed in to the console for 24 hours" to="/docs/reference/terminology#console-sign-in">browser session</Terminology>, so a request with a token gets `403` with the code `session_required`, as described in [Notifications](/docs/console/notifications/#manage-notifications-from-scripts).
 
 ## Scopes
 
@@ -56,17 +56,17 @@ Authorization: Bearer pfa_...
 | `reachability:read` | `POST /api/v1/ping`                              | No            |
 | `wol:execute`       | `POST /api/v1/wol`                               | Yes           |
 
-<Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">Scopes</Terminology> are exact and never grant each other's routes. Token changes made in the <Terminology title="the protected browser admin interface at /admin" to="/docs/reference/terminology#operations-console">operations console</Terminology> apply to the next request, with no restart.
+<Terminology title="What a token may do; each action needs exactly one" to="/docs/reference/terminology#access-tokens">Scopes</Terminology> are exact and never grant each other's routes. Token changes made in the <Terminology title="The /admin web page for tokens and settings" to="/docs/reference/terminology#core-concepts">operations console</Terminology> apply to the next request, with no restart.
 
 ## Request Bodies
 
 - `POST /api/v1/ping` and `POST /api/v1/wol` take a JSON body sent with `Content-Type: application/json`. Without that header, the body isn't read, so the route answers `400`.
-- Malformed JSON returns `400` with the code `invalid_json`, and a body over 64 KB returns `413`, both before the token is checked.
+- Malformed JSON returns `400` with the code `invalid_json`, and a body over 64 KB, or over 10 MB under `/api/v1/backup`, returns `413`, both before the token is checked.
 - Field types are strict, so `"count": "3"` is rejected where `"count": 3` is accepted. Fields that a route doesn't define are ignored.
 
 ## Responses
 
-Every route answers with JSON, and each one is a <Terminology title="a reply that reports outcome, not firewall output" to="/docs/reference/terminology#data-minimizing-response">data-minimizing response</Terminology> that leaves out SSH output, error details, and credentials.
+Every route answers with JSON, and each one is a <Terminology title="You get the outcome, never raw firewall output" to="/docs/reference/terminology#core-concepts">data-minimizing response</Terminology> that leaves out SSH output, error details, and credentials.
 
 ```json title="A successful connectivity check"
 {

@@ -1,0 +1,38 @@
+---
+title: "pfSense Actions Checks Whether a Device Is Up"
+description: Version 1.1.0 has the firewall ping a device after a Wake-on-LAN request, so scripts can tell whether the computer actually came up.
+slug: pfsense-actions-checks-devices
+authors:
+  - mrjackyliang
+keywords:
+  - pfsense actions
+  - reachability check
+  - wake-on-lan
+  - ping
+  - pfsense
+tags:
+  - release
+  - pfsense
+  - home automation
+---
+
+pfSense Actions 1.1.0, released a day after the first version, adds a device check. The firewall pings an IP address and reports whether it answers, so a script that wakes a computer can also confirm that it came up.
+
+{/* truncate */}
+
+## Why It Matters
+
+A Wake-on-LAN packet gets no reply. A shortcut that sends one has no way to know whether the computer turned on, is still booting, or never heard the packet.
+
+Asking pfSense, which sits on the device's subnet, closes that loop.
+
+## How It Grew
+
+- **1.1.0** — The `wol-check` route has pfSense ping the address you send.
+- **1.1.1** — The check spreads its pings over ten two-packet attempts instead of three five-packet ones.
+- **1.2.0** — The number of attempts became a setting.
+- **1.3.0** — The route became `POST /ping`, with a limit of 3 requests per 10 seconds.
+
+## Where It Is Today
+
+The check is now the reachability check at `POST /api/v1/ping`, with 1 to 10 attempts in a request and its own token scope, `reachability:read`, so a dashboard can check devices without being able to wake them. [Reachability Check](/docs/api/reachability-check/) covers the request and every response.

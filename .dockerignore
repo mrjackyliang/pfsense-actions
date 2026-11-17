@@ -142,5 +142,8 @@ worker-configuration.d.ts
 ##########################
 #### Project Excludes ####
 ##########################
+.changelog
+apps/docs
 assets
+conventions
 graphify-out

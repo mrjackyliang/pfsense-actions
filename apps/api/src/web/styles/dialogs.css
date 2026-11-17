@@ -47,6 +47,32 @@
   max-width: 28rem;
 }
 
+.dialog-body {
+  display: grid;
+  gap: var(--space-4);
+}
+
+/* A generated or one-time secret, with its copy button inside the field. */
+.field > .generated-secret-field {
+  position: relative;
+
+  display: block;
+
+  font-size: var(--text-md);
+  font-weight: 400;
+  color: var(--color-text);
+
+  & input {
+    padding-right: 2.75rem;
+  }
+}
+
+.generated-secret-copy {
+  position: absolute;
+  top: 0.125rem;
+  right: 0.125rem;
+}
+
 /* A dialog takes focus only so screen readers start inside it; it isn't a control, so it shows no ring. */
 .dialog:focus {
   outline: none;

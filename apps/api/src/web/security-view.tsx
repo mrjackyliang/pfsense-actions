@@ -12,6 +12,7 @@ import {
   removePasskey,
   summaryFor,
 } from '@/web/api.ts';
+import { appConfig } from '@/web/app-config.ts';
 import { ConfirmDialog } from '@/web/confirm-dialog.tsx';
 import { FieldLabel } from '@/web/field-label.tsx';
 import {
@@ -332,11 +333,14 @@ export const SecurityView = ({
     );
   }
 
+  const role: string | undefined = security['role'];
+  const roleLabel: string | undefined = (role === undefined) ? undefined : appConfig['roleLabels'][role];
+
   return (
     <section className="workspace-section">
       <div className="workspace-heading">
-        <h1>Password and sign-in</h1>
-        <p>{`Signed in as ${security['username']}.`}</p>
+        <h1>{appConfig['securityLabel']}</h1>
+        <p>{(roleLabel === undefined) ? `Signed in as ${security['username']}.` : `Signed in as ${security['username']} (${roleLabel}).`}</p>
       </div>
 
       <div className="panel">
@@ -451,6 +455,7 @@ export const SecurityView = ({
                   </span>
                   <Button
                     disabled={busy}
+                    icon="remove"
                     onClick={(): void => {
                       setError(null);
                       setRemovingPasskey(passkey);
@@ -486,7 +491,7 @@ export const SecurityView = ({
             <p className="form-section-note">
               {'Passkeys need https and a domain name, and this page is open at '}
               <span className="mono">{security['hostname']}</span>
-              . Open the console at its domain to add one.
+              {`. Open the ${appConfig['securitySurfaceName']} at its domain to add one.`}
             </p>
           )}
           <p className="form-section-note">A passkey only works at the address it was added on.</p>

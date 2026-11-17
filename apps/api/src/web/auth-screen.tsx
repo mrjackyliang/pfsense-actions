@@ -9,6 +9,7 @@ import {
   submitSecondFactor,
   summaryFor,
 } from '@/web/api.ts';
+import { appConfig } from '@/web/app-config.ts';
 import { FieldLabel } from '@/web/field-label.tsx';
 import { passkeysSupported } from '@/web/passkeys.ts';
 import { PasswordMeter } from '@/web/password-meter.tsx';
@@ -198,7 +199,7 @@ export const AuthenticationScreen = ({
       <div className="auth-column">
         <div className="brand">
           <BrandMark />
-          <span>pfSense Actions</span>
+          <span>{appConfig['brandName']}</span>
         </div>
 
         <form className="auth-card" noValidate onSubmit={handleSubmit}>
@@ -220,7 +221,7 @@ export const AuthenticationScreen = ({
                   spellCheck={false}
                   value={claimCode}
                 />
-                {fieldIssue('claimCode') ?? <small>Find it with docker logs. A new code is printed each time the container restarts.</small>}
+                {fieldIssue('claimCode') ?? <small>{appConfig['claimCodeHint']}</small>}
               </FieldLabel>
             ) : null}
 

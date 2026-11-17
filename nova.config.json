@@ -164,6 +164,15 @@
       ]
     }
   },
+  "dockerHub": {
+    "namespace": "mrjackyliang",
+    "repository": "pfsense-actions",
+    "visibility": "public",
+    "categories": [
+      "networking",
+      "security"
+    ]
+  },
   "workflows": [
     {
       "template": "check-sponsor-gated-issues",
@@ -172,7 +181,7 @@
         "issue-comment",
         "issues"
       ],
-      "runsOn": "ubuntu-latest",
+      "runsOn": "ubuntu-24.04",
       "timeoutMinutes": 5
     },
     {
@@ -181,7 +190,7 @@
       "triggers": [
         "schedule-weekly"
       ],
-      "runsOn": "ubuntu-latest",
+      "runsOn": "ubuntu-24.04",
       "timeoutMinutes": 5
     },
     {
@@ -190,7 +199,7 @@
       "triggers": [
         "release"
       ],
-      "runsOn": "ubuntu-latest",
+      "runsOn": "ubuntu-24.04",
       "timeoutMinutes": 45,
       "build": [
         "./apps/docs"
@@ -203,11 +212,7 @@
         },
         {
           "to": "docker-hub",
-          "path": "./",
-          "with": {
-            "IMAGE_NAMESPACE": "mrjackyliang",
-            "IMAGE_REPOSITORY": "pfsense-actions"
-          }
+          "path": "./"
         },
         {
           "to": "ghcr",
@@ -241,9 +246,9 @@
   },
   "workspaces": {
     "./": {
+      "name": "pfsense-actions-project",
       "role": "project",
-      "policy": "freezable",
-      "name": "pfsense-actions-project"
+      "policy": "freezable"
     },
     "./apps/api": {
       "name": "pfsense-actions-app-api",
@@ -281,7 +286,6 @@
       ],
       "patterns": [
         "/assets/",
-        "!package-lock.json",
         "graphify-out/",
         "api-tokens.json",
         ".data/",
@@ -293,7 +297,10 @@
         "nova"
       ],
       "patterns": [
+        ".changelog",
+        "apps/docs",
         "assets",
+        "conventions",
         "graphify-out"
       ]
     }
@@ -303,6 +310,14 @@
     "codex"
   ],
   "recipes": {
+    "docker-hub": {
+      "sync-identity": {
+        "enabled": true
+      },
+      "sync-policies": {
+        "enabled": true
+      }
+    },
     "github": {
       "sync-actions": {
         "enabled": true
@@ -545,11 +560,6 @@
         "prefix": "ROOT_",
         "variables": [
           {
-            "key": "PFSENSE_ACTIONS_PORT",
-            "reach": "local",
-            "defaultValue": "22603"
-          },
-          {
             "key": "PGID",
             "reach": "local",
             "defaultValue": "1000"
@@ -567,7 +577,7 @@
         ]
       },
       "./apps/api": {
-        "prefix": "PFA_",
+        "prefix": "API_",
         "variables": [
           {
             "key": "ADMIN_WEBAUTHN_RP_NAME",
@@ -577,11 +587,6 @@
           {
             "key": "DATA_DIRECTORY",
             "reach": "local"
-          },
-          {
-            "key": "PORT",
-            "reach": "local",
-            "defaultValue": "22603"
           },
           {
             "key": "PFSENSE_SSH_IP",

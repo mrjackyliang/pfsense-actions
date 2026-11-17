@@ -564,6 +564,13 @@ export type Lib_State_Runner_GetConnection_Row = Record<string, unknown> | undef
 export type Lib_State_Runner_GetConnection_StoredConnection = ReturnType<typeof storedConnection.parse>;
 
 /**
+ * Lib - State - Runner - Get Debug Logging.
+ *
+ * @since 2.1.0
+ */
+export type Lib_State_Runner_GetDebugLogging_Returns = boolean;
+
+/**
  * Lib - State - Runner - Get Environment Imports.
  *
  * @since 2.0.0
@@ -1050,6 +1057,17 @@ export type Lib_State_Runner_SetMetadata_Returns = void;
  * @since 2.0.0
  */
 export type Lib_State_Runner_SetupClaimDurationMilliseconds = number;
+
+/**
+ * Lib - State - Runner - Set Debug Logging.
+ *
+ * @since 2.1.0
+ */
+export type Lib_State_Runner_SetDebugLogging_ActorId = Shared_ActivityEvent_ActorId;
+
+export type Lib_State_Runner_SetDebugLogging_Enabled = boolean;
+
+export type Lib_State_Runner_SetDebugLogging_Returns = void;
 
 /**
  * Lib - State - Runner - Start Totp Enrollment.

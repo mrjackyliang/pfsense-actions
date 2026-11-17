@@ -1,6 +1,7 @@
 import { NodeSSH } from 'node-ssh';
 import { isErrorLike, serializeError } from 'serialize-error';
 
+import { logDebug } from './logger.js';
 import { textWhitespace } from './regex.js';
 import { systemInformationOutput } from './schema.js';
 
@@ -8,20 +9,30 @@ import type {
   Lib_Api_Runner_Constructor_Environment,
   Lib_Api_Runner_Environment,
   Lib_Api_Runner_ExecCommand_Command,
+  Lib_Api_Runner_ExecCommand_Reason,
+  Lib_Api_Runner_ExecCommand_Response,
   Lib_Api_Runner_ExecCommand_Returns,
+  Lib_Api_Runner_ExecCommand_SignedIn,
+  Lib_Api_Runner_ExecCommand_StartedAt,
   Lib_Api_Runner_ExecCommand_TimeoutMilliseconds,
-  Lib_Api_Runner_ExecCommand_Timer,
   Lib_Api_Runner_IsAuthenticated_Response,
   Lib_Api_Runner_IsAuthenticated_Returns,
   Lib_Api_Runner_IsAuthenticated_TimeoutMilliseconds,
   Lib_Api_Runner_IsSuccessfulCommand_Response,
   Lib_Api_Runner_IsSuccessfulCommand_Returns,
+  Lib_Api_Runner_Login_Address,
+  Lib_Api_Runner_Login_Reason,
   Lib_Api_Runner_Login_Returns,
+  Lib_Api_Runner_Login_StartedAt,
   Lib_Api_Runner_Logout_Returns,
   Lib_Api_Runner_Ping_Count,
   Lib_Api_Runner_Ping_IpAddress,
   Lib_Api_Runner_Ping_Response,
   Lib_Api_Runner_Ping_Returns,
+  Lib_Api_Runner_SendCommand_Command,
+  Lib_Api_Runner_SendCommand_Returns,
+  Lib_Api_Runner_SendCommand_TimeoutMilliseconds,
+  Lib_Api_Runner_SendCommand_Timer,
   Lib_Api_Runner_Session,
   Lib_Api_Runner_SystemInformation_OutputParts,
   Lib_Api_Runner_SystemInformation_Response,
@@ -99,6 +110,9 @@ export class Runner {
    * @since 2.0.0
    */
   public async login(): Lib_Api_Runner_Login_Returns {
+    const address: Lib_Api_Runner_Login_Address = `${this.#environment['pfsenseSshIp']}:${String(this.#environment['pfsenseSshPort'])}`;
+    const startedAt: Lib_Api_Runner_Login_StartedAt = Date.now();
+
     try {
       if ((await this.isAuthenticated()) === true) {
         return {
@@ -118,12 +132,18 @@ export class Runner {
 
       this.#session.isAuthenticated = true;
 
+      logDebug(`Signed in to pfSense at ${address} over SSH after ${String(Date.now() - startedAt)} ms`);
+
       return {
         action: 'LOGIN',
         success: true,
         info: null,
       };
     } catch (error) {
+      const reason: Lib_Api_Runner_Login_Reason = (error instanceof Error) ? error.message : String(error);
+
+      logDebug(`Couldn't sign in to pfSense at ${address} over SSH after ${String(Date.now() - startedAt)} ms: ${reason}`);
+
       return {
         action: 'LOGIN',
         success: false,
@@ -199,7 +219,7 @@ export class Runner {
         };
       }
 
-      const response: Lib_Api_Runner_Ping_Response = await this.#session['sshClient'].execCommand(`ping -c ${count} ${ipAddress}`);
+      const response: Lib_Api_Runner_Ping_Response = await this.execCommand(`ping -c ${count} ${ipAddress}`);
 
       if (
         this.isSuccessfulCommand(response) === false
@@ -300,8 +320,9 @@ export class Runner {
   /**
    * Lib - API - Exec Command.
    *
-   * Runs an SSH command and optionally closes its channel after a deadline.
-   * Closing the channel settles node-ssh's command promise without dropping the session.
+   * Runs an SSH command, optionally with a deadline, through sendCommand.
+   * With Debug logging on, a signed-in session's commands log their exit code and time.
+   * Probes before sign-in or after a failed one fail at once, so they aren't logged.
    *
    * @param {Lib_Api_Runner_ExecCommand_Command}             command             - Command.
    * @param {Lib_Api_Runner_ExecCommand_TimeoutMilliseconds} timeoutMilliseconds - Timeout milliseconds.
@@ -313,29 +334,25 @@ export class Runner {
    * @since 2.0.0
    */
   private async execCommand(command: Lib_Api_Runner_ExecCommand_Command, timeoutMilliseconds: Lib_Api_Runner_ExecCommand_TimeoutMilliseconds = undefined): Lib_Api_Runner_ExecCommand_Returns {
-    if (timeoutMilliseconds === undefined) {
-      return this.#session['sshClient'].execCommand(command);
-    }
-
-    let timer: Lib_Api_Runner_ExecCommand_Timer = undefined;
+    const signedIn: Lib_Api_Runner_ExecCommand_SignedIn = this.#session['isAuthenticated'];
+    const startedAt: Lib_Api_Runner_ExecCommand_StartedAt = Date.now();
 
     try {
-      return await this.#session['sshClient'].execCommand(command, {
-        onChannel: (channel) => {
-          timer = setTimeout(() => {
-            channel.close();
+      const response: Lib_Api_Runner_ExecCommand_Response = await this.sendCommand(command, timeoutMilliseconds);
 
-            return;
-          }, timeoutMilliseconds);
-          timer.unref();
-
-          return;
-        },
-      });
-    } finally {
-      if (timer !== undefined) {
-        clearTimeout(timer);
+      if (signedIn === true) {
+        logDebug(`pfSense SSH command "${command}" exited with ${String(response['code'])} after ${String(Date.now() - startedAt)} ms`);
       }
+
+      return response;
+    } catch (error) {
+      if (signedIn === true) {
+        const reason: Lib_Api_Runner_ExecCommand_Reason = (error instanceof Error) ? error.message : String(error);
+
+        logDebug(`pfSense SSH command "${command}" failed after ${String(Date.now() - startedAt)} ms: ${reason}`);
+      }
+
+      throw error;
     }
   }
 
@@ -364,7 +381,7 @@ export class Runner {
         };
       }
 
-      const response: Lib_Api_Runner_WakeOnLan_Response = await this.#session['sshClient'].execCommand(`wol -i ${broadcastAddress} ${macAddress}`);
+      const response: Lib_Api_Runner_WakeOnLan_Response = await this.execCommand(`wol -i ${broadcastAddress} ${macAddress}`);
 
       if (this.isSuccessfulCommand(response) === false) {
         return {
@@ -432,5 +449,47 @@ export class Runner {
    */
   private isSuccessfulCommand(response: Lib_Api_Runner_IsSuccessfulCommand_Response): Lib_Api_Runner_IsSuccessfulCommand_Returns {
     return response['code'] === 0;
+  }
+
+  /**
+   * Lib - API - Send Command.
+   *
+   * Sends an SSH command and optionally closes its channel after a deadline.
+   * Closing the channel settles node-ssh's command promise without dropping the session.
+   *
+   * @param {Lib_Api_Runner_SendCommand_Command}             command             - Command.
+   * @param {Lib_Api_Runner_SendCommand_TimeoutMilliseconds} timeoutMilliseconds - Timeout milliseconds.
+   *
+   * @private
+   *
+   * @returns {Lib_Api_Runner_SendCommand_Returns}
+   *
+   * @since 2.1.0
+   */
+  private async sendCommand(command: Lib_Api_Runner_SendCommand_Command, timeoutMilliseconds: Lib_Api_Runner_SendCommand_TimeoutMilliseconds): Lib_Api_Runner_SendCommand_Returns {
+    if (timeoutMilliseconds === undefined) {
+      return this.#session['sshClient'].execCommand(command);
+    }
+
+    let timer: Lib_Api_Runner_SendCommand_Timer = undefined;
+
+    try {
+      return await this.#session['sshClient'].execCommand(command, {
+        onChannel: (channel) => {
+          timer = setTimeout(() => {
+            channel.close();
+
+            return;
+          }, timeoutMilliseconds);
+          timer.unref();
+
+          return;
+        },
+      });
+    } finally {
+      if (timer !== undefined) {
+        clearTimeout(timer);
+      }
+    }
   }
 }

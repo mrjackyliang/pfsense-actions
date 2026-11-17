@@ -22,22 +22,54 @@ import type {
 export type Web_Components_Icon_Name =
   'activity'
   | 'add'
+  | 'arrow-down'
+  | 'arrow-up'
+  | 'archive'
   | 'bell'
+  | 'bot'
   | 'check'
   | 'chevron'
   | 'chevron-down'
+  | 'chevron-left'
+  | 'chevron-up'
+  | 'clock'
+  | 'containers'
   | 'copy'
   | 'download'
+  | 'duplicate'
   | 'edit'
+  | 'external'
+  | 'features'
+  | 'folder'
+  | 'grip'
+  | 'history'
+  | 'image'
+  | 'import'
+  | 'invite'
   | 'key'
+  | 'label'
   | 'logout'
+  | 'logs'
+  | 'menu'
   | 'more'
   | 'overview'
+  | 'pause'
+  | 'play'
+  | 'plug'
   | 'refresh'
   | 'remove'
+  | 'search'
   | 'send'
   | 'server'
+  | 'settings'
   | 'shield'
+  | 'signal'
+  | 'sliders-horizontal'
+  | 'stop'
+  | 'torrent'
+  | 'upload'
+  | 'users'
+  | 'variable'
   | 'warning'
   | 'x';
 
@@ -121,7 +153,7 @@ export type Web_Components_NavigationItem = {
  *
  * @since 2.0.0
  */
-export type Web_Components_ConnectionTone = 'blocked' | 'connecting' | 'idle' | 'protected';
+export type Web_Components_ConnectionTone = 'blocked' | 'connecting' | 'idle' | 'partial' | 'protected';
 
 /**
  * Components.
@@ -134,6 +166,10 @@ export type Web_Components_ConnectionStatus = {
   tone: Web_Components_ConnectionTone;
 };
 
+export type Web_Components_ShellStatus = Web_Components_ConnectionStatus & {
+  onOpen: () => void;
+};
+
 /**
  * Components.
  *
@@ -142,18 +178,35 @@ export type Web_Components_ConnectionStatus = {
 export type Web_Components_ConnectionTestResult = boolean | null;
 
 /**
+ * Components - App Shell phone sheet.
+ *
+ * @since 2.1.0
+ */
+export type Web_Components_AppShell_PhoneSheet = {
+  content: ReactNode;
+  id: string;
+  onClose: () => void;
+  title: string;
+};
+
+/**
  * Components.
  *
  * @since 2.0.0
  */
 export type Web_Components_AppShell_Props = {
+  accountDetail?: ReactNode;
   activeView: Web_Components_View;
+  canOpen?: (permission: string) => boolean;
   children: ReactNode;
-  connection: Web_Api_Connection | null;
-  connectionTest: Web_Components_ConnectionTestResult;
   notice: ReactNode;
   onLogout: () => void;
   onViewChange: (view: Web_Components_View) => void;
+  phonePageTop?: ReactNode;
+  phoneSheet?: Web_Components_AppShell_PhoneSheet | undefined;
+  sidebarNavigationSlot?: ReactNode;
+  sidebarTop?: ReactNode;
+  status?: Web_Components_ShellStatus;
   username: string;
 };
 
@@ -163,7 +216,7 @@ export type Web_Components_AppShell_Props = {
  * @since 2.0.0
  */
 export type Web_Components_AccountMenu_Props = {
-  compact: boolean;
+  detail?: ReactNode;
   onLogout: () => void;
   onViewChange: (view: Web_Components_View) => void;
   username: string;
@@ -255,9 +308,7 @@ export type Web_Components_ActivityList_Props = {
  * @since 2.0.0
  */
 export type Web_Components_AccessView_Props = {
-  createdToken: Web_Api_CreatedToken | null;
-  onCreateToken: (input: Web_Api_CreateTokenInput) => Promise<void>;
-  onDismissCreatedToken: () => void;
+  onCreateToken: (input: Web_Api_CreateTokenInput) => Promise<Web_Api_CreatedToken>;
   onRevokeToken: (tokenId: string) => Promise<void>;
   onUpdateToken: (tokenId: string, input: Web_Api_UpdateTokenInput) => Promise<void>;
   tokens: Web_Api_Token[];
@@ -281,8 +332,9 @@ export type Web_Components_Endpoint = {
  */
 export type Web_Components_TokenDialog_Expiry = '30' | '90' | '365' | 'keep' | 'never';
 export type Web_Components_TokenDialog_Props = {
+  allowedScopes?: Web_Api_Scope[];
   onClose: () => void;
-  onCreate: (input: Web_Api_CreateTokenInput) => Promise<void>;
+  onCreate: (input: Web_Api_CreateTokenInput) => Promise<Web_Api_CreatedToken>;
   onUpdate: (tokenId: string, input: Web_Api_UpdateTokenInput) => Promise<void>;
   open: boolean;
   token: Web_Api_Token | null;
@@ -295,8 +347,9 @@ export type Web_Components_TokenDialog_Props = {
  */
 export type Web_Components_ScopeOption = {
   description: string;
-  endpoints: string[];
+  endpoints?: string[];
   id: Web_Api_Scope;
+  includes?: Web_Api_Scope;
 };
 
 /**
@@ -307,6 +360,7 @@ export type Web_Components_ScopeOption = {
 export type Web_Components_ConnectionView_Props = {
   connection: Web_Api_Connection | null;
   connectionTest: Web_Components_ConnectionTestResult;
+  onBackupImported: () => Promise<void>;
   onDirtyChange: (dirty: boolean) => void;
   onSave: (connection: Web_Api_Connection) => void;
   onTestConnection: () => Promise<void>;

@@ -19,6 +19,16 @@ export const textAdministratorUsername = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 export const textBase64Url = /^[A-Za-z0-9_-]+$/;
 
 /**
+ * Lib - Regex - Text Backup Grant.
+ *
+ * Matches the fixed prefix and Base64URL payload of a confirmation grant.
+ * Malformed raw values never reach the in-memory digest lookup.
+ *
+ * @since 2.1.0
+ */
+export const textBackupGrant = /^pbg_[A-Za-z0-9_-]+$/;
+
+/**
  * Lib - Regex - Text Bearer Authorization.
  *
  * Matches a complete Bearer authorization header and captures its credential.

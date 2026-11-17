@@ -2,7 +2,7 @@ import type express from 'express';
 
 import type { Runner as Access } from '@/lib/access.js';
 import type { Runner as Pfsense } from '@/lib/api.js';
-import type { connectionUpdate } from '@/lib/schema.js';
+import type { connectionUpdate, diagnosticsUpdate } from '@/lib/schema.js';
 import type { Runner as State } from '@/lib/state.js';
 import type { Lib_Api_Runner_Login_Returns } from '@/types/lib/api.d.ts';
 import type {
@@ -108,6 +108,34 @@ export type Routes_Console_Runner_RouteConnectionUpdate_Candidate = Shared_Pfsen
 export type Routes_Console_Runner_RouteConnectionUpdate_ActorId = string;
 
 export type Routes_Console_Runner_RouteConnectionUpdate_IsConnected = boolean;
+
+/**
+ * Routes - Console - Runner - Route Diagnostics.
+ *
+ * @since 2.1.0
+ */
+export type Routes_Console_Runner_RouteDiagnostics_Request = express.Request;
+
+export type Routes_Console_Runner_RouteDiagnostics_Response = express.Response;
+
+export type Routes_Console_Runner_RouteDiagnostics_Returns = void;
+
+/**
+ * Routes - Console - Runner - Route Diagnostics Update.
+ *
+ * @since 2.1.0
+ */
+export type Routes_Console_Runner_RouteDiagnosticsUpdate_Request = express.Request;
+
+export type Routes_Console_Runner_RouteDiagnosticsUpdate_Response = express.Response;
+
+export type Routes_Console_Runner_RouteDiagnosticsUpdate_Returns = void;
+
+export type Routes_Console_Runner_RouteDiagnosticsUpdate_RequestBody = ReturnType<typeof diagnosticsUpdate.safeParse>;
+
+export type Routes_Console_Runner_RouteDiagnosticsUpdate_ActorId = string;
+
+export type Routes_Console_Runner_RouteDiagnosticsUpdate_Enabled = boolean;
 
 /**
  * Routes - Console - Runner - Route Overview.

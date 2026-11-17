@@ -2,6 +2,7 @@ import {
   BlockList,
   isIP,
   isIPv4,
+  isIPv6,
 } from 'node:net';
 
 import { textHostHeader } from './regex.js';
@@ -13,9 +14,17 @@ import type {
   Lib_Http_BuildCookie_Value,
   Lib_Http_CreateTrustedProxyRanges_Ranges,
   Lib_Http_CreateTrustedProxyRanges_Returns,
+  Lib_Http_ExpandIpv6_Address,
+  Lib_Http_ExpandIpv6_Halves,
+  Lib_Http_ExpandIpv6_Head,
+  Lib_Http_ExpandIpv6_Returns,
+  Lib_Http_ExpandIpv6_Tail,
   Lib_Http_GetClientAddress_Address,
   Lib_Http_GetClientAddress_Request,
   Lib_Http_GetClientAddress_Returns,
+  Lib_Http_GetClientLimitKey_Address,
+  Lib_Http_GetClientLimitKey_Request,
+  Lib_Http_GetClientLimitKey_Returns,
   Lib_Http_GetRequestHost_ForwardedHost,
   Lib_Http_GetRequestHost_Host,
   Lib_Http_GetRequestHost_Request,
@@ -40,6 +49,7 @@ import type {
   Lib_Http_HandleAsync_Request,
   Lib_Http_HandleAsync_Response,
   Lib_Http_HandleAsync_Returns,
+  Lib_Http_Ipv6LimitPrefixLength,
   Lib_Http_IsPasskeyAvailable_Hostname,
   Lib_Http_IsPasskeyAvailable_Request,
   Lib_Http_IsPasskeyAvailable_Returns,
@@ -69,8 +79,26 @@ import type {
   Lib_Http_SendValidationError_Response,
   Lib_Http_SendValidationError_Returns,
   Lib_Http_SendValidationError_Status,
+  Lib_Http_ToIpv6Groups_Part,
+  Lib_Http_ToIpv6Groups_Returns,
+  Lib_Http_ToIpv6Network_Address,
+  Lib_Http_ToIpv6Network_Hostname,
+  Lib_Http_ToIpv6Network_KeptBits,
+  Lib_Http_ToIpv6Network_Network,
+  Lib_Http_ToIpv6Network_PrefixLength,
+  Lib_Http_ToIpv6Network_Returns,
   Lib_Http_TrustedProxyRanges,
 } from '@/types/lib/http.d.ts';
+
+/**
+ * Lib - HTTP - Ipv6 Limit Prefix Length.
+ *
+ * Sets how much of an IPv6 address identifies one client for rate and sign-in limits.
+ * A /56 covers the networks a home or small office usually gets from its provider.
+ *
+ * @since 2.1.0
+ */
+const ipv6LimitPrefixLength: Lib_Http_Ipv6LimitPrefixLength = 56;
 
 /**
  * Lib - HTTP - Trusted Proxy Ranges.
@@ -127,6 +155,28 @@ export function getClientAddress(request: Lib_Http_GetClientAddress_Request): Li
   }
 
   return normalizeAddress(address);
+}
+
+/**
+ * Lib - HTTP - Get Client Limit Key.
+ *
+ * Returns the address that rate limits and sign-in limits count a visitor by.
+ * IPv6 visitors count by their /56 network, so a new address there keeps the limit.
+ *
+ * @param {Lib_Http_GetClientLimitKey_Request} request - Request.
+ *
+ * @returns {Lib_Http_GetClientLimitKey_Returns}
+ *
+ * @since 2.1.0
+ */
+export function getClientLimitKey(request: Lib_Http_GetClientLimitKey_Request): Lib_Http_GetClientLimitKey_Returns {
+  const address: Lib_Http_GetClientLimitKey_Address = getClientAddress(request);
+
+  if (isIPv6(address) === false) {
+    return address;
+  }
+
+  return toIpv6Network(address, ipv6LimitPrefixLength);
 }
 
 /**
@@ -471,6 +521,30 @@ function createTrustedProxyRanges(): Lib_Http_CreateTrustedProxyRanges_Returns {
 }
 
 /**
+ * Lib - HTTP - Expand Ipv6.
+ *
+ * Writes out all eight 16-bit groups of an IPv6 address, filling in the :: shorthand.
+ * A zone such as %en0 is dropped, because it names a local interface, not an address.
+ *
+ * @param {Lib_Http_ExpandIpv6_Address} address - Address.
+ *
+ * @returns {Lib_Http_ExpandIpv6_Returns}
+ *
+ * @since 2.1.0
+ */
+function expandIpv6(address: Lib_Http_ExpandIpv6_Address): Lib_Http_ExpandIpv6_Returns {
+  const halves: Lib_Http_ExpandIpv6_Halves = (address.split('%')[0] ?? address).split('::');
+  const head: Lib_Http_ExpandIpv6_Head = toIpv6Groups(halves[0]);
+  const tail: Lib_Http_ExpandIpv6_Tail = toIpv6Groups(halves[1]);
+
+  return [
+    ...head,
+    ...new Array<number>(8 - head.length - tail.length).fill(0),
+    ...tail,
+  ];
+}
+
+/**
  * Lib - HTTP - Normalize Address.
  *
  * Rewrites an IPv6-mapped IPv4 address such as ::ffff:10.0.0.5 to 10.0.0.5.
@@ -486,4 +560,51 @@ function normalizeAddress(address: Lib_Http_NormalizeAddress_Address): Lib_Http_
   const unmapped: Lib_Http_NormalizeAddress_Unmapped = (address.toLowerCase().startsWith('::ffff:') === true) ? address.slice(7) : address;
 
   return (isIPv4(unmapped) === true) ? unmapped : address;
+}
+
+/**
+ * Lib - HTTP - To Ipv6 Groups.
+ *
+ * Parses the colon-separated groups on one side of an IPv6 :: shorthand.
+ * An embedded IPv4 tail fills two groups, and the limit prefix always masks it away.
+ *
+ * @param {Lib_Http_ToIpv6Groups_Part} part - Part.
+ *
+ * @returns {Lib_Http_ToIpv6Groups_Returns}
+ *
+ * @since 2.1.0
+ */
+function toIpv6Groups(part: Lib_Http_ToIpv6Groups_Part): Lib_Http_ToIpv6Groups_Returns {
+  if (part === undefined || part === '') {
+    return [];
+  }
+
+  return part.split(':').flatMap((group) => ((group.includes('.') === true) ? [
+    0,
+    0,
+  ] : [Number.parseInt(group, 16)]));
+}
+
+/**
+ * Lib - HTTP - To Ipv6 Network.
+ *
+ * Keeps the first bits of an IPv6 address and writes that network in CIDR form.
+ * The URL parser gives the network its shortest standard spelling.
+ *
+ * @param {Lib_Http_ToIpv6Network_Address}      address      - Address.
+ * @param {Lib_Http_ToIpv6Network_PrefixLength} prefixLength - Prefix length.
+ *
+ * @returns {Lib_Http_ToIpv6Network_Returns}
+ *
+ * @since 2.1.0
+ */
+function toIpv6Network(address: Lib_Http_ToIpv6Network_Address, prefixLength: Lib_Http_ToIpv6Network_PrefixLength): Lib_Http_ToIpv6Network_Returns {
+  const network: Lib_Http_ToIpv6Network_Network = expandIpv6(address).map((group, index) => {
+    const keptBits: Lib_Http_ToIpv6Network_KeptBits = Math.min(Math.max(prefixLength - (index * 16), 0), 16);
+
+    return group - (group % (2 ** (16 - keptBits)));
+  });
+  const hostname: Lib_Http_ToIpv6Network_Hostname = new URL(`http://[${network.map((group) => group.toString(16)).join(':')}]`).hostname;
+
+  return `${hostname.slice(1, -1)}/${prefixLength}`;
 }

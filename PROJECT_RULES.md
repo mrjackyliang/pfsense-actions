@@ -26,7 +26,6 @@ pfsense-actions/
 |-- packages/
 |   `-- docker/           - Private s6 rootfs and image assembly workspace
 |-- assets/
-|   `-- legacy/           - Local pre-Nova configuration and packaging reference
 |-- conventions/          - Nova-generated coding conventions
 |-- scripts/              - Root maintenance and Nova-linking scripts
 |-- tests/                - Root project-contract tests
@@ -89,8 +88,6 @@ warning at every start. Never commit or bake credentials into the image.
   console in `src/web/`, its types in `src/types/web/`, and `mock-api.mts` share one
   documented exception block (`console-interface` in `apps/api/eslint.config.mts`) for
   rules that don't fit JSX, browser APIs, and React hooks; keep it limited to those files.
-- Retain `assets/legacy/` configuration and packaging files until the replacement deployment
-  path has been reviewed.
 
 ## Architecture and Data
 
@@ -291,6 +288,19 @@ repository. Do not broaden the supported action set without documenting and veri
 the new contract first.
 
 ## Additional Project Rules
+
+### Shared Console Foundation
+
+The console foundation is shared with outpost, discord-stonker-bot, and
+transmission-vpn. Keep `navigation.ts`, `nav-sheet.tsx`,
+`app-shell.tsx`, `primitives.tsx`, `confirm-dialog.tsx`, `field-label.tsx`,
+`password-meter.tsx`, `key-notice.tsx`, `password-strength.ts`,
+`use-dialog-focus.ts`, `use-escape-key.ts`, `theme.ts`, `passkeys.ts`,
+`auth-screen.tsx`, `security-view.tsx`, `totp-dialog.tsx`, `token-dialog.tsx`,
+`notification-dialog.tsx`, `notification-services.ts`,
+`notifications-view.tsx`, `format.ts`, `toast.ts`, and the shared `tokens.css`,
+`shell.css`, `components.css`, `dialogs.css`, `auth.css`, and `panels.css` as
+copies; change shared behavior in all four apps together.
 
 ### Current Development Status
 

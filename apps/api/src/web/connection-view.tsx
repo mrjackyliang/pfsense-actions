@@ -8,8 +8,13 @@ import {
   summaryFor,
   updateConnection,
 } from '@/web/api.ts';
+import { BackupView } from '@/web/backup-view.tsx';
+import { DebugLoggingPanel } from '@/web/debug-logging-panel.tsx';
 import { FieldLabel } from '@/web/field-label.tsx';
-import { Button } from '@/web/primitives.tsx';
+import {
+  Button,
+  passwordManagerIgnore,
+} from '@/web/primitives.tsx';
 import { showToast } from '@/web/toast.ts';
 
 import type {
@@ -31,6 +36,7 @@ import type { Web_Components_ConnectionView_Props } from '@/types/web/components
 export const ConnectionView = ({
   connection,
   connectionTest,
+  onBackupImported,
   onDirtyChange,
   onSave,
   onTestConnection,
@@ -319,7 +325,7 @@ export const ConnectionView = ({
 
           <FieldLabel>
             <span>SSH username</span>
-            <input aria-invalid={issueFor(error, 'pfsenseUsername') !== ''} autoCapitalize="none" autoComplete="off" onChange={(event): void => setUsername(event.currentTarget.value)} placeholder="e.g. admin" spellCheck={false} value={username} />
+            <input {...passwordManagerIgnore} aria-invalid={issueFor(error, 'pfsenseUsername') !== ''} autoCapitalize="none" autoComplete="off" onChange={(event): void => setUsername(event.currentTarget.value)} placeholder="e.g. admin" spellCheck={false} value={username} />
             {fieldIssue('pfsenseUsername')}
           </FieldLabel>
 
@@ -345,8 +351,9 @@ export const ConnectionView = ({
               />
             ) : (
               <input
+                {...passwordManagerIgnore}
                 aria-invalid={issueFor(error, 'credential') !== ''}
-                autoComplete="new-password"
+                autoComplete="off"
                 onChange={(event): void => setCredential(event.currentTarget.value)}
                 placeholder={(keepsCredential) ? 'Leave empty to keep the saved password' : ''}
                 type="password"
@@ -363,6 +370,10 @@ export const ConnectionView = ({
           </div>
         </form>
       </div>
+
+      <BackupView onImported={onBackupImported} />
+
+      <DebugLoggingPanel />
     </section>
   );
 };

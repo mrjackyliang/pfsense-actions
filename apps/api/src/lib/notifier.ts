@@ -1,5 +1,5 @@
 import { Runner as Pfsense } from './api.js';
-import { logError } from './logger.js';
+import { logDebug, logError } from './logger.js';
 import {
   buildEventNotification,
   buildSecretsRemovedNotification,
@@ -22,15 +22,19 @@ import type {
   Lib_Notifier_Runner_CheckPfsense_Reachable,
   Lib_Notifier_Runner_CheckPfsense_Returns,
   Lib_Notifier_Runner_CheckPfsense_SystemInformationResponse,
+  Lib_Notifier_Runner_CheckPfsenseOnce_Outcome,
   Lib_Notifier_Runner_CheckPfsenseOnce_Returns,
+  Lib_Notifier_Runner_CheckPfsenseOnce_StartedAt,
   Lib_Notifier_Runner_CheckTimer,
   Lib_Notifier_Runner_Constructor_Dependencies,
   Lib_Notifier_Runner_Constructor_State,
   Lib_Notifier_Runner_Deliver_Deliveries,
   Lib_Notifier_Runner_Deliver_Error,
   Lib_Notifier_Runner_Deliver_Notification,
+  Lib_Notifier_Runner_Deliver_Outcome,
   Lib_Notifier_Runner_Deliver_Reason,
   Lib_Notifier_Runner_Deliver_Returns,
+  Lib_Notifier_Runner_Deliver_StartedAt,
   Lib_Notifier_Runner_Dependencies,
   Lib_Notifier_Runner_FailedChecks,
   Lib_Notifier_Runner_GetEvents_Returns,
@@ -52,8 +56,10 @@ import type {
   Lib_Notifier_Runner_PfsenseDown,
   Lib_Notifier_Runner_SendTest_Delivery,
   Lib_Notifier_Runner_SendTest_Id,
+  Lib_Notifier_Runner_SendTest_Outcome,
   Lib_Notifier_Runner_SendTest_Result,
   Lib_Notifier_Runner_SendTest_Returns,
+  Lib_Notifier_Runner_SendTest_StartedAt,
   Lib_Notifier_Runner_Start_Returns,
   Lib_Notifier_Runner_State,
   Lib_Notifier_Runner_Stop_Returns,
@@ -329,6 +335,7 @@ export class Runner {
       return;
     }
 
+    const startedAt: Lib_Notifier_Runner_CheckPfsenseOnce_StartedAt = Date.now();
     let instance: Lib_Notifier_Runner_CheckPfsense_Instance = undefined;
     let reachable: Lib_Notifier_Runner_CheckPfsense_Reachable = false;
 
@@ -353,6 +360,10 @@ export class Runner {
         }
       }
     }
+
+    const outcome: Lib_Notifier_Runner_CheckPfsenseOnce_Outcome = (reachable === true) ? 'pfSense answered' : 'pfSense didn\'t answer';
+
+    logDebug(`Scheduled pfSense check: ${outcome} after ${String(Date.now() - startedAt)} ms`);
 
     if (reachable === true) {
       this.#failedChecks = 0;
@@ -518,9 +529,14 @@ export class Runner {
       return delivery;
     }
 
+    const startedAt: Lib_Notifier_Runner_SendTest_StartedAt = Date.now();
     const result: Lib_Notifier_Runner_SendTest_Result = await this.#dependencies.send(app, delivery['target'], buildTestNotification(app));
 
     this.#state.recordNotificationAttempt(id, (result['delivered'] === true) ? null : result['message']);
+
+    const outcome: Lib_Notifier_Runner_SendTest_Outcome = (result['delivered'] === true) ? 'delivered' : `not delivered (${result['message']})`;
+
+    logDebug(`Test notification to ${delivery['name']}: ${outcome} after ${String(Date.now() - startedAt)} ms`);
 
     return result;
   }
@@ -587,8 +603,14 @@ export class Runner {
     const deliveries: Lib_Notifier_Runner_Deliver_Deliveries = this.#state.getNotificationDeliveries(notification['event']);
 
     for (const delivery of deliveries) {
+      const startedAt: Lib_Notifier_Runner_Deliver_StartedAt = Date.now();
+
       void this.#dependencies.send(app, delivery['target'], notification).then((result) => {
         this.#state.recordNotificationAttempt(delivery['id'], (result['delivered'] === true) ? null : result['message']);
+
+        const outcome: Lib_Notifier_Runner_Deliver_Outcome = (result['delivered'] === true) ? 'delivered' : `not delivered (${result['message']})`;
+
+        logDebug(`Notification "${notification['event']}" to ${delivery['name']}: ${outcome} after ${String(Date.now() - startedAt)} ms`);
 
         return;
       }).catch((error: Lib_Notifier_Runner_Deliver_Error) => {

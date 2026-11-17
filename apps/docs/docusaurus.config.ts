@@ -3,37 +3,60 @@ import { NovaIdentity } from '@cbnventures/nova/toolkit';
 import type { DocusaurusNovaConfig } from '@cbnventures/docusaurus-preset-nova/types/config';
 
 /**
- * Docusaurus - Identity.
- *
- * Reads the documentation identity from the generated Nova configuration.
- * Fallbacks keep the site runnable while consumers finish project metadata.
+ * Identity.
  *
  * @since 0.0.0
  */
 const identity = new NovaIdentity().forDocs();
 
 /**
- * Docusaurus - Config.
- *
- * Configures the generated documentation site with Nova's selected preset.
- * Consumers can extend these values through normal Docusaurus configuration.
+ * Docusaurus Configuration.
  *
  * @since 0.0.0
  */
 const config: DocusaurusNovaConfig = {
+  // Site Metadata.
   title: identity['title'] ?? '',
   titleDelimiter: '-',
-  tagline: identity['tagline'] ?? 'Documentation',
-  url: identity['url'] ?? 'https://www.example.com',
-  baseUrl: identity['baseUrl'] ?? '/',
+  tagline: identity['tagline'],
   favicon: './favicon.ico',
-  organizationName: identity['organizationName'] ?? 'your-org',
-  projectName: identity['projectName'] ?? 'pfsense-actions',
+
+  // Deployment.
+  url: identity['url'] ?? '',
+  baseUrl: identity['baseUrl'] ?? '/',
+  organizationName: identity['organizationName'],
+  projectName: identity['projectName'],
+  deploymentBranch: undefined,
+  githubHost: undefined,
+  githubPort: undefined,
   trailingSlash: true,
   noIndex: false,
-  onBrokenLinks: 'throw',
 
+  // Error Handling.
+  onBrokenLinks: 'throw',
+  onBrokenAnchors: 'throw',
+  onDuplicateRoutes: 'throw',
+
+  // Static Assets.
+  staticDirectories: ['static'],
+  baseUrlIssueBanner: true,
+  scripts: [],
+  stylesheets: [],
+  clientModules: [],
+  themes: [],
+
+  // Custom Fields.
+  customFields: {},
+
+  // Head Tags.
   headTags: [
+    {
+      tagName: 'meta',
+      attributes: {
+        property: 'og:type',
+        content: 'website',
+      },
+    },
     {
       tagName: 'link',
       attributes: {
@@ -68,34 +91,90 @@ const config: DocusaurusNovaConfig = {
     },
   ],
 
-  markdown: {
-    hooks: {
-      onBrokenMarkdownLinks: 'warn',
-    },
-  },
-
+  // Internationalization.
   i18n: {
     defaultLocale: 'en',
     locales: ['en'],
+    path: 'i18n',
+    localeConfigs: {
+      en: {
+        label: 'English',
+        direction: 'ltr',
+        htmlLang: 'en-US',
+        calendar: 'gregory',
+        path: 'en',
+      },
+    },
   },
 
+  // Markdown.
+  markdown: {
+    format: 'mdx',
+    mermaid: true,
+    emoji: true,
+    mdx1Compat: {
+      comments: true,
+      admonitions: true,
+      headingIds: true,
+    },
+    anchors: {
+      maintainCase: false,
+    },
+    hooks: {
+      onBrokenMarkdownLinks: 'warn',
+      onBrokenMarkdownImages: 'throw',
+    },
+  },
+
+  // Presets (Nova).
   presets: [[
     '@cbnventures/docusaurus-preset-nova',
     {
+      // Preset Identity.
       preset: 'sentinel',
+
+      // Preset Overrides (undefined = use preset default).
       overrides: {
         colors: {
           primary: {
-            light: '#0f766e',
-            dark: '#14b8a6',
+            light: '#0F766E',
+            dark: '#14B8A6',
           },
           secondary: {
-            light: '#f59e0b',
-            dark: '#fbbf24',
+            light: '#F59E0B',
+            dark: '#FBBF24',
+          },
+          text: undefined,
+          border: undefined,
+          warning: undefined,
+          danger: undefined,
+        },
+        fonts: {
+          display: undefined,
+          body: undefined,
+          code: undefined,
+        },
+        navbar: undefined,
+        footer: undefined,
+      },
+
+      // Plugins.
+      plugins: {
+        docs: {
+          routeBasePath: 'docs',
+          sidebarPath: './sidebars.ts',
+          editUrl: 'https://github.com/mrjackyliang/pfsense-actions/tree/main/apps/docs/',
+          showLastUpdateTime: true,
+          showLastUpdateAuthor: true,
+          lastVersion: 'current',
+          versions: {
+            current: {
+              label: 'Current',
+              badge: false,
+              banner: 'none',
+            },
           },
         },
-      },
-      plugins: {
         blog: {
           showReadingTime: true,
           blogTitle: 'Blog',
@@ -114,25 +193,53 @@ const config: DocusaurusNovaConfig = {
             description: 'Release notes, upgrade guides, and notes on giving automation only the pfSense access it needs.',
           },
         },
-        docs: {
-          sidebarPath: './sidebars.ts',
-          routeBasePath: 'docs',
+        pages: {
+          editUrl: 'https://github.com/mrjackyliang/pfsense-actions/tree/main/apps/docs/',
+          showLastUpdateTime: true,
+          showLastUpdateAuthor: true,
         },
         sitemap: {
           lastmod: 'date',
           changefreq: 'weekly',
           priority: 0.5,
-          ignorePatterns: ['**/docs/tags/**'],
+          ignorePatterns: [`${identity['baseUrl'] ?? '/'}docs/tags/**`],
           filename: 'sitemap.xml',
         },
       },
-      search: {
-        indexBlog: true,
+
+      // Analytics.
+      analytics: {
+        gtm: {
+          containerId: 'GTM-NJN3C25S',
+        },
       },
+
+      // Search.
+      search: {
+        indexDocs: true,
+        indexBlog: true,
+        indexPages: true,
+        docsRouteBasePath: 'docs',
+        hashed: true,
+        language: ['en'],
+        highlightSearchTermsOnTargetPage: true,
+        searchBarShortcutKeymap: 'mod+k',
+        searchResultLimits: 8,
+        fuzzyMatchingDistance: 1,
+        ignorePatterns: [],
+      },
+
+      // Progress Bar.
+      progressBar: true,
     },
   ]],
 
+  // Plugins.
+  plugins: [],
+
+  // Theme Config.
   themeConfig: {
+    // Site.
     site: {
       logo: {
         alt: 'pfSense Actions',
@@ -141,6 +248,13 @@ const config: DocusaurusNovaConfig = {
           dark: undefined,
         },
         href: '/',
+        target: undefined,
+        rel: undefined,
+        ariaLabel: undefined,
+        wordmark: {
+          light: undefined,
+          dark: undefined,
+        },
       },
       image: '/thumbnails/brand.png',
       metadata: [
@@ -154,42 +268,115 @@ const config: DocusaurusNovaConfig = {
         },
       ],
     },
+
+    // Color Mode.
+    colorMode: {
+      defaultMode: 'system',
+      disableSwitch: false,
+    },
+
+    // Navbar.
     navbar: {
-      title: 'pfSense Actions',
+      hideOnScroll: false,
       items: [
         {
-          label: 'Home',
+          label: 'Docs',
           position: 'left',
-          to: '/',
-          icon: 'lucide:house',
-        },
-        {
-          label: 'Guides',
-          position: 'left',
-          type: 'docSidebar',
-          sidebarId: 'docs',
+          type: 'dropdown',
           icon: 'lucide:book-open',
+          items: [
+            {
+              label: 'Overview',
+              to: '/docs/overview/',
+              icon: 'lucide:rocket',
+              activeBaseRegex: '^/docs/(overview/|getting-started/|category/getting-started/|tags/)',
+            },
+            {
+              label: 'Build With the API',
+              to: '/docs/category/build-with-the-api/',
+              icon: 'lucide:braces',
+              activeBaseRegex: '^/docs/(api/|category/build-with-the-api/)',
+            },
+            {
+              label: 'Operations Console',
+              to: '/docs/category/operations-console/',
+              icon: 'lucide:monitor-cog',
+              activeBaseRegex: '^/docs/(console/|category/operations-console/)',
+            },
+            {
+              label: 'Run the Controller',
+              to: '/docs/category/run-the-controller/',
+              icon: 'lucide:server-cog',
+              activeBaseRegex: '^/docs/(operations/|category/run-the-controller/)',
+            },
+            {
+              label: 'Reference',
+              to: '/docs/category/reference/',
+              icon: 'lucide:library',
+              activeBaseRegex: '^/docs/(reference/|category/reference/)',
+            },
+          ],
         },
         {
-          label: 'API',
+          label: 'Quick Start',
           position: 'left',
-          to: '/docs/api/request-basics/',
-          icon: 'lucide:braces',
-        },
-        {
-          label: 'Deploy',
-          position: 'left',
+          type: undefined,
           to: '/docs/getting-started/install-with-docker/',
-          icon: 'lucide:container',
+          icon: 'lucide:play',
         },
         {
           label: 'Blog',
           position: 'left',
+          type: undefined,
           to: '/blog/',
           icon: 'lucide:pen-line',
         },
+        {
+          label: 'Resources',
+          position: 'left',
+          type: 'dropdown',
+          icon: 'lucide:life-buoy',
+          items: [
+            {
+              label: 'FAQ',
+              to: '/docs/reference/faq/',
+              icon: 'lucide:circle-help',
+            },
+            {
+              label: 'Troubleshooting',
+              to: '/docs/operations/troubleshooting/',
+              icon: 'lucide:wrench',
+            },
+            {
+              label: 'Changelog',
+              href: 'https://github.com/mrjackyliang/pfsense-actions/releases',
+              icon: 'lucide:history',
+            },
+            {
+              label: 'Report an Issue',
+              href: 'https://github.com/mrjackyliang/pfsense-actions/issues',
+              icon: 'lucide:bug',
+            },
+            {
+              label: 'Docker Hub',
+              href: 'https://hub.docker.com/r/mrjackyliang/pfsense-actions',
+              icon: 'lucide:package',
+            },
+          ],
+        },
       ],
     },
+
+    // Docs.
+    docs: {
+      versionPersistence: 'localStorage',
+      sidebar: {
+        hideable: false,
+        autoCollapseCategories: false,
+      },
+    },
+
+    // Blog.
     blog: {
       sidebar: {
         groupByYear: true,
@@ -208,6 +395,21 @@ const config: DocusaurusNovaConfig = {
         ],
       },
     },
+
+    // Table of Contents.
+    tableOfContents: {
+      minHeadingLevel: 2,
+      maxHeadingLevel: 3,
+    },
+
+    // Announcement Bar.
+    announcementBar: undefined,
+
+    // Back to Top Button.
+    backToTopButton: true,
+
+    // Error Pages - overrides Nova's randomized defaults with consumer copy.
+    // Any unset field falls through to the Nova-flavored randomized pool.
     errorPages: {
       notFound: {
         title: 'This page returned 404.',
@@ -223,64 +425,145 @@ const config: DocusaurusNovaConfig = {
         retryLabel: 'Try again',
       },
     },
+
+    // Footer.
     footer: {
       sections: {
-        learn: [
+        docs: [
           {
-            label: 'Getting Started',
+            label: 'Overview',
             href: '/docs/overview/',
           },
           {
-            label: 'Authentication',
-            href: '/docs/api/request-basics/#authentication',
+            label: 'Build With the API',
+            href: '/docs/category/build-with-the-api/',
           },
           {
-            label: 'Automation',
-            href: '/docs/api/automation-clients/',
+            label: 'Operations Console',
+            href: '/docs/category/operations-console/',
+          },
+          {
+            label: 'Run the Controller',
+            href: '/docs/category/run-the-controller/',
+          },
+          {
+            label: 'Reference',
+            href: '/docs/category/reference/',
           },
         ],
         resources: [
-          {
-            label: 'API Reference',
-            href: '/docs/api/request-basics/',
-          },
-          {
-            label: 'Deployment',
-            href: '/docs/getting-started/install-with-docker/',
-          },
-          {
-            label: 'Security',
-            href: '/docs/operations/security-model/',
-          },
           {
             label: 'Blog',
             href: '/blog/',
           },
           {
-            label: 'GitHub Repository',
+            label: 'FAQ',
+            href: '/docs/reference/faq/',
+          },
+          {
+            label: 'Troubleshooting',
+            href: '/docs/operations/troubleshooting/',
+          },
+          {
+            label: 'Changelog',
+            href: 'https://github.com/mrjackyliang/pfsense-actions/releases',
+          },
+          {
+            label: 'Report an Issue',
+            href: 'https://github.com/mrjackyliang/pfsense-actions/issues',
+          },
+          {
+            label: 'Source Code',
             href: 'https://github.com/mrjackyliang/pfsense-actions',
           },
+          {
+            label: 'Docker Hub',
+            href: 'https://hub.docker.com/r/mrjackyliang/pfsense-actions',
+          },
         ],
+        project: [
+          {
+            label: 'Sponsor',
+            href: 'https://github.com/sponsors/mrjackyliang',
+          },
+          {
+            label: 'pfSense',
+            href: 'https://www.pfsense.org/',
+          },
+          {
+            label: 'Other Projects',
+            href: 'https://www.mrjackyliang.com/work/',
+          },
+        ],
+        legal: [{
+          label: 'License',
+          href: 'https://github.com/mrjackyliang/pfsense-actions/blob/HEAD/LICENSE',
+        }],
       },
       layout: {
-        learn: {
-          title: 'Learn',
-          section: 'learn',
+        docs: {
+          title: 'Docs',
+          section: 'docs',
         },
         resources: {
           title: 'Resources',
           section: 'resources',
         },
+        project: {
+          title: 'Project',
+          section: 'project',
+        },
+        legal: {
+          title: 'Legal',
+          section: 'legal',
+        },
       },
-      socialLinks: [{
-        icon: 'ri:github-fill',
-        href: 'https://github.com/mrjackyliang/pfsense-actions',
-        label: 'GitHub',
-      }],
+      socialLinks: [
+        {
+          icon: 'ri:facebook-fill',
+          href: 'https://www.facebook.com/jackyliangofficial',
+          label: 'Facebook',
+        },
+        {
+          icon: 'ri:twitter-x-fill',
+          href: 'https://x.com/mrjackyliang',
+          label: 'X',
+        },
+        {
+          icon: 'ri:youtube-fill',
+          href: 'https://www.youtube.com/@mrjackyliang',
+          label: 'YouTube',
+        },
+        {
+          icon: 'ri:instagram-fill',
+          href: 'https://www.instagram.com/mrjackyliang/',
+          label: 'Instagram',
+        },
+        {
+          icon: 'ri:github-fill',
+          href: 'https://github.com/mrjackyliang',
+          label: 'GitHub',
+        },
+        {
+          icon: 'ri:linkedin-fill',
+          href: 'https://www.linkedin.com/in/mrjackyliang/',
+          label: 'LinkedIn',
+        },
+        {
+          icon: 'ri:reddit-fill',
+          href: 'https://www.reddit.com/user/mrjackyliang/',
+          label: 'Reddit',
+        },
+        {
+          icon: 'ri:heart-fill',
+          href: 'https://github.com/sponsors/mrjackyliang',
+          label: 'GitHub Sponsors',
+        },
+      ],
       copyright: identity['copyright'],
       credit: true,
       cta: {
-        label: 'Deploy the controller',
+        label: 'Ready to deploy the controller?',
         href: '/docs/getting-started/install-with-docker/',
       },
     },

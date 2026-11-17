@@ -42,6 +42,21 @@ export type Lib_Http_CreateTrustedProxyRanges_Returns = BlockList;
 export type Lib_Http_CreateTrustedProxyRanges_Ranges = BlockList;
 
 /**
+ * Lib - HTTP - Expand Ipv6.
+ *
+ * @since 2.1.0
+ */
+export type Lib_Http_ExpandIpv6_Address = string;
+
+export type Lib_Http_ExpandIpv6_Returns = number[];
+
+export type Lib_Http_ExpandIpv6_Halves = string[];
+
+export type Lib_Http_ExpandIpv6_Head = number[];
+
+export type Lib_Http_ExpandIpv6_Tail = number[];
+
+/**
  * Lib - HTTP - Get Client Address.
  *
  * @since 2.0.0
@@ -51,6 +66,17 @@ export type Lib_Http_GetClientAddress_Request = express.Request;
 export type Lib_Http_GetClientAddress_Returns = string;
 
 export type Lib_Http_GetClientAddress_Address = string | undefined;
+
+/**
+ * Lib - HTTP - Get Client Limit Key.
+ *
+ * @since 2.1.0
+ */
+export type Lib_Http_GetClientLimitKey_Request = express.Request;
+
+export type Lib_Http_GetClientLimitKey_Returns = string;
+
+export type Lib_Http_GetClientLimitKey_Address = string;
 
 /**
  * Lib - HTTP - Get Request Host.
@@ -134,6 +160,13 @@ export type Lib_Http_HandleAsync_Handler = (request: Lib_Http_HandleAsync_Reques
 export type Lib_Http_HandleAsync_Returns = express.RequestHandler;
 
 export type Lib_Http_HandleAsync_CallbackReturns = void;
+
+/**
+ * Lib - HTTP - Ipv6 Limit Prefix Length.
+ *
+ * @since 2.1.0
+ */
+export type Lib_Http_Ipv6LimitPrefixLength = number;
 
 /**
  * Lib - HTTP - Is Passkey Available.
@@ -222,6 +255,32 @@ export type Lib_Http_SendValidationError_Returns = void;
 export type Lib_Http_SendValidationError_Issues = Shared_ErrorIssues;
 
 export type Lib_Http_SendValidationError_FirstIssue = Shared_ErrorIssue | undefined;
+
+/**
+ * Lib - HTTP - To Ipv6 Groups.
+ *
+ * @since 2.1.0
+ */
+export type Lib_Http_ToIpv6Groups_Part = string | undefined;
+
+export type Lib_Http_ToIpv6Groups_Returns = number[];
+
+/**
+ * Lib - HTTP - To Ipv6 Network.
+ *
+ * @since 2.1.0
+ */
+export type Lib_Http_ToIpv6Network_Address = string;
+
+export type Lib_Http_ToIpv6Network_PrefixLength = number;
+
+export type Lib_Http_ToIpv6Network_Returns = string;
+
+export type Lib_Http_ToIpv6Network_Network = number[];
+
+export type Lib_Http_ToIpv6Network_KeptBits = number;
+
+export type Lib_Http_ToIpv6Network_Hostname = string;
 
 /**
  * Lib - HTTP - Trusted Proxy Ranges.

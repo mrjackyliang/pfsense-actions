@@ -100,6 +100,32 @@ export type Server_Runner_HandleNotFound_Response = express.Response;
 export type Server_Runner_HandleNotFound_Returns = void;
 
 /**
+ * Server - Runner - Listen Port.
+ *
+ * @since 2.1.0
+ */
+export type Server_Runner_ListenPort = number;
+
+/**
+ * Server - Runner - Log Request Timing.
+ *
+ * @since 2.1.0
+ */
+export type Server_Runner_LogRequestTiming_Request = express.Request;
+
+export type Server_Runner_LogRequestTiming_Response = express.Response;
+
+export type Server_Runner_LogRequestTiming_Next = express.NextFunction;
+
+export type Server_Runner_LogRequestTiming_Returns = void;
+
+export type Server_Runner_LogRequestTiming_StartedAt = number;
+
+export type Server_Runner_LogRequestTiming_Path = string;
+
+export type Server_Runner_LogRequestTiming_Elapsed = number;
+
+/**
  * Server - Runner - Register Routes.
  *
  * @since 2.0.0
@@ -131,6 +157,13 @@ export type Server_Runner_Start_SetupClaim = Lib_State_Runner_PrepareSetupClaim_
 export type Server_Runner_Start_RemovedSecrets = Lib_State_Runner_GetKeyReplacement_Returns;
 
 export type Server_Runner_Start_KeyPath = string;
+
+/**
+ * Server - Runner - Slow Request Milliseconds.
+ *
+ * @since 2.1.0
+ */
+export type Server_Runner_SlowRequestMilliseconds = number;
 
 /**
  * Server - Runner - State.

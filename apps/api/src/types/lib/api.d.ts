@@ -32,7 +32,13 @@ export type Lib_Api_Runner_ExecCommand_TimeoutMilliseconds = number | undefined;
 
 export type Lib_Api_Runner_ExecCommand_Returns = Promise<SSHExecCommandResponse>;
 
-export type Lib_Api_Runner_ExecCommand_Timer = NodeJS.Timeout | undefined;
+export type Lib_Api_Runner_ExecCommand_SignedIn = boolean;
+
+export type Lib_Api_Runner_ExecCommand_StartedAt = number;
+
+export type Lib_Api_Runner_ExecCommand_Response = SSHExecCommandResponse;
+
+export type Lib_Api_Runner_ExecCommand_Reason = string;
 
 /**
  * Lib - API - Runner - Is Authenticated.
@@ -65,6 +71,12 @@ export type Lib_Api_Runner_Login_Returns = Promise<
   Shared_ApiResponse<'LOGIN', Lib_Api_Runner_Login_Returns_Info>
 >;
 
+export type Lib_Api_Runner_Login_StartedAt = number;
+
+export type Lib_Api_Runner_Login_Address = string;
+
+export type Lib_Api_Runner_Login_Reason = string;
+
 /**
  * Lib - API - Runner - Logout.
  *
@@ -92,6 +104,19 @@ export type Lib_Api_Runner_Ping_Returns = Promise<
 >;
 
 export type Lib_Api_Runner_Ping_Response = SSHExecCommandResponse;
+
+/**
+ * Lib - API - Runner - Send Command.
+ *
+ * @since 2.1.0
+ */
+export type Lib_Api_Runner_SendCommand_Command = string;
+
+export type Lib_Api_Runner_SendCommand_TimeoutMilliseconds = number | undefined;
+
+export type Lib_Api_Runner_SendCommand_Returns = Promise<SSHExecCommandResponse>;
+
+export type Lib_Api_Runner_SendCommand_Timer = NodeJS.Timeout | undefined;
 
 /**
  * Lib - API - Runner - Session.

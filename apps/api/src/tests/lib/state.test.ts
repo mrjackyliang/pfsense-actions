@@ -17,12 +17,18 @@ import {
   it,
 } from 'vitest';
 
+import {
+  generatePersonalAccessToken,
+  hashPersonalAccessToken,
+} from '@/lib/auth.js';
 import { textEncryptionKey } from '@/lib/regex.js';
 import { Runner as State } from '@/lib/state.js';
 import { generateTotpSecret } from '@/lib/totp.js';
 
 import type {
   Tests_Lib_State_Administrator,
+  Tests_Lib_State_BackupDocument,
+  Tests_Lib_State_BackupImportResult,
   Tests_Lib_State_Challenge,
   Tests_Lib_State_ClaimResult,
   Tests_Lib_State_CreateClaimedState_Returns,
@@ -34,7 +40,9 @@ import type {
   Tests_Lib_State_GetDataDirectory_Returns,
   Tests_Lib_State_KeyPath,
   Tests_Lib_State_Mode,
+  Tests_Lib_State_NotificationTarget,
   Tests_Lib_State_OldKey,
+  Tests_Lib_State_PersonalAccessToken,
   Tests_Lib_State_RecoveryCodes,
   Tests_Lib_State_Secret,
   Tests_Lib_State_Session,
@@ -88,7 +96,6 @@ function createEnvironment(overrides: Tests_Lib_State_CreateEnvironment_Override
   return {
     adminWebauthnRpName: 'pfSense Actions',
     dataDirectory: getDataDirectory(),
-    port: 22603,
     ...overrides,
   };
 }
@@ -705,6 +712,35 @@ describe('console state', () => {
     return;
   });
 
+  it('keeps debug logging across restarts and records each change', () => {
+    const state: Tests_Lib_State_State = new State(createEnvironment());
+
+    expect(state.getDebugLogging()).toBe(false);
+
+    state.setDebugLogging(true, 'admin');
+
+    state.close();
+
+    const reopenedState: Tests_Lib_State_State = new State(createEnvironment());
+
+    expect(reopenedState.getDebugLogging()).toBe(true);
+
+    expect(reopenedState.getActivity(5)).toEqual(expect.arrayContaining([expect.objectContaining({
+      action: 'debug-logging-updated',
+      category: 'configuration',
+      outcome: 'succeeded',
+      summary: 'Turned debug logging on',
+    })]));
+
+    reopenedState.setDebugLogging(false, 'admin');
+
+    expect(reopenedState.getDebugLogging()).toBe(false);
+
+    reopenedState.close();
+
+    return;
+  });
+
   it('applies token lifecycle changes immediately and records last use', () => {
     const state: Tests_Lib_State_State = new State(createEnvironment());
     const createdToken: Tests_Lib_State_CreatedToken = state.createToken({
@@ -867,6 +903,344 @@ describe('console state', () => {
       pfsenseSshPort: 2222,
       pfsenseUsername: 'other-user',
     })).toBeUndefined();
+
+    state.close();
+
+    return;
+  });
+
+  it('exports selected configuration with secrets and excludes account data', () => {
+    const state: Tests_Lib_State_State = createClaimedState();
+    const administrator: Tests_Lib_State_Administrator = state.getAdministrator();
+
+    if (administrator === undefined) {
+      throw new Error('The setup code did not create the administrator.');
+    }
+
+    state.updateConnection({
+      pfsensePassword: 'portable-pfsense-password',
+      pfsenseSshIp: '192.0.2.40',
+      pfsenseSshPort: 2222,
+      pfsenseUsername: 'portable-operator',
+    }, 'admin');
+
+    state.createNotificationTarget({
+      events: ['action-failed'],
+      name: 'Portable Discord',
+      secrets: { webhookUrl: 'https://discord.com/api/webhooks/123/portable-secret' },
+      service: 'discord',
+      settings: {},
+    }, 'admin');
+
+    const createdToken: Tests_Lib_State_CreatedToken = state.createToken({
+      expiresAt: '2099-01-01T00:00:00.000Z',
+      name: 'Portable token',
+      scopes: [
+        'pfsense:read',
+        'wol:execute',
+      ],
+    }, 'admin');
+
+    if (createdToken === undefined) {
+      throw new Error('The portable token was not created.');
+    }
+
+    const totpSecret: Tests_Lib_State_Secret = generateTotpSecret();
+    const recoveryCodes: Tests_Lib_State_RecoveryCodes = state.enableTotp(administrator['id'], totpSecret, 1, 'admin');
+    const session: Tests_Lib_State_Session = state.createSession(administrator['id']);
+
+    if (recoveryCodes === undefined) {
+      throw new Error('The authenticator fixture was not enabled.');
+    }
+
+    state.recordActivity('admin', 'backup-export-sentinel', 'access', 'succeeded', 'Account-only export sentinel');
+
+    const document: Tests_Lib_State_BackupDocument = state.createBackupDocument({
+      accessTokens: true,
+      connection: true,
+      notifications: true,
+    }, '2.0.0-test');
+    const serialized: Tests_Lib_State_Secret = JSON.stringify(document);
+
+    expect(document).toEqual(expect.objectContaining({
+      accessTokens: [expect.objectContaining({
+        name: 'Portable token',
+        tokenHash: hashPersonalAccessToken(createdToken['personalAccessToken']),
+      })],
+      appVersion: '2.0.0-test',
+      connection: expect.objectContaining({
+        credential: 'portable-pfsense-password',
+        credentialType: 'password',
+      }),
+      format: 'pfsense-actions-export',
+      notifications: [expect.objectContaining({
+        secrets: {
+          webhookUrl: 'https://discord.com/api/webhooks/123/portable-secret',
+        },
+      })],
+      version: 1,
+    }));
+
+    expect(serialized).not.toContain('fixture-admin-password');
+
+    expect(serialized).not.toContain(totpSecret);
+
+    expect(serialized).not.toContain(recoveryCodes[0] ?? 'missing-recovery-code');
+
+    expect(serialized).not.toContain(session['sessionToken']);
+
+    expect(serialized).not.toContain(session['csrfToken']);
+
+    expect(serialized).not.toContain(createdToken['personalAccessToken']);
+
+    expect(serialized).not.toContain('Account-only export sentinel');
+
+    expect(Reflect.has(document, 'administrator')).toBe(false);
+
+    expect(Reflect.has(document, 'sessions')).toBe(false);
+
+    expect(Reflect.has(document, 'activity')).toBe(false);
+
+    state.close();
+
+    return;
+  });
+
+  it('replaces notification names, skips duplicate tokens, and applies the connection immediately', () => {
+    const state: Tests_Lib_State_State = createClaimedState();
+
+    state.updateConnection({
+      pfsensePassword: 'old-pfsense-password',
+      pfsenseSshIp: '192.0.2.10',
+      pfsenseSshPort: 22,
+      pfsenseUsername: 'old-operator',
+    }, 'admin');
+
+    const existingTarget: Tests_Lib_State_NotificationTarget = state.createNotificationTarget({
+      events: ['wol-sent'],
+      name: 'Operations',
+      secrets: {},
+      service: 'ntfy',
+      settings: { url: 'https://ntfy.sh/old-operations' },
+    }, 'admin');
+    const existingToken: Tests_Lib_State_CreatedToken = state.createToken({
+      name: 'Existing automation',
+      scopes: ['pfsense:read'],
+    }, 'admin');
+
+    if (existingTarget === undefined || existingToken === undefined) {
+      throw new Error('The duplicate fixtures were not created.');
+    }
+
+    const importedPersonalAccessToken: Tests_Lib_State_PersonalAccessToken = generatePersonalAccessToken();
+    const otherPersonalAccessToken: Tests_Lib_State_PersonalAccessToken = generatePersonalAccessToken();
+    const existingHash: Tests_Lib_State_Secret = hashPersonalAccessToken(existingToken['personalAccessToken']);
+    const document: Tests_Lib_State_BackupDocument = {
+      accessTokens: [
+        {
+          createdAt: '2026-11-08T12:00:00.000Z',
+          expiresAt: null,
+          id: existingToken['token']['id'],
+          lastUsedAt: null,
+          name: 'Duplicate identifier',
+          scopes: ['wol:execute'],
+          tokenHash: hashPersonalAccessToken(generatePersonalAccessToken()),
+        },
+        {
+          createdAt: '2026-11-08T12:00:00.000Z',
+          expiresAt: null,
+          id: 'duplicate-name',
+          lastUsedAt: null,
+          name: 'EXISTING AUTOMATION',
+          scopes: ['wol:execute'],
+          tokenHash: hashPersonalAccessToken(otherPersonalAccessToken),
+        },
+        {
+          createdAt: '2026-11-08T12:00:00.000Z',
+          expiresAt: null,
+          id: 'duplicate-hash',
+          lastUsedAt: null,
+          name: 'Duplicate hash',
+          scopes: ['wol:execute'],
+          tokenHash: existingHash,
+        },
+        {
+          createdAt: '2026-11-08T12:00:00.000Z',
+          expiresAt: '2099-01-01T00:00:00.000Z',
+          id: 'imported-automation',
+          lastUsedAt: '2026-11-08T12:30:00.000Z',
+          name: 'Imported automation',
+          scopes: [
+            'pfsense:read',
+            'wol:execute',
+          ],
+          tokenHash: hashPersonalAccessToken(importedPersonalAccessToken),
+        },
+      ],
+      appVersion: '2.0.0-source',
+      connection: {
+        credential: 'new-private-key',
+        credentialType: 'privateKey',
+        pfsenseSshIp: '198.51.100.40',
+        pfsenseSshPort: 2200,
+        pfsenseUsername: 'new-operator',
+      },
+      exportedAt: '2026-11-08T12:00:00.000Z',
+      format: 'pfsense-actions-export',
+      notifications: [
+        {
+          events: ['action-failed'],
+          id: 'ntf-1111111111111111',
+          name: 'operations',
+          secrets: {},
+          service: 'ntfy',
+          settings: { url: 'https://ntfy.sh/new-operations' },
+        },
+        {
+          events: ['pfsense-unreachable'],
+          id: 'ntf-2222222222222222',
+          name: 'Secondary',
+          secrets: { webhookUrl: 'https://discord.com/api/webhooks/456/imported-secret' },
+          service: 'discord',
+          settings: {},
+        },
+      ],
+      version: 1,
+    };
+
+    expect(state.previewBackupImport(document)['summary']).toEqual({
+      accessTokens: {
+        added: 1,
+        skipped: 3,
+      },
+      connection: 'replaced',
+      notifications: {
+        added: 1,
+        replaced: 1,
+      },
+    });
+
+    const result: Tests_Lib_State_BackupImportResult = state.applyBackupImport(document, 'admin');
+
+    expect(result).toEqual({
+      accessTokens: {
+        added: 1,
+        skipped: 3,
+      },
+      connection: 'replaced',
+      importedSections: [
+        'connection',
+        'notifications',
+        'accessTokens',
+      ],
+      notifications: {
+        added: 1,
+        replaced: 1,
+      },
+    });
+
+    expect(state.getPfsenseConnection()).toEqual({
+      pfsensePrivateKey: 'new-private-key',
+      pfsenseSshIp: '198.51.100.40',
+      pfsenseSshPort: 2200,
+      pfsenseUsername: 'new-operator',
+    });
+
+    expect(state.getNotificationTargets()).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: existingTarget['id'],
+        name: 'operations',
+      }),
+      expect.objectContaining({
+        name: 'Secondary',
+      }),
+    ]));
+
+    expect(state.getTokens().map((token) => token['name'])).toEqual(expect.arrayContaining([
+      'Existing automation',
+      'Imported automation',
+    ]));
+
+    expect(state.getTokens()).toHaveLength(2);
+
+    expect(state.authenticateToken(importedPersonalAccessToken)).toEqual(expect.objectContaining({
+      id: 'imported-automation',
+    }));
+
+    expect(state.createBackupDocument({
+      accessTokens: false,
+      connection: false,
+      notifications: true,
+    }, '2.0.0')['notifications']).toEqual(expect.arrayContaining([expect.objectContaining({
+      name: 'Secondary',
+      secrets: {
+        webhookUrl: 'https://discord.com/api/webhooks/456/imported-secret',
+      },
+    })]));
+
+    expect(state.getActivity(10)).toEqual(expect.arrayContaining([expect.objectContaining({
+      action: 'backup-imported',
+      category: 'configuration',
+      outcome: 'succeeded',
+      summary: 'Imported backup configuration: connection, notifications, access tokens',
+    })]));
+
+    state.close();
+
+    return;
+  });
+
+  it('rolls every imported section back when a later database write fails', () => {
+    const state: Tests_Lib_State_State = createClaimedState();
+
+    state.updateConnection({
+      pfsensePassword: 'original-password',
+      pfsenseSshIp: '192.0.2.60',
+      pfsenseSshPort: 22,
+      pfsenseUsername: 'original-operator',
+    }, 'admin');
+
+    const database: Tests_Lib_State_Database = new DatabaseSync(join(getDataDirectory(), 'pfsense-actions.sqlite3'));
+
+    database.exec('CREATE TRIGGER fail_backup_token BEFORE INSERT ON api_tokens WHEN NEW.name = \'Fail imported token\' BEGIN SELECT RAISE(ABORT, \'fixture import failure\'); END;');
+
+    database.close();
+
+    const document: Tests_Lib_State_BackupDocument = {
+      accessTokens: [{
+        createdAt: '2026-11-08T12:00:00.000Z',
+        expiresAt: null,
+        id: 'fail-imported-token',
+        lastUsedAt: null,
+        name: 'Fail imported token',
+        scopes: ['pfsense:read'],
+        tokenHash: hashPersonalAccessToken(generatePersonalAccessToken()),
+      }],
+      appVersion: '2.0.0-source',
+      connection: {
+        credential: 'rolled-back-password',
+        credentialType: 'password',
+        pfsenseSshIp: '198.51.100.60',
+        pfsenseSshPort: 2222,
+        pfsenseUsername: 'rolled-back-operator',
+      },
+      exportedAt: '2026-11-08T12:00:00.000Z',
+      format: 'pfsense-actions-export',
+      version: 1,
+    };
+
+    expect(() => state.applyBackupImport(document, 'admin')).toThrow('fixture import failure');
+
+    expect(state.getPfsenseConnection()).toEqual({
+      pfsensePassword: 'original-password',
+      pfsenseSshIp: '192.0.2.60',
+      pfsenseSshPort: 22,
+      pfsenseUsername: 'original-operator',
+    });
+
+    expect(state.getTokens()).toEqual([]);
+
+    expect(state.getActivity(20).some((event) => event['action'] === 'backup-imported')).toBe(false);
 
     state.close();
 

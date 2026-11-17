@@ -1,3 +1,5 @@
+import { appConfig } from '@/web/app-config.ts';
+
 import type {
   Web_Theme_Option,
   Web_Theme_Preference,
@@ -11,7 +13,7 @@ import type {
  *
  * @since 2.0.0
  */
-const themeStorageKey: string = 'pfsense-actions-theme';
+const themeStorageKey: string = appConfig['storageKeys']['theme'];
 
 /**
  * Theme - Theme options.

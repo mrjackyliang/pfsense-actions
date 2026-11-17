@@ -2,6 +2,7 @@ import rateLimit from 'express-rate-limit';
 
 import { Runner as Pfsense } from '../lib/api.js';
 import {
+  getClientLimitKey,
   handleAsync,
   sendError,
   sendValidationError,
@@ -157,6 +158,7 @@ export class Runner {
 
         return;
       },
+      keyGenerator: (request) => getClientLimitKey(request),
       legacyHeaders: false,
       limit: 3,
       standardHeaders: true,

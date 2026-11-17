@@ -1,7 +1,7 @@
 import { toDataURL } from 'qrcode';
 
 import {
-  getClientAddress,
+  getClientLimitKey,
   getRequestHostname,
   getWebauthnConfiguration,
   handleAsync,
@@ -237,7 +237,7 @@ export class Runner {
    * @since 2.0.0
    */
   private confirmPassword(request: Routes_Security_Runner_ConfirmPassword_Request, response: Routes_Security_Runner_ConfirmPassword_Response, password: Routes_Security_Runner_ConfirmPassword_Password, field: Routes_Security_Runner_ConfirmPassword_Field): Routes_Security_Runner_ConfirmPassword_Returns {
-    const attemptKey: Routes_Security_Runner_ConfirmPassword_AttemptKey = `sign-in:${getClientAddress(request)}`;
+    const attemptKey: Routes_Security_Runner_ConfirmPassword_AttemptKey = `sign-in:${getClientLimitKey(request)}`;
     const session: Routes_Security_Runner_ConfirmPassword_Session = response.locals['session'];
 
     if (this.#attempts.isAllowed(attemptKey) === false) {
@@ -687,7 +687,7 @@ export class Runner {
   /**
    * Routes - Security - Route Security.
    *
-   * Describes the account's sign-in methods for the password and sign-in page.
+   * Describes the account's sign-in methods for the sign-in and security page.
    * It also says whether passkeys work at the address the page was opened on.
    *
    * @param {Routes_Security_Runner_RouteSecurity_Request}  request  - Request.

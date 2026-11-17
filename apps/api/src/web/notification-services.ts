@@ -1,4 +1,5 @@
 import type {
+  Web_Notifications_Field,
   Web_Notifications_Service,
   Web_Notifications_ServiceDefinition,
 } from '@/types/web/notifications.d.ts';
@@ -152,7 +153,7 @@ export const notificationServices: Web_Notifications_ServiceDefinition[] = [
         secret: false,
       },
       {
-        hint: 'The bot account must already be in the room.',
+        hint: 'Use the !room:server room ID. Room aliases that start with # are not accepted.',
         key: 'roomId',
         kind: 'text',
         label: 'Room ID',
@@ -299,3 +300,54 @@ export const notificationServices: Web_Notifications_ServiceDefinition[] = [
 export const findNotificationService = (service: Web_Notifications_Service): Web_Notifications_ServiceDefinition => (
   notificationServices.find((definition: Web_Notifications_ServiceDefinition): boolean => definition['key'] === service) ?? notificationServices[0]!
 );
+
+// defaultValues gives a service's fields their starting values, like port 587 for email.
+
+/**
+ * Notification Services - Default values.
+ *
+ * Centralizes this operation for the surrounding workflow.
+ * Callers reuse one implementation instead of repeating the behavior.
+ *
+ * @since 2.1.0
+ */
+const defaultValues = (service: Web_Notifications_Service): Record<string, string> => Object.fromEntries(
+  findNotificationService(service)['fields'].map((field: Web_Notifications_Field): [string, string] => [
+    field['key'],
+    field['defaultValue'] ?? '',
+  ]),
+);
+
+/**
+ * Notification Services - Values for selection.
+ *
+ * Clears service-specific fields for the placeholder and otherwise returns
+ * only the selected service's configured defaults.
+ *
+ * @param {Web_Notifications_Service | ''} service - Service.
+ *
+ * @returns {Record<string, string>}
+ *
+ * @since 2.1.0
+ */
+export const notificationServiceValues = (
+  service: Web_Notifications_Service | '',
+): Record<string, string> => (service === '') ? {} : defaultValues(service);
+
+/**
+ * Notification Services - Required issue.
+ *
+ * Shows the required choice only after the owner submits the blank service.
+ * Server-provided field issues continue through the shared API error path.
+ *
+ * @param {Web_Notifications_Service | ''} service   - Service.
+ * @param {boolean}                        attempted - Attempted.
+ *
+ * @returns {string}
+ *
+ * @since 2.1.0
+ */
+export const notificationServiceIssue = (
+  service: Web_Notifications_Service | '',
+  attempted: boolean,
+): string => (attempted && service === '') ? 'Choose a service.' : '';

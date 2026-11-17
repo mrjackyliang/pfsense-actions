@@ -73,6 +73,7 @@ export type Web_Notifications_Target = {
   id: string;
   lastAttemptAt: string | null;
   lastError: string | null;
+  lastErrorDetails?: string | null;
   name: string;
   secrets: Record<string, true>;
   secretsMissing: string[];

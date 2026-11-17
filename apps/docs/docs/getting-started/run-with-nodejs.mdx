@@ -1,7 +1,7 @@
 ---
 id: run-with-nodejs
 title: Run with Node.js
-description: Run pfSense Actions from source with Node.js 24, start it with the development or production scripts, and create the administrator account with the setup code.
+description: Run pfSense Actions from source with Node.js 22, 24, or 26, start it with the development or production scripts, and create the administrator account with the setup code.
 sidebar_position: 4
 keywords:
   - pfsense actions
@@ -21,7 +21,7 @@ Run pfSense Actions directly with Node.js for development, or on a host you mana
 
 ## Requirements
 
-- **Node.js 24** — The API workspace requires Node.js 24, and the repository pins npm 11.18.0.
+- **Node.js 22, 24, or 26** — The API workspace supports Node.js 22, 24, and 26, and the repository pins npm 11.18.0.
 - **Repository checkout** — Commands run from the root of the [pfSense Actions repository](https://github.com/mrjackyliang/pfsense-actions).
 - **Prepared pfSense** — SSH turned on and an account ready, as described in [Prepare pfSense](/docs/getting-started/prepare-pfsense/).
 
@@ -40,12 +40,12 @@ cp apps/api/.env.sample apps/api/.env
 ```
 
 - `DATA_DIRECTORY` defaults to `.data` in the folder the process starts in, which is `apps/api` for the npm scripts.
-- `PORT` defaults to `22603`, and the log shows a warning when it's unset.
-- On the first start, pfSense Actions generates an <Terminology title="the 64-character key that seals stored secrets" to="/docs/reference/terminology#encryption-key">encryption key</Terminology> and saves it as `keys/installation.key` in the data directory. If that file goes missing, pfSense Actions makes a new key and removes the saved pfSense password or private key, the authenticator app, and every <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">notification destination</Terminology>'s <Terminology title="a destination setting sealed with the encryption key" to="/docs/reference/terminology#secret-field">secret fields</Terminology>, as described in [Backup and Recovery](/docs/operations/backup-and-recovery/#lost-encryption-key).
-- The `PFSENSE_*` values are deprecated <Terminology title="an optional setting that fills a new database" to="/docs/reference/terminology#bootstrap-value">bootstrap values</Terminology>. Leave them empty to set everything up in the <Terminology title="the protected browser admin interface at /admin" to="/docs/reference/terminology#operations-console">operations console</Terminology>.
+- The service always listens on port 22603.
+- On the first start, pfSense Actions generates an <Terminology title="Locks saved secrets; lose it and they're wiped" to="/docs/reference/terminology#storage-and-backups">encryption key</Terminology> and saves it as `keys/installation.key` in the data directory. If that file goes missing, pfSense Actions makes a new key and removes the saved pfSense password or private key, the authenticator app, and every <Terminology title="Where an alert goes: ntfy, Telegram, email, webhook" to="/docs/reference/terminology#notifications">notification destination</Terminology>'s <Terminology title="A destination's token or password, saved but never shown" to="/docs/reference/terminology#notifications">secret fields</Terminology>, as described in [Backup and Recovery](/docs/operations/backup-and-recovery/#lost-encryption-key).
+- The `PFSENSE_*` values are deprecated <Terminology title="Old PFSENSE_* settings that only seed an empty database" to="/docs/reference/terminology#console-sign-in">bootstrap values</Terminology>. Leave them empty to set everything up in the <Terminology title="The /admin web page for tokens and settings" to="/docs/reference/terminology#core-concepts">operations console</Terminology>.
 
 :::warning
-A source run listens on every network interface, as the Compose setup does. Because the listener serves plain HTTP, it's recommended to block the port with a host firewall or reach it only through a <Terminology title="the HTTPS front end that forwards to the controller" to="/docs/reference/terminology#reverse-proxy">reverse proxy</Terminology>.
+A source run listens on every network interface, as the Compose setup does. Because the listener serves plain HTTP, it's recommended to block the port with a host firewall or reach it only through a <Terminology title="The HTTPS front door, like Caddy, ahead of the controller" to="/docs/reference/terminology#deployment-and-container">reverse proxy</Terminology>.
 :::
 
 ## Run in Development
@@ -72,4 +72,4 @@ Set the variables in the process environment instead, for example through your s
 
 ## Create the Administrator Account
 
-On the first start, the output shows a <Terminology title="the one-time code printed in the log for first-run setup" to="/docs/reference/terminology#setup-code">setup code</Terminology>, such as `WARN Setup code: ABCDE-FGHJK-LMNPQ`. Open the console, which is `http://localhost:22603/admin/` after a build or `http://localhost:5174/admin/` in development, and create the account as described in [Install with Docker](/docs/getting-started/install-with-docker/#create-the-administrator-account).
+On the first start, the output shows a <Terminology title="The one-time code from the log that creates your login" to="/docs/reference/terminology#console-sign-in">setup code</Terminology>, such as `WARN Setup code: ABCDE-FGHJK-LMNPQ`. Open the console, which is `http://localhost:22603/admin/` after a build or `http://localhost:5174/admin/` in development, and create the account as described in [Install with Docker](/docs/getting-started/install-with-docker/#create-the-administrator-account).

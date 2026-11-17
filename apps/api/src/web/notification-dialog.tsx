@@ -1,6 +1,7 @@
 import {
   useEffect,
   useId,
+  useRef,
   useState,
 } from 'react';
 
@@ -13,11 +14,14 @@ import {
 import { FieldLabel } from '@/web/field-label.tsx';
 import {
   findNotificationService,
+  notificationServiceIssue,
   notificationServices,
+  notificationServiceValues,
 } from '@/web/notification-services.ts';
 import {
   Button,
   Icon,
+  passwordManagerIgnore,
 } from '@/web/primitives.tsx';
 import { showToast } from '@/web/toast.ts';
 import { useEscapeKey } from '@/web/use-escape-key.ts';
@@ -35,23 +39,6 @@ import type {
   Web_Notifications_ServiceDefinition,
   Web_Notifications_Target,
 } from '@/types/web/notifications.d.ts';
-
-// defaultValues gives a service's fields their starting values, like port 587 for email.
-
-/**
- * Notification Dialog - Default values.
- *
- * Centralizes this operation for the surrounding workflow.
- * Callers reuse one implementation instead of repeating the behavior.
- *
- * @since 2.0.0
- */
-const defaultValues = (service: Web_Notifications_Service): Record<string, string> => Object.fromEntries(
-  findNotificationService(service)['fields'].map((field: Web_Notifications_Field): [string, string] => [
-    field['key'],
-    field['defaultValue'] ?? '',
-  ]),
-);
 
 // fieldHint explains a field below it, unless a problem with it is shown instead.
 
@@ -102,7 +89,11 @@ export const NotificationDialog = ({
   const [
     service,
     setService,
-  ] = useState<Web_Notifications_Service>('ntfy');
+  ] = useState<Web_Notifications_Service | ''>('');
+  const [
+    serviceSubmissionAttempted,
+    setServiceSubmissionAttempted,
+  ] = useState<boolean>(false);
   const [
     name,
     setName,
@@ -110,7 +101,7 @@ export const NotificationDialog = ({
   const [
     values,
     setValues,
-  ] = useState<Record<string, string>>(defaultValues('ntfy'));
+  ] = useState<Record<string, string>>({});
   const [
     selectedEvents,
     setSelectedEvents,
@@ -129,6 +120,7 @@ export const NotificationDialog = ({
   ] = useState<boolean>(false);
 
   const baseId: string = useId();
+  const serviceSelectRef = useRef<HTMLSelectElement | null>(null);
 
   useEscapeKey(onClose, open);
 
@@ -138,15 +130,15 @@ export const NotificationDialog = ({
     }
 
     if (target === null) {
-      setService('ntfy');
+      setService('');
       setName('');
-      setValues(defaultValues('ntfy'));
+      setValues({});
       setSelectedEvents(events.filter((event: Web_Notifications_Event): boolean => event['defaultEnabled']).map((event: Web_Notifications_Event): string => event['key']));
     } else {
       setService(target['service']);
       setName(target['name']);
       setValues({
-        ...defaultValues(target['service']),
+        ...notificationServiceValues(target['service']),
         ...target['settings'],
       });
       setSelectedEvents(target['events']);
@@ -154,6 +146,7 @@ export const NotificationDialog = ({
 
     setError(null);
     setClearSecrets([]);
+    setServiceSubmissionAttempted(false);
   }, [
     events,
     open,
@@ -164,7 +157,8 @@ export const NotificationDialog = ({
     return null;
   }
 
-  const definition: Web_Notifications_ServiceDefinition = findNotificationService(service);
+  // A new notification starts on "— Select one —", so its service fields wait for a choice.
+  const fields: Web_Notifications_Field[] = (service === '') ? [] : findNotificationService(service)['fields'];
 
   /**
    * Notification Dialog - Toggles event.
@@ -193,13 +187,24 @@ export const NotificationDialog = ({
    */
   const submit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
+    setServiceSubmissionAttempted(true);
+
+    if (service === '') {
+      const serviceSelect: HTMLSelectElement | null = serviceSelectRef.current;
+      if (serviceSelect !== null) {
+        serviceSelect.focus();
+      }
+
+      return;
+    }
+
     setBusy(true);
     setError(null);
 
     const orderedEvents: string[] = events
       .map((option: Web_Notifications_Event): string => option['key'])
       .filter((key: string): boolean => selectedEvents.includes(key));
-    const settings: Record<string, string> = Object.fromEntries(definition['fields'].map((field: Web_Notifications_Field): [string, string] => [
+    const settings: Record<string, string> = Object.fromEntries(fields.map((field: Web_Notifications_Field): [string, string] => [
       field['key'],
       (values[field['key']] ?? '').trim(),
     ]));
@@ -231,13 +236,17 @@ export const NotificationDialog = ({
     }
   };
 
+  let serviceIssue: string = issueFor(error, 'service');
+  if (serviceIssue === '') {
+    serviceIssue = notificationServiceIssue(service, serviceSubmissionAttempted);
+  }
   const nameIssue: string = issueFor(error, 'name');
   const eventsIssue: string = issueFor(error, 'events');
   const summary: string = summaryFor(error, [
     'events',
     'name',
     'service',
-    ...definition['fields'].map((field: Web_Notifications_Field): string => `settings.${field['key']}`),
+    ...fields.map((field: Web_Notifications_Field): string => `settings.${field['key']}`),
   ], 'The notification could not be saved.');
 
   return (
@@ -257,18 +266,23 @@ export const NotificationDialog = ({
           <FieldLabel>
             <span>Service</span>
             <select
+              aria-invalid={serviceIssue !== ''}
               className="select-control"
               disabled={target !== null}
               onChange={(event): void => {
-                const nextService: Web_Notifications_Service = event.currentTarget.value as Web_Notifications_Service;
+                const nextService: Web_Notifications_Service | '' = event.currentTarget.value as Web_Notifications_Service | '';
 
                 setService(nextService);
-                setValues(defaultValues(nextService));
+                setValues(notificationServiceValues(nextService));
+                setServiceSubmissionAttempted(false);
               }}
+              ref={serviceSelectRef}
               value={service}
             >
+              <option className="select-placeholder" value="">— Select one —</option>
               {notificationServices.map((option: Web_Notifications_ServiceDefinition): ReactElement => <option key={option['key']} value={option['key']}>{option['label']}</option>)}
             </select>
+            {(serviceIssue === '') ? null : <small className="field-error">{serviceIssue}</small>}
           </FieldLabel>
 
           <FieldLabel>
@@ -282,7 +296,7 @@ export const NotificationDialog = ({
             {(nameIssue === '') ? <small>{'A name you\'ll recognize, like the device or chat it goes to.'}</small> : <small className="field-error">{nameIssue}</small>}
           </FieldLabel>
 
-          {definition['fields'].map((field: Web_Notifications_Field): ReactElement => {
+          {fields.map((field: Web_Notifications_Field): ReactElement => {
             const issue: string = issueFor(error, `settings.${field['key']}`);
             const cleared: boolean = clearSecrets.includes(field['key']);
             const hint: string = fieldHint(field, target, interpreter, cleared);
@@ -323,9 +337,10 @@ export const NotificationDialog = ({
                     </select>
                   ) : (
                     <input
+                      {...passwordManagerIgnore}
                       aria-invalid={issue !== ''}
                       autoCapitalize="none"
-                      autoComplete={(field['secret'] === true) ? 'new-password' : 'off'}
+                      autoComplete="off"
                       className={(field['kind'] === 'url' || field['kind'] === 'password') ? 'monospace' : undefined}
                       disabled={cleared}
                       inputMode={(field['kind'] === 'number') ? 'numeric' : undefined}

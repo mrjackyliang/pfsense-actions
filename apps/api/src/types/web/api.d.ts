@@ -156,6 +156,7 @@ export type Web_Api_AccountSecurity = {
   passkeys: Web_Api_Passkey[];
   passkeysAvailable: boolean;
   recoveryCodesRemaining: number;
+  role?: string;
   totpEnabled: boolean;
   username: string;
 };
@@ -285,6 +286,15 @@ export type Web_Api_ConnectionInput = {
  */
 export type Web_Api_ConnectionTest = {
   connected: boolean;
+};
+
+/**
+ * API.
+ *
+ * @since 2.1.0
+ */
+export type Web_Api_Diagnostics = {
+  debugLogging: boolean;
 };
 
 /**

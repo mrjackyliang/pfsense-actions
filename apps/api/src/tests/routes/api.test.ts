@@ -145,9 +145,12 @@ vi.mock('@/lib/notifications.js', async (importOriginal) => ({
 }));
 
 vi.mock('@/lib/logger.js', () => ({
+  isDebugLogging: vi.fn(() => false),
+  logDebug: vi.fn(),
   logError: vi.fn(),
   logInfo: vi.fn(),
   logWarn: vi.fn(),
+  setDebugLogging: vi.fn(),
 }));
 
 vi.mock('@/lib/api.js', () => ({
@@ -206,7 +209,6 @@ function createEnvironment(): Tests_Routes_Api_Environment {
   return {
     adminWebauthnRpName: 'pfSense Actions',
     dataDirectory: join(baseDirectory, 'data'),
-    port: 0,
   };
 }
 
@@ -1092,6 +1094,46 @@ describe('console API', () => {
     return;
   });
 
+  it('counts IPv6 clients by their /56 network for the action limit', async () => {
+    if (harness === undefined) {
+      throw new Error('The test server is not running.');
+    }
+
+    const client: Tests_Routes_Api_Client = createClient(harness['baseUrl']);
+
+    expect(await client.request('GET', '/api/v1/connectivity', undefined, {
+      'X-Forwarded-For': '2001:db8:1234:5600::1',
+    })).toEqual(expect.objectContaining({
+      status: 401,
+    }));
+
+    expect(await client.request('GET', '/api/v1/connectivity', undefined, {
+      'X-Forwarded-For': '2001:db8:1234:5601::2',
+    })).toEqual(expect.objectContaining({
+      status: 401,
+    }));
+
+    expect(await client.request('GET', '/api/v1/connectivity', undefined, {
+      'X-Forwarded-For': '2001:db8:1234:56ff::3',
+    })).toEqual(expect.objectContaining({
+      status: 401,
+    }));
+
+    expect(await client.request('GET', '/api/v1/connectivity', undefined, {
+      'X-Forwarded-For': '2001:db8:1234:56ab::4',
+    })).toEqual(expect.objectContaining({
+      status: 429,
+    }));
+
+    expect(await client.request('GET', '/api/v1/connectivity', undefined, {
+      'X-Forwarded-For': '2001:db8:1234:5700::1',
+    })).toEqual(expect.objectContaining({
+      status: 401,
+    }));
+
+    return;
+  });
+
   it('creates, edits, and revokes named tokens', async () => {
     if (harness === undefined) {
       throw new Error('The test server is not running.');
@@ -1515,6 +1557,60 @@ describe('console API', () => {
     return;
   });
 
+  it('turns debug logging on and off for a signed-in browser only', async () => {
+    if (harness === undefined) {
+      throw new Error('The test server is not running.');
+    }
+
+    const client: Tests_Routes_Api_Client = createClient(harness['baseUrl']);
+    const signedOutClient: Tests_Routes_Api_Client = createClient(harness['baseUrl']);
+
+    await claim(client, harness);
+
+    expect(await signedOutClient.request('GET', '/api/v1/diagnostics')).toEqual(expect.objectContaining({
+      status: 401,
+    }));
+
+    expect(await client.request('GET', '/api/v1/diagnostics')).toEqual(expect.objectContaining({
+      body: {
+        debugLogging: false,
+      },
+      status: 200,
+    }));
+
+    expect(await client.request('PUT', '/api/v1/diagnostics', {
+      debugLogging: true,
+    }, {
+      'X-CSRF-Token': 'not-the-session-token',
+    })).toEqual(expect.objectContaining({
+      status: 403,
+    }));
+
+    expect(await client.request('PUT', '/api/v1/diagnostics', {
+      debugLogging: 'yes',
+    })).toEqual(expect.objectContaining({
+      status: 422,
+    }));
+
+    expect(await client.request('PUT', '/api/v1/diagnostics', {
+      debugLogging: true,
+    })).toEqual(expect.objectContaining({
+      body: {
+        debugLogging: true,
+      },
+      status: 200,
+    }));
+
+    expect(await client.request('GET', '/api/v1/diagnostics')).toEqual(expect.objectContaining({
+      body: {
+        debugLogging: true,
+      },
+      status: 200,
+    }));
+
+    return;
+  });
+
   it('lists what a lost key removed until it is dismissed', async () => {
     if (harness === undefined) {
       throw new Error('The test server is not running.');
@@ -1672,6 +1768,37 @@ describe('console API', () => {
     })).toEqual(expect.objectContaining({
       body: expect.objectContaining({
         status: 'authenticated',
+      }),
+      status: 200,
+    }));
+
+    const backupOptions: Tests_Routes_Api_Response = await client.request('POST', '/api/v1/backup/confirmation/passkey/options', {
+      purpose: 'export',
+    });
+    const backupRequestOptions: Tests_Routes_Api_Options = Reflect.get(Object(backupOptions['body']), 'options');
+    const backupConfirmation: Tests_Routes_Api_Response = await client.request('POST', '/api/v1/backup/confirmation/passkey/verify', {
+      ceremonyId: Reflect.get(Object(backupOptions['body']), 'ceremonyId'),
+      credential: createAssertion(authenticator, backupRequestOptions, 'https://actions.example.net', 'actions.example.net'),
+      purpose: 'export',
+    });
+
+    expect(backupConfirmation).toEqual(expect.objectContaining({
+      body: expect.objectContaining({
+        grant: expect.stringContaining('pbg_'),
+      }),
+      status: 200,
+    }));
+
+    expect(await client.request('POST', '/api/v1/backup/export', {
+      grant: Reflect.get(Object(backupConfirmation['body']), 'grant'),
+      sections: {
+        accessTokens: false,
+        connection: true,
+        notifications: false,
+      },
+    })).toEqual(expect.objectContaining({
+      body: expect.objectContaining({
+        format: 'pfsense-actions-export',
       }),
       status: 200,
     }));
@@ -2024,6 +2151,185 @@ describe('console API', () => {
     return;
   });
 
+  it('confirms a password-only backup operation with a session- and purpose-bound single-use grant', async () => {
+    if (harness === undefined) {
+      throw new Error('The test server is not running.');
+    }
+
+    const client: Tests_Routes_Api_Client = createClient(harness['baseUrl']);
+
+    await claim(client, harness);
+
+    const confirmation: Tests_Routes_Api_Response = await client.request('POST', '/api/v1/backup/confirmation', {
+      password: 'fixture admin password',
+      purpose: 'export',
+    });
+    const grant: Tests_Routes_Api_Body = String(Reflect.get(Object(confirmation['body']), 'grant'));
+
+    expect(confirmation).toEqual(expect.objectContaining({
+      body: expect.objectContaining({
+        expiresAt: expect.any(String),
+        grant: expect.stringContaining('pbg_'),
+      }),
+      status: 200,
+    }));
+
+    const otherSession: Tests_Routes_Api_Client = createClient(harness['baseUrl']);
+
+    expect(await otherSession.request('POST', '/api/v1/auth/login', {
+      password: 'fixture admin password',
+      username: 'admin',
+    })).toEqual(expect.objectContaining({
+      status: 200,
+    }));
+
+    expect(await otherSession.request('POST', '/api/v1/backup/export', {
+      grant,
+      sections: {
+        accessTokens: false,
+        connection: true,
+        notifications: false,
+      },
+    })).toEqual(expect.objectContaining({
+      body: expect.objectContaining({
+        error: expect.objectContaining({
+          code: 'backup_confirmation_expired',
+        }),
+      }),
+      status: 401,
+    }));
+
+    expect(await client.request('POST', '/api/v1/backup/imports', {
+      document: {
+        appVersion: '2.0.0',
+        connection: null,
+        exportedAt: '2026-11-08T12:00:00.000Z',
+        format: 'pfsense-actions-export',
+        version: 1,
+      },
+      grant,
+    })).toEqual(expect.objectContaining({
+      body: expect.objectContaining({
+        error: expect.objectContaining({
+          code: 'backup_confirmation_expired',
+        }),
+      }),
+      status: 401,
+    }));
+
+    const exported: Tests_Routes_Api_Response = await client.request('POST', '/api/v1/backup/export', {
+      grant,
+      sections: {
+        accessTokens: false,
+        connection: true,
+        notifications: false,
+      },
+    });
+
+    expect(exported).toEqual(expect.objectContaining({
+      body: expect.objectContaining({
+        connection: null,
+        format: 'pfsense-actions-export',
+        version: 1,
+      }),
+      status: 200,
+    }));
+
+    expect(exported['headers'].get('Content-Disposition')).toEqual(expect.stringMatching('attachment; filename="pfsense-actions-export-'));
+
+    expect(exported['headers'].get('Content-Disposition')).toEqual(expect.stringMatching('.json"'));
+
+    expect(await client.request('POST', '/api/v1/backup/export', {
+      grant,
+      sections: {
+        accessTokens: false,
+        connection: true,
+        notifications: false,
+      },
+    })).toEqual(expect.objectContaining({
+      status: 401,
+    }));
+
+    const createdToken: Tests_Routes_Api_CreatedToken = harness['server'].getState().createToken({
+      name: 'Backup route probe',
+      scopes: ['pfsense:read'],
+    }, 'admin');
+
+    if (createdToken === undefined) {
+      throw new Error('The route probe token was not created.');
+    }
+
+    const tokenClient: Tests_Routes_Api_Client = createClient(harness['baseUrl'], {
+      Authorization: `Bearer ${createdToken['personalAccessToken']}`,
+    });
+
+    expect(await tokenClient.request('POST', '/api/v1/backup/confirmation', {
+      password: 'fixture admin password',
+      purpose: 'export',
+    })).toEqual(expect.objectContaining({
+      body: expect.objectContaining({
+        error: expect.objectContaining({
+          code: 'session_required',
+        }),
+      }),
+      status: 403,
+    }));
+
+    return;
+  });
+
+  it('requires the current authenticator code when TOTP is enabled for backup confirmation', async () => {
+    if (harness === undefined) {
+      throw new Error('The test server is not running.');
+    }
+
+    const client: Tests_Routes_Api_Client = createClient(harness['baseUrl']);
+
+    await claim(client, harness);
+
+    const state: Tests_Routes_Api_State = harness['server'].getState();
+    const administrator: Tests_Routes_Api_Administrator = state.getAdministrator();
+    const secret: Tests_Routes_Api_TotpSecret = generateTotpSecret();
+
+    if (administrator === undefined) {
+      throw new Error('The claimed administrator is missing.');
+    }
+
+    state.enableTotp(administrator['id'], secret, 1, 'admin');
+
+    const currentCode: Tests_Routes_Api_Body = generateCode(secret, Math.floor(Date.now() / 30_000));
+    const wrongCode: Tests_Routes_Api_Body = (currentCode === '000000') ? '111111' : '000000';
+
+    expect(await client.request('POST', '/api/v1/backup/confirmation', {
+      code: wrongCode,
+      password: 'fixture admin password',
+      purpose: 'import',
+    })).toEqual(expect.objectContaining({
+      body: expect.objectContaining({
+        error: expect.objectContaining({
+          code: 'identity_not_confirmed',
+          issues: [expect.objectContaining({
+            field: 'code',
+          })],
+        }),
+      }),
+      status: 422,
+    }));
+
+    expect(await client.request('POST', '/api/v1/backup/confirmation', {
+      code: currentCode,
+      password: 'fixture admin password',
+      purpose: 'import',
+    })).toEqual(expect.objectContaining({
+      body: expect.objectContaining({
+        grant: expect.stringContaining('pbg_'),
+      }),
+      status: 200,
+    }));
+
+    return;
+  });
+
   it('answers malformed requests with the shared error envelope', async () => {
     if (harness === undefined) {
       throw new Error('The test server is not running.');
@@ -2085,9 +2391,18 @@ describe('console API', () => {
     }
 
     const client: Tests_Routes_Api_Client = createClient(harness['baseUrl']);
-    const page: Tests_Routes_Api_Response = await client.request('GET', '/admin/tokens');
+    const page: Tests_Routes_Api_Response = await client.request('GET', '/activity', undefined, {
+      Accept: 'text/html',
+    });
+    const unknownPage: Tests_Routes_Api_Response = await client.request('GET', '/not-a-console-page', undefined, {
+      Accept: 'text/html',
+    });
+    const legacyPage: Tests_Routes_Api_Response = await client.request('GET', '/admin/');
     const asset: Tests_Routes_Api_Response = await client.request('GET', '/admin/assets/app-1234.js');
     const root: Tests_Routes_Api_Response = await client.request('GET', '/', undefined, {
+      Accept: 'text/html',
+    });
+    const unknownApi: Tests_Routes_Api_Response = await client.request('GET', '/api/v1/unknown', undefined, {
       Accept: 'text/html',
     });
 
@@ -2099,11 +2414,26 @@ describe('console API', () => {
 
     expect(page['headers'].get('Cache-Control')).toBe('no-store');
 
+    expect(unknownPage['status']).toBe(200);
+
+    expect(unknownPage['body']).toContain('<title>pfSense Actions</title>');
+
+    expect(legacyPage['status']).toBe(200);
+
     expect(asset['headers'].get('Cache-Control')).toContain('immutable');
 
-    expect(root['status']).toBe(302);
+    expect(root['status']).toBe(200);
 
-    expect(root['headers'].get('Location')).toBe('/admin/');
+    expect(root['body']).toContain('<title>pfSense Actions</title>');
+
+    expect(unknownApi['status']).toBe(404);
+
+    expect(unknownApi['body']).toEqual({
+      error: {
+        code: 'not_found',
+        message: 'No route matches this request.',
+      },
+    });
 
     return;
   });

@@ -113,8 +113,6 @@ export type Shared_EnvironmentVariables_PfsenseSshPort = number;
 
 export type Shared_EnvironmentVariables_PfsenseUsername = string;
 
-export type Shared_EnvironmentVariables_Port = number;
-
 export type Shared_EnvironmentVariables = {
   adminWebauthnRpName: Shared_EnvironmentVariables_AdminWebauthnRpName;
   dataDirectory: Shared_EnvironmentVariables_DataDirectory;
@@ -123,7 +121,6 @@ export type Shared_EnvironmentVariables = {
   pfsenseSshIp?: Shared_EnvironmentVariables_PfsenseSshIp | undefined;
   pfsenseSshPort?: Shared_EnvironmentVariables_PfsenseSshPort | undefined;
   pfsenseUsername?: Shared_EnvironmentVariables_PfsenseUsername | undefined;
-  port: Shared_EnvironmentVariables_Port;
 };
 
 /**

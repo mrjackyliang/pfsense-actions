@@ -157,6 +157,51 @@ type MockNotificationInput = Pick<MockNotification, 'events' | 'name' | 'secrets
   clearSecrets: string[]
 };
 
+type MockBackupPurpose = 'export' | 'import';
+
+type MockBackupDocument = {
+  accessTokens?: Array<{
+    createdAt: string
+    expiresAt: string | null
+    id: string
+    lastUsedAt: string | null
+    name: string
+    scopes: MockScope[]
+    tokenHash: string
+  }>
+  appVersion: string
+  connection?: {
+    credential: string
+    credentialType: 'password' | 'privateKey'
+    pfsenseSshIp: string
+    pfsenseSshPort: number
+    pfsenseUsername: string
+  } | null
+  exportedAt: string
+  format: 'pfsense-actions-export'
+  notifications?: Array<{
+    events: string[]
+    id: string
+    name: string
+    secrets: Record<string, string>
+    service: MockNotificationService
+    settings: Record<string, string>
+  }>
+  version: 1
+};
+
+type MockBackupSummary = {
+  accessTokens: {
+    added: number
+    skipped: number
+  }
+  connection: 'added' | 'replaced' | 'skipped'
+  notifications: {
+    added: number
+    replaced: number
+  }
+};
+
 // Each service's fields: [key, message when missing, secret, required].
 
 /**
@@ -513,7 +558,7 @@ let totpPending: boolean = false;
  * @since 2.0.0
  */
 let recoveryCodes: string[] = [];
-// Two saved passkeys, so the Password and sign-in page shows a realistic list. Ones added in the mock are kept until it restarts.
+// Two saved passkeys, so the Sign-in and security page shows a realistic list. Ones added in the mock are kept until it restarts.
 
 /**
  * Mock API - Passkeys.
@@ -612,6 +657,18 @@ let connection: MockConnection | null = {
   pfsenseSshPort: 22,
   pfsenseUsername: 'admin',
 };
+
+let connectionCredential: string = (keyReplaced) ? '' : '-----BEGIN OPENSSH PRIVATE KEY-----\nmock-private-key\n-----END OPENSSH PRIVATE KEY-----';
+
+/**
+ * Mock API - Debug logging.
+ *
+ * Whether the Connection page's Debug logging switch is on.
+ * It starts off, like a fresh installation.
+ *
+ * @since 2.1.0
+ */
+let debugLogging: boolean = false;
 
 /**
  * Mock API - Notifications.
@@ -744,6 +801,19 @@ const tokens: MockToken[] = [
     ],
   },
 ];
+
+const tokenHashes: Map<string, string> = new Map(tokens.map((token: MockToken): [string, string] => [
+  token.id,
+  randomBytes(32).toString('hex'),
+]));
+
+let backupGrant: {
+  expiresAt: number
+  purpose: MockBackupPurpose
+  token: string
+} | null = null;
+
+const backupPasskeyPurposes: Map<string, MockBackupPurpose> = new Map();
 
 /**
  * Mock API - Activity.
@@ -986,6 +1056,41 @@ const connectionResource = (): Record<string, unknown> => ((connection === null)
   ...connection,
 });
 
+/**
+ * Mock API - Backup summary.
+ *
+ * Applies the real importer's name and hash duplicate rules to one mock document.
+ * This keeps browser-only development aligned with the server preview.
+ *
+ * @since 2.1.0
+ */
+const backupSummary = (document: MockBackupDocument): MockBackupSummary => {
+  const importedNotifications = document.notifications ?? [];
+  const importedTokens = document.accessTokens ?? [];
+  const notificationNames: Set<string> = new Set(notifications.map((notification: MockNotification): string => notification.name.toLocaleLowerCase()));
+  const tokenIds: Set<string> = new Set(tokens.map((token: MockToken): string => token.id));
+  const tokenNames: Set<string> = new Set(tokens.map((token: MockToken): string => token.name.toLocaleLowerCase()));
+  const hashes: Set<string> = new Set(tokenHashes.values());
+
+  let connectionAction: MockBackupSummary['connection'] = 'skipped';
+
+  if (document.connection !== undefined && document.connection !== null) {
+    connectionAction = (connection === null) ? 'added' : 'replaced';
+  }
+
+  return {
+    accessTokens: {
+      added: importedTokens.filter((token): boolean => !tokenIds.has(token.id) && !tokenNames.has(token.name.toLocaleLowerCase()) && !hashes.has(token.tokenHash)).length,
+      skipped: importedTokens.filter((token): boolean => tokenIds.has(token.id) || tokenNames.has(token.name.toLocaleLowerCase()) || hashes.has(token.tokenHash)).length,
+    },
+    connection: connectionAction,
+    notifications: {
+      added: importedNotifications.filter((notification): boolean => !notificationNames.has(notification.name.toLocaleLowerCase())).length,
+      replaced: importedNotifications.filter((notification): boolean => notificationNames.has(notification.name.toLocaleLowerCase())).length,
+    },
+  };
+};
+
 // Codes are compared like the server does: any letter case, with or without spaces and dashes.
 
 /**
@@ -1220,6 +1325,342 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
 
     return true;
   };
+
+  /**
+   * Mock API - Issues backup grant.
+   *
+   * Keeps the raw grant in short-lived mock memory for one matching operation.
+   * Browser development therefore exercises the same scoped flow as production.
+   *
+   * @since 2.1.0
+   */
+  const issueBackupGrant = (purpose: MockBackupPurpose): void => {
+    const token: string = [
+      'pbg_',
+      randomBytes(32).toString('base64url'),
+    ].join('');
+    const expiresAt: number = Date.now() + (5 * minute);
+
+    backupGrant = {
+      expiresAt,
+      purpose,
+      token,
+    };
+    sendJSON(response, 200, {
+      expiresAt: new Date(expiresAt).toISOString(),
+      grant: token,
+    });
+  };
+
+  if (method === 'POST' && path === '/api/v1/backup/confirmation') {
+    const purpose: MockBackupPurpose | null = (body['purpose'] === 'export' || body['purpose'] === 'import') ? body['purpose'] : null;
+
+    if (purpose === null) {
+      sendError(response, 422, 'invalid_request', 'Choose what you are confirming.');
+
+      return true;
+    }
+
+    if (!checkPassword()) {
+      return true;
+    }
+
+    if (totpEnabled && body['code'] !== '123456') {
+      sendFieldError(response, 422, 'identity_not_confirmed', 'code', 'That authenticator code is incorrect. In the mock, use 123456.');
+
+      return true;
+    }
+
+    issueBackupGrant(purpose);
+
+    return true;
+  }
+
+  if (method === 'POST' && path === '/api/v1/backup/confirmation/passkey/options') {
+    const purpose: MockBackupPurpose | null = (body['purpose'] === 'export' || body['purpose'] === 'import') ? body['purpose'] : null;
+
+    if (purpose === null) {
+      sendError(response, 422, 'invalid_request', 'Choose what you are confirming.');
+
+      return true;
+    }
+
+    const ceremonyId: string = randomBytes(24).toString('base64url');
+
+    backupPasskeyPurposes.set(ceremonyId, purpose);
+    sendJSON(response, 200, {
+      ceremonyId,
+      options: {
+        allowCredentials: [],
+        challenge: randomBytes(32).toString('base64url'),
+        rpId: url.hostname,
+        timeout: 300000,
+        userVerification: 'required',
+      },
+    });
+
+    return true;
+  }
+
+  if (method === 'POST' && path === '/api/v1/backup/confirmation/passkey/verify') {
+    const ceremonyId: string = String(body['ceremonyId'] ?? '');
+    const purpose: MockBackupPurpose | null = (body['purpose'] === 'export' || body['purpose'] === 'import') ? body['purpose'] : null;
+
+    if (purpose === null || backupPasskeyPurposes.get(ceremonyId) !== purpose) {
+      sendError(response, 409, 'passkey_ceremony_invalid', 'That passkey request expired. Try again.');
+
+      return true;
+    }
+
+    backupPasskeyPurposes.delete(ceremonyId);
+    issueBackupGrant(purpose);
+
+    return true;
+  }
+
+  if (method === 'POST' && path === '/api/v1/backup/export') {
+    if (
+      backupGrant === null
+      || backupGrant.expiresAt <= Date.now()
+      || backupGrant.purpose !== 'export'
+      || body['grant'] !== backupGrant.token
+    ) {
+      sendError(response, 401, 'backup_confirmation_expired', 'Confirm it\'s you again.');
+
+      return true;
+    }
+
+    backupGrant = null;
+
+    const sections: Record<string, unknown> = (typeof body['sections'] === 'object' && body['sections'] !== null) ? body['sections'] as Record<string, unknown> : {};
+    const document: MockBackupDocument = {
+      appVersion: '2.0.0',
+      exportedAt: new Date().toISOString(),
+      format: 'pfsense-actions-export',
+      version: 1,
+    };
+
+    if (sections['connection'] === true) {
+      document.connection = (connection === null) ? null : {
+        credential: connectionCredential,
+        credentialType: connection.credentialType,
+        pfsenseSshIp: connection.pfsenseSshIp,
+        pfsenseSshPort: connection.pfsenseSshPort,
+        pfsenseUsername: connection.pfsenseUsername,
+      };
+    }
+
+    if (sections['notifications'] === true) {
+      document.notifications = notifications.map((notification: MockNotification) => ({
+        events: [...notification.events],
+        id: notification.id,
+        name: notification.name,
+        secrets: Object.fromEntries(Object.keys(notification.secrets).map((key: string): [string, string] => [
+          key,
+          [
+            'mock-',
+            key,
+            '-secret',
+          ].join(''),
+        ])),
+        service: notification.service,
+        settings: { ...notification.settings },
+      }));
+    }
+
+    if (sections['accessTokens'] === true) {
+      document.accessTokens = tokens.map((token: MockToken) => ({
+        ...token,
+        tokenHash: tokenHashes.get(token.id) ?? randomBytes(32).toString('hex'),
+      }));
+    }
+
+    response.setHeader('Content-Disposition', [
+      'attachment; filename="pfsense-actions-export-',
+      document.exportedAt.slice(0, 10),
+      '.json"',
+    ].join(''));
+    sendJSON(response, 200, document);
+
+    return true;
+  }
+
+  if (method === 'POST' && path === '/api/v1/backup/imports/preview') {
+    const document: MockBackupDocument | null = (typeof body['document'] === 'object' && body['document'] !== null) ? body['document'] as MockBackupDocument : null;
+
+    if (document === null || document.format !== 'pfsense-actions-export' || document.version !== 1) {
+      sendError(response, 422, 'invalid_request', 'Choose a valid pfSense Actions export file.');
+
+      return true;
+    }
+
+    const summary: MockBackupSummary = backupSummary(document);
+    const sections: Array<Record<string, unknown>> = [];
+
+    if (Object.hasOwn(document, 'connection')) {
+      sections.push({
+        file: (document.connection === null) ? 'No saved connection' : [
+          document.connection?.pfsenseSshIp ?? '',
+          ':',
+          String(document.connection?.pfsenseSshPort ?? ''),
+        ].join(''),
+        here: (connection === null) ? 'No saved connection' : [
+          connection.pfsenseSshIp,
+          ':',
+          String(connection.pfsenseSshPort),
+        ].join(''),
+        id: 'connection',
+        label: 'Connection',
+        ...((document.connection === null) ? { reason: 'The file does not contain a saved connection.' } : {}),
+        willImport: document.connection !== null,
+      });
+    }
+
+    if (document.notifications !== undefined) {
+      sections.push({
+        file: [
+          String(document.notifications.length),
+          ' targets',
+        ].join(''),
+        here: [
+          String(notifications.length),
+          ' targets',
+        ].join(''),
+        id: 'notifications',
+        label: 'Notifications',
+        willImport: true,
+      });
+    }
+
+    if (document.accessTokens !== undefined) {
+      sections.push({
+        file: [
+          String(document.accessTokens.length),
+          ' tokens',
+        ].join(''),
+        here: [
+          String(tokens.length),
+          ' tokens',
+        ].join(''),
+        id: 'accessTokens',
+        label: 'Access tokens',
+        willImport: true,
+      });
+    }
+
+    sendJSON(response, 200, {
+      appVersion: document.appVersion,
+      exportedAt: document.exportedAt,
+      sections,
+      summary,
+    });
+
+    return true;
+  }
+
+  if (method === 'POST' && path === '/api/v1/backup/imports') {
+    const document: MockBackupDocument | null = (typeof body['document'] === 'object' && body['document'] !== null) ? body['document'] as MockBackupDocument : null;
+
+    if (
+      document === null
+      || backupGrant === null
+      || backupGrant.expiresAt <= Date.now()
+      || backupGrant.purpose !== 'import'
+      || body['grant'] !== backupGrant.token
+    ) {
+      sendError(response, 401, 'backup_confirmation_expired', 'Confirm it\'s you again.');
+
+      return true;
+    }
+
+    backupGrant = null;
+
+    const summary: MockBackupSummary = backupSummary(document);
+    const importedSections: Array<'connection' | 'notifications' | 'accessTokens'> = [];
+
+    if (document.connection !== undefined && document.connection !== null) {
+      connection = {
+        credentialSaved: true,
+        credentialType: document.connection.credentialType,
+        pfsenseSshIp: document.connection.pfsenseSshIp,
+        pfsenseSshPort: document.connection.pfsenseSshPort,
+        pfsenseUsername: document.connection.pfsenseUsername,
+      };
+      connectionCredential = document.connection.credential;
+      importedSections.push('connection');
+    }
+
+    if (document.notifications !== undefined) {
+      for (const imported of document.notifications) {
+        const index: number = notifications.findIndex((notification: MockNotification): boolean => notification.name.toLocaleLowerCase() === imported.name.toLocaleLowerCase());
+        const existing: MockNotification | undefined = notifications[index];
+        const now: string = new Date().toISOString();
+        const notification: MockNotification = {
+          createdAt: existing?.createdAt ?? now,
+          events: [...imported.events],
+          id: existing?.id ?? imported.id,
+          lastAttemptAt: existing?.lastAttemptAt ?? null,
+          lastError: existing?.lastError ?? null,
+          name: imported.name,
+          secrets: Object.fromEntries(Object.keys(imported.secrets).map((key: string): [string, true] => [
+            key,
+            true,
+          ])),
+          secretsMissing: [],
+          service: imported.service,
+          settings: { ...imported.settings },
+          updatedAt: now,
+        };
+
+        if (existing === undefined) {
+          notifications.push(notification);
+        } else {
+          notifications[index] = notification;
+        }
+      }
+      importedSections.push('notifications');
+    }
+
+    if (document.accessTokens !== undefined) {
+      const existingIds: Set<string> = new Set(tokens.map((token: MockToken): string => token.id));
+      const existingNames: Set<string> = new Set(tokens.map((token: MockToken): string => token.name.toLocaleLowerCase()));
+      const existingHashes: Set<string> = new Set(tokenHashes.values());
+
+      for (const imported of document.accessTokens) {
+        if (existingIds.has(imported.id) || existingNames.has(imported.name.toLocaleLowerCase()) || existingHashes.has(imported.tokenHash)) {
+          continue;
+        }
+
+        tokens.push({
+          createdAt: imported.createdAt,
+          expiresAt: imported.expiresAt,
+          id: imported.id,
+          lastUsedAt: imported.lastUsedAt,
+          name: imported.name,
+          scopes: imported.scopes,
+        });
+        tokenHashes.set(imported.id, imported.tokenHash);
+        existingIds.add(imported.id);
+        existingNames.add(imported.name.toLocaleLowerCase());
+        existingHashes.add(imported.tokenHash);
+      }
+      importedSections.push('accessTokens');
+    }
+
+    recordActivity({
+      action: 'backup-imported',
+      actorId: currentUsername,
+      category: 'configuration',
+      outcome: 'succeeded',
+      summary: 'Imported backup configuration',
+    });
+    sendJSON(response, 200, {
+      ...summary,
+      importedSections,
+    });
+
+    return true;
+  }
 
   if (method === 'GET' && path === '/api/v1/auth/me') {
     sendJSON(response, 200, {
@@ -1766,6 +2207,10 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
       return true;
     }
 
+    const plaintext: string = [
+      'pfa_',
+      randomBytes(32).toString('base64url'),
+    ].join('');
     const token: MockToken = {
       createdAt: new Date().toISOString(),
       expiresAt: (typeof body['expiresAt'] === 'string') ? body['expiresAt'] : null,
@@ -1776,6 +2221,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
     };
 
     tokens.push(token);
+    tokenHashes.set(token.id, randomBytes(32).toString('hex'));
     recordActivity({
       action: 'token-created',
       actorId: currentUsername,
@@ -1784,7 +2230,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
       summary: `Created personal access token ${token.name}`,
     });
     sendJSON(response, 201, {
-      plaintext: `pfa_${randomBytes(32).toString('base64url')}`,
+      plaintext,
       token,
     });
 
@@ -1805,6 +2251,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
 
     if (method === 'DELETE') {
       tokens.splice(index, 1);
+      tokenHashes.delete(token.id);
       recordActivity({
         action: 'token-revoked',
         actorId: currentUsername,
@@ -1860,6 +2307,34 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
 
   if (method === 'GET' && path === '/api/v1/activity') {
     sendJSON(response, 200, { items: activity });
+
+    return true;
+  }
+
+  if (method === 'GET' && path === '/api/v1/diagnostics') {
+    sendJSON(response, 200, { debugLogging });
+
+    return true;
+  }
+
+  if (method === 'PUT' && path === '/api/v1/diagnostics') {
+    if (typeof body['debugLogging'] !== 'boolean') {
+      sendFieldError(response, 422, 'invalid_request', 'debugLogging', 'Choose on or off.');
+
+      return true;
+    }
+
+    if (body['debugLogging'] !== debugLogging) {
+      debugLogging = body['debugLogging'];
+      recordActivity({
+        action: 'debug-logging-updated',
+        actorId: currentUsername,
+        category: 'configuration',
+        outcome: 'succeeded',
+        summary: (debugLogging) ? 'Turned debug logging on' : 'Turned debug logging off',
+      });
+    }
+    sendJSON(response, 200, { debugLogging });
 
     return true;
   }
@@ -1933,6 +2408,9 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
       pfsenseSshPort: Number(body['pfsenseSshPort'] ?? 22),
       pfsenseUsername: String(body['pfsenseUsername'] ?? '').trim(),
     };
+    if (typeof body['credential'] === 'string') {
+      connectionCredential = body['credential'];
+    }
     recordActivity({
       action: 'connection-updated',
       actorId: currentUsername,

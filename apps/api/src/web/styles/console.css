@@ -1,67 +1,27 @@
 /**
  * ============================
- * Shared Utilities
+ * pfSense Actions Brand
  * ============================
  */
 
-.mono {
-  font-family: var(--font-mono);
-  color: var(--color-text);
+:root {
+  --color-accent: #047f62;
+  --color-accent-strong: #036a52;
+  --color-accent-soft: rgb(4 127 98 / 9%);
 }
 
-.text-button {
-  height: var(--control-height);
-  padding: 0 var(--space-2);
+html[data-theme="dark"] {
+  --color-accent: #31be98;
+  --color-accent-strong: #52cfac;
+  --color-accent-soft: rgb(49 190 152 / 13%);
+}
 
-  font-size: var(--text-sm);
-  font-weight: 550;
-  color: var(--color-accent);
-
-  background: transparent;
-  border: 0;
-
-  &:hover {
-    color: var(--color-accent-strong);
+@media (prefers-color-scheme: dark) {
+  html[data-theme="system"] {
+    --color-accent: #31be98;
+    --color-accent-strong: #52cfac;
+    --color-accent-soft: rgb(49 190 152 / 13%);
   }
-}
-
-.detail-loading {
-  display: flex;
-  gap: var(--space-3);
-  align-items: center;
-  padding: var(--space-5);
-
-  color: var(--color-muted);
-}
-
-/**
- * ============================
- * Forms
- * ============================
- */
-
-.credential-key {
-  min-height: 7.5rem;
-
-  font-size: var(--text-sm);
-  line-height: 1.45;
-
-  resize: vertical;
-}
-
-.segmented-fit {
-  justify-self: start;
-  min-width: min(15rem, 100%);
-}
-
-/**
- * ============================
- * Connection Status
- * ============================
- */
-
-.protection-idle {
-  --status-color: var(--color-muted);
 }
 
 /**
@@ -134,134 +94,6 @@
   padding: var(--space-2) 0;
 }
 
-/**
- * ============================
- * Access Tokens
- * ============================
- */
-
-.token-list {
-  max-height: none;
-  overflow: visible;
-}
-
-.token-row {
-  flex-wrap: wrap;
-  align-items: flex-start;
-
-  & .select-list-main {
-    flex-basis: 100%;
-  }
-
-  /* Under the text, the first quiet button's icon lines up with the text. */
-  & .token-actions {
-    margin-left: calc(-1 * var(--space-2));
-  }
-}
-
-@media (min-width: 720px) {
-  .token-row {
-    flex-wrap: nowrap;
-
-    & .select-list-main {
-      flex-basis: auto;
-    }
-
-    & .token-actions {
-      margin-left: 0;
-    }
-  }
-}
-
-.token-title {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  align-items: center;
-
-  & .token-name {
-    font-weight: 550;
-    overflow-wrap: anywhere;
-  }
-}
-
-.token-actions {
-  display: flex;
-  flex: none;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  max-width: 100%;
-
-  /* Row buttons are compact, so three of them fit on one line on a phone. */
-  & .button {
-    height: 2rem;
-    padding: 0 var(--space-3);
-
-    font-size: var(--text-sm);
-  }
-
-  & .button-quiet {
-    padding: 0 var(--space-2);
-  }
-}
-
-.scope-fieldset {
-  display: grid;
-  gap: var(--space-3);
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-
-  border: 0;
-
-  & legend {
-    margin-bottom: var(--space-2);
-    padding: 0;
-
-    font-size: var(--text-sm);
-    font-weight: 550;
-    color: var(--color-text);
-  }
-
-  & .check-row strong {
-    font-size: var(--text-sm);
-  }
-
-  /* Each route the scope opens sits on its own line. */
-  & .scope-endpoints {
-    display: grid;
-  }
-
-  & > .field-error {
-    font-size: var(--text-xs);
-    color: var(--color-danger);
-  }
-}
-
-.token-row .select-list-main small {
-  white-space: normal;
-  overflow-wrap: anywhere;
-
-  &.field-error {
-    color: var(--color-danger);
-  }
-}
-
-.copy-list .copy-row {
-  grid-template-columns: minmax(0, 1fr) auto;
-  row-gap: 0;
-  padding-block: var(--space-2);
-
-  & > span:first-child {
-    grid-column: 1 / -1;
-  }
-
-  & code {
-    overflow-wrap: anywhere;
-    white-space: normal;
-  }
-}
-
 .endpoint-list {
   display: grid;
   margin: 0;
@@ -295,20 +127,6 @@
 }
 
 @media (min-width: 720px) {
-  .copy-list .copy-row {
-    grid-template-columns: 6rem minmax(0, 1fr) auto;
-    padding-block: var(--space-1);
-
-    & > span:first-child {
-      grid-column: auto;
-    }
-
-    & code {
-      overflow-wrap: normal;
-      white-space: nowrap;
-    }
-  }
-
   .endpoint-list li {
     display: flex;
     gap: var(--space-3);

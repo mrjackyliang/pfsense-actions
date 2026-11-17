@@ -1,0 +1,45 @@
+---
+title: "pfSense Actions 1.0 Wakes Devices Through the Firewall"
+description: Version 1.0.0 is a small Docker controller that wakes devices, reloads the filter, and refreshes Dynamic DNS on pfSense through one authenticated API.
+slug: pfsense-actions-1-0
+authors:
+  - mrjackyliang
+keywords:
+  - pfsense actions
+  - pfsense
+  - wake-on-lan
+  - docker
+  - first release
+tags:
+  - release
+  - pfsense
+  - home automation
+---
+
+pfSense Actions 1.0.0 shipped on September 6, 2024. The Docker-based controller signs in to a pfSense firewall over SSH and exposes three actions through an authenticated API: Wake-on-LAN, a filter reload, and a Dynamic DNS refresh.
+
+{/* truncate */}
+
+## Why It Matters
+
+pfSense sits on every subnet in the network, which makes it the right place to send a Wake-on-LAN packet from. But its web interface is built for people, not for a phone shortcut or a script.
+
+With 1.0.0, a single HTTP request asks the firewall to do the job.
+
+## What's Included
+
+### Wake-on-LAN
+
+`POST /wol` has pfSense send a magic packet to a device's MAC address, so a computer can be woken from anywhere the controller is reachable.
+
+### Filter Reload and Dynamic DNS
+
+`GET /reload-filter` reloads the firewall rules, and `GET /update-dyndns` refreshes Dynamic DNS entries.
+
+### One Container
+
+The controller runs in Docker and connects to pfSense with SSH and commands that already ship with it, so nothing is installed on the firewall.
+
+## Where It Led
+
+Version 2.0.0 replaces the shared API key with scoped personal tokens and adds a browser console, activity log, and alerts. [Install with Docker](/docs/getting-started/install-with-docker/) covers the current release.

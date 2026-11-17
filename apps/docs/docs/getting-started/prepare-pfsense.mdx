@@ -18,11 +18,11 @@ tags:
 
 import { Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
 
-Set up SSH on your pfSense firewall so pfSense Actions can sign in and run its <Terminology title="the closed set of commands the controller runs" to="/docs/reference/terminology#allowlist">allowlisted</Terminology> commands.
+Set up SSH on your pfSense firewall so pfSense Actions can sign in and run its <Terminology title="The only commands it will ever run on pfSense" to="/docs/reference/terminology#core-concepts">allowlisted</Terminology> commands.
 
 ## Why Prepare a Dedicated Account?
 
-1. Lets you remove the <Terminology title="the pfSense Actions service between clients and pfSense" to="/docs/reference/terminology#controller">controller</Terminology>'s access in pfSense without touching any other account.
+1. Lets you remove the <Terminology title="pfSense Actions itself, the go-between for your clients" to="/docs/reference/terminology#core-concepts">controller</Terminology>'s access in pfSense without touching any other account.
 2. Pairs the account with a key made only for pfSense Actions, so no personal key or password is shared.
 3. Keeps the firewall's own administrator password out of pfSense Actions.
 
@@ -46,10 +46,10 @@ Set up SSH on your pfSense firewall so pfSense Actions can sign in and run its <
 3. Save the user, then edit it and add the **User - System: Shell account access** privilege under **Effective Privileges**.
 4. Save the user again.
 
-The <Terminology title="the pfSense privilege that allows SSH sign-in" to="/docs/reference/terminology#shell-account-access">shell account access</Terminology> privilege is what lets the account sign in over SSH.
+The <Terminology title="The pfSense privilege that lets the account use SSH" to="/docs/reference/terminology#pfsense-ssh-access">shell account access</Terminology> privilege is what lets the account sign in over SSH.
 
 :::info
-pfSense Actions doesn't check which privileges the account has. The 1.x instructions asked only for <Terminology title="the pfSense privilege that allows SSH sign-in" to="/docs/reference/terminology#shell-account-access">shell account access</Terminology>, so it's worth confirming the account can run each command as shown below.
+pfSense Actions doesn't check which privileges the account has. The 1.x instructions asked only for <Terminology title="The pfSense privilege that lets the account use SSH" to="/docs/reference/terminology#pfsense-ssh-access">shell account access</Terminology>, so it's worth confirming the account can run each command as shown below.
 :::
 
 ## Add an Authorized SSH Key
@@ -63,7 +63,7 @@ pfSense Actions doesn't check which privileges the account has. The 1.x instruct
 2. Edit the pfSense user, paste the contents of `pfsense-actions-key.pub` into **Authorized SSH Keys**, and save.
 3. Keep the private key file, `pfsense-actions-key`, for the next steps.
 
-The public key you pasted is now an <Terminology title="the public key pfSense accepts for key sign-in" to="/docs/reference/terminology#authorized-ssh-key">authorized SSH key</Terminology> for the account. pfSense Actions also accepts the account's password instead of a key, but a key is recommended.
+The public key you pasted is now an <Terminology title="The public key pfSense trusts for the controller's login" to="/docs/reference/terminology#pfsense-ssh-access">authorized SSH key</Terminology> for the account. pfSense Actions also accepts the account's password instead of a key, but a key is recommended.
 
 :::warning
 pfSense Actions can't use a private key that has a passphrase. Keep the unencrypted key file private, for example with `chmod 600 ./pfsense-actions-key`.
@@ -71,7 +71,7 @@ pfSense Actions can't use a private key that has a passphrase. Keep the unencryp
 
 ## Limit Who Can Reach SSH
 
-- pfSense Actions doesn't perform <Terminology title="confirming the firewall's SSH identity before trusting it" to="/docs/reference/terminology#host-key-verification">host key verification</Terminology>, so it trusts whichever server answers at the configured address. It's recommended to keep the network path between pfSense Actions and the firewall on a segment you trust.
+- pfSense Actions doesn't perform <Terminology title="Not done yet, so any server key is accepted" to="/docs/reference/terminology#pfsense-ssh-access">host key verification</Terminology>, so it trusts whichever server answers at the configured address. It's recommended to keep the network path between pfSense Actions and the firewall on a segment you trust.
 - It's also recommended to allow SSH to the firewall only from the host that runs pfSense Actions and from your own management devices.
 
 ## Confirm the Commands
@@ -85,12 +85,12 @@ ssh -i ./pfsense-actions-key automation@192.0.2.1 'ping -c 5 192.0.2.25'
 ssh -i ./pfsense-actions-key automation@192.0.2.1 'wol -i 192.0.2.255 00:11:22:33:44:55'
 ```
 
-| Command                    | Used by                                                                                                                                                                                                                                                                                                                                             |
-|----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `whoami`                   | Every <Terminology title="one allowlisted pfSense operation behind an API route" to="/docs/reference/terminology#action">action</Terminology> and <Terminology title="the 5-minute SSH check behind the pfSense alerts" to="/docs/reference/terminology#scheduled-check">scheduled check</Terminology>, to confirm the session before each command. |
-| `uname -mrs`               | `GET /api/v1/connectivity`, `GET /api/v1/system`, and the <Terminology title="the 5-minute SSH check behind the pfSense alerts" to="/docs/reference/terminology#scheduled-check">scheduled check</Terminology> for notifications.                                                                                                                   |
-| `ping -c 5 <address>`      | `POST /api/v1/ping`, once per <Terminology title="one five-packet ping run in a reachability check" to="/docs/reference/terminology#ping-attempt">ping attempt</Terminology>.                                                                                                                                                                       |
-| `wol -i <broadcast> <mac>` | `POST /api/v1/wol`.                                                                                                                                                                                                                                                                                                                                 |
+| Command                    | Used by                                                                                                                                                                                                                                                                                                                                                         |
+|----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `whoami`                   | Every <Terminology title="One fixed pfSense task you can call, like ping or wake" to="/docs/reference/terminology#core-concepts">action</Terminology> and <Terminology title="A sign-in every 5 minutes to notice pfSense going down" to="/docs/reference/terminology#notifications">scheduled check</Terminology>, to confirm the session before each command. |
+| `uname -mrs`               | `GET /api/v1/connectivity`, `GET /api/v1/system`, and the <Terminology title="A sign-in every 5 minutes to notice pfSense going down" to="/docs/reference/terminology#notifications">scheduled check</Terminology> for notifications.                                                                                                                           |
+| `ping -c 5 <address>`      | `POST /api/v1/ping`, once per <Terminology title="One five-packet ping; count sets how many to try" to="/docs/reference/terminology#api-actions">ping attempt</Terminology>.                                                                                                                                                                                    |
+| `wol -i <broadcast> <mac>` | `POST /api/v1/wol`.                                                                                                                                                                                                                                                                                                                                             |
 
 Each command needs to exit with status `0`, because pfSense Actions treats any other exit status as a failure. The one exception is `ping`, which exits with `2` when nothing replies, and pfSense Actions reads that as no answer rather than as a failure.
 

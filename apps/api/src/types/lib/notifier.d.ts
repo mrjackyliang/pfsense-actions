@@ -62,6 +62,10 @@ export type Lib_Notifier_Runner_CheckPfsense_SystemInformationResponse = Awaited
 
 export type Lib_Notifier_Runner_CheckPfsenseOnce_Returns = Promise<void>;
 
+export type Lib_Notifier_Runner_CheckPfsenseOnce_StartedAt = number;
+
+export type Lib_Notifier_Runner_CheckPfsenseOnce_Outcome = string;
+
 export type Lib_Notifier_Runner_GetEvents_Returns = Lib_Notifications_EventDefinitions;
 
 export type Lib_Notifier_Runner_NotifyActionFailed_Action = string;
@@ -98,6 +102,10 @@ export type Lib_Notifier_Runner_SendTest_Delivery = Lib_State_Runner_GetNotifica
 
 export type Lib_Notifier_Runner_SendTest_Result = Lib_Notifications_Result;
 
+export type Lib_Notifier_Runner_SendTest_StartedAt = number;
+
+export type Lib_Notifier_Runner_SendTest_Outcome = string;
+
 export type Lib_Notifier_Runner_Start_Returns = void;
 
 export type Lib_Notifier_Runner_Stop_Returns = void;
@@ -111,3 +119,7 @@ export type Lib_Notifier_Runner_Deliver_Deliveries = Lib_State_Runner_GetNotific
 export type Lib_Notifier_Runner_Deliver_Error = unknown;
 
 export type Lib_Notifier_Runner_Deliver_Reason = string;
+
+export type Lib_Notifier_Runner_Deliver_StartedAt = number;
+
+export type Lib_Notifier_Runner_Deliver_Outcome = string;

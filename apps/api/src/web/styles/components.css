@@ -25,6 +25,11 @@ textarea {
   font: inherit;
 }
 
+/* Grid and flex rules would otherwise beat the hidden attribute. */
+[hidden] {
+  display: none !important;
+}
+
 button,
 select,
 input[type="checkbox"],
@@ -134,6 +139,36 @@ textarea {
 
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  color: var(--color-text);
+}
+
+.text-button {
+  height: var(--control-height);
+  padding: 0 var(--space-2);
+
+  font-size: var(--text-sm);
+  font-weight: 550;
+  color: var(--color-accent);
+
+  background: transparent;
+  border: 0;
+
+  &:hover {
+    color: var(--color-accent-strong);
+  }
+}
+
+.detail-loading {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-5);
+
+  color: var(--color-muted);
 }
 
 /**
@@ -266,6 +301,7 @@ textarea {
 }
 
 .field input[aria-invalid="true"],
+.field select[aria-invalid="true"],
 .field textarea[aria-invalid="true"] {
   border-color: var(--color-danger);
 }
@@ -304,7 +340,11 @@ textarea {
 
 .field textarea,
 textarea.setting-input {
+  /* Three lines, the shortest box's starting height, so dragging can't shrink one smaller. */
+  min-height: calc(3lh + var(--space-2) * 2 + 2px);
   padding: var(--space-2) var(--space-3);
+
+  resize: vertical;
 }
 
 /* The meter sits in the field like a hint, so it drops the label styling of the field's spans. */
@@ -366,6 +406,15 @@ select {
   background-size: 1rem;
 }
 
+/* "— Select one —" is a prompt rather than a choice, so it reads like a placeholder. */
+select:has(> option.select-placeholder:checked) {
+  color: var(--color-muted);
+
+  & > option {
+    color: var(--color-text);
+  }
+}
+
 /* Room for the chevron, so a long choice stops before it. */
 select,
 .field select,
@@ -425,6 +474,20 @@ select.setting-input {
 
   background: var(--color-danger-soft);
   border-radius: var(--radius-md);
+}
+
+.credential-key {
+  min-height: 7.5rem;
+
+  font-size: var(--text-sm);
+  line-height: 1.45;
+
+  resize: vertical;
+}
+
+.segmented-fit {
+  justify-self: start;
+  min-width: min(15rem, 100%);
 }
 
 /**
@@ -535,7 +598,7 @@ select.setting-input {
   width: 0.5rem;
   height: 0.5rem;
 
-  background: var(--color-muted);
+  background: var(--status-color, var(--color-muted));
   border-radius: 999px;
 }
 
@@ -558,10 +621,6 @@ select.setting-input {
 
 .status-error {
   --status-color: var(--color-danger);
-}
-
-.status-dot[class*="status-"] {
-  background: var(--status-color);
 }
 
 .status-queued.status-dot {
@@ -853,6 +912,17 @@ select.setting-input {
   color: var(--color-on-accent);
 }
 
+body:has(.save-bar) .notyf {
+  padding-bottom: calc(
+    var(--phone-tab-bar-height)
+    + env(safe-area-inset-bottom, 0px)
+    + var(--space-3)
+    + var(--control-height)
+    + var(--space-4)
+    + var(--space-3)
+  );
+}
+
 .notyf__toast {
   width: 100%;
   max-width: none;
@@ -862,6 +932,10 @@ select.setting-input {
 
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-float);
+}
+
+.notyf__toast[hidden] {
+  display: none;
 }
 
 .notyf__toast--lower {
@@ -941,5 +1015,9 @@ select.setting-input {
 @media (min-width: 1020px) {
   .notyf {
     padding: var(--space-5);
+  }
+
+  body:has(.save-bar) .notyf {
+    padding-bottom: calc(var(--space-5) + var(--control-height) + var(--space-4) + var(--space-3));
   }
 }

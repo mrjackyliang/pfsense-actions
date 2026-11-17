@@ -11,7 +11,7 @@ services:
       S6_READ_ONLY_ROOT: "${S6_READ_ONLY_ROOT:-0}"
       TZ: "${TZ:-UTC}"
     ports:
-      - "${PFSENSE_ACTIONS_PORT:-22603}:22603"
+      - "22603:22603"
     restart: unless-stopped
     volumes:
       - pfsense_actions_data:/data

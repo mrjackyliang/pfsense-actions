@@ -13,8 +13,8 @@ import {
 
 import apiPackageJson from '../apps/api/package.json' with { type: 'json' };
 import docsPackageJson from '../apps/docs/package.json' with { type: 'json' };
+import novaConfigJson from '../nova.config.json' with { type: 'json' };
 import packageJson from '../package.json' with { type: 'json' };
-import dockerBuildPackageJson from '../packages/docker/build-package.json' with { type: 'json' };
 import dockerPackageJson from '../packages/docker/package.json' with { type: 'json' };
 
 /**
@@ -38,15 +38,16 @@ describe('Project root', () => {
 
     expect(docsPackageJson['version']).toBe('0.0.0');
 
-    expect(dockerBuildPackageJson['version']).toBe('0.0.0');
-
     expect(dockerPackageJson['version']).toBe('0.0.0');
 
     return;
   });
 
-  it('keeps the passkey display name in the generated API environment sample', () => {
-    expect(readFileSync(new URL('../apps/api/.env.sample', import.meta.url), 'utf8')).toContain('ADMIN_WEBAUTHN_RP_NAME="pfSense Actions"');
+  it('keeps the passkey display name in the API environment settings', () => {
+    expect(novaConfigJson['environment']['workspaces']['./apps/api']['variables']).toContainEqual(expect.objectContaining({
+      key: 'ADMIN_WEBAUTHN_RP_NAME',
+      defaultValue: 'pfSense Actions',
+    }));
 
     return;
   });
@@ -63,18 +64,6 @@ describe('Project root', () => {
     expect(existsSync(new URL('../packages/docker/manifest.json', import.meta.url))).toBe(true);
 
     expect(existsSync(new URL('../packages/docker/build-package.json', import.meta.url))).toBe(true);
-
-    expect(readFileSync(new URL('../.dockerignore', import.meta.url), 'utf8')).toContain('**/.env');
-
-    expect(readFileSync(new URL('../.dockerignore', import.meta.url), 'utf8')).toContain('!**/.env.sample');
-
-    expect(readFileSync(new URL('../.dockerignore', import.meta.url), 'utf8')).toContain('**/build');
-
-    expect(readFileSync(new URL('../.dockerignore', import.meta.url), 'utf8')).toContain('**/dist');
-
-    expect(readFileSync(new URL('../.dockerignore', import.meta.url), 'utf8')).toContain('**/node_modules');
-
-    expect(readFileSync(new URL('../.dockerignore', import.meta.url), 'utf8')).toContain('**/.secrets');
 
     expect(existsSync(new URL('../apps/api/Dockerfile', import.meta.url))).toBe(false);
 

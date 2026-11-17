@@ -2,7 +2,12 @@ import type { DatabaseSync } from 'node:sqlite';
 
 import type { Runner as State } from '@/lib/state.js';
 import type {
+  Lib_Backup_Document,
+  Lib_Backup_ImportResult,
+} from '@/types/lib/backup.d.ts';
+import type {
   Lib_State_Runner_ClaimInstallation_Returns,
+  Lib_State_Runner_CreateNotificationTarget_Returns,
   Lib_State_Runner_CreateSession_Returns,
   Lib_State_Runner_CreateSignInChallenge_Returns,
   Lib_State_Runner_CreateToken_Returns,
@@ -18,6 +23,20 @@ import type { Shared_EnvironmentVariables } from '@/types/shared.d.ts';
  * @since 2.0.0
  */
 export type Tests_Lib_State_Administrator = Lib_State_Runner_GetAdministrator_Returns;
+
+/**
+ * Tests - Lib - State - Backup Document.
+ *
+ * @since 2.1.0
+ */
+export type Tests_Lib_State_BackupDocument = Lib_Backup_Document;
+
+/**
+ * Tests - Lib - State - Backup Import Result.
+ *
+ * @since 2.1.0
+ */
+export type Tests_Lib_State_BackupImportResult = Lib_Backup_ImportResult;
 
 /**
  * Tests - Lib - State - Challenge.
@@ -90,6 +109,20 @@ export type Tests_Lib_State_KeyPath = string;
  * @since 2.0.0
  */
 export type Tests_Lib_State_Mode = string;
+
+/**
+ * Tests - Lib - State - Notification Target.
+ *
+ * @since 2.1.0
+ */
+export type Tests_Lib_State_NotificationTarget = Lib_State_Runner_CreateNotificationTarget_Returns;
+
+/**
+ * Tests - Lib - State - Personal Access Token.
+ *
+ * @since 2.1.0
+ */
+export type Tests_Lib_State_PersonalAccessToken = string;
 
 /**
  * Tests - Lib - State - Old Key.

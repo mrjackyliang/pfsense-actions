@@ -203,6 +203,18 @@ export const connectionUpdate = z.object({
 }).strict();
 
 /**
+ * Lib - Schema - Diagnostics Update.
+ *
+ * Validates the Debug logging switch sent from the Connection page.
+ * Unknown fields are refused like every other console body.
+ *
+ * @since 2.1.0
+ */
+export const diagnosticsUpdate = z.object({
+  debugLogging: z.boolean({ error: 'Choose on or off.' }),
+}).strict();
+
+/**
  * Lib - Schema - Passkey Credential Identifier.
  *
  * Defines the bounded Base64URL identifier shared by WebAuthn responses and routes.
@@ -579,7 +591,6 @@ export const storedRemovedSecret = z.object({
 export const env = z.object({
   adminWebauthnRpName: z.string().min(1).max(64),
   dataDirectory: z.string().min(1),
-  port: z.coerce.number().int().min(1).max(65535),
   pfsensePassword: z.string().min(1).optional(),
   pfsensePrivateKey: z.string().min(1).optional(),
   pfsenseSshIp: z.union(ipAddressFormats).optional(),

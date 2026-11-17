@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { logWarn } from './logger.js';
 import { env } from './schema.js';
 
 import type {
@@ -19,7 +18,6 @@ import type {
   Lib_Utility_GetEnvironmentVariables_PfsenseSshIp,
   Lib_Utility_GetEnvironmentVariables_PfsenseSshPort,
   Lib_Utility_GetEnvironmentVariables_PfsenseUsername,
-  Lib_Utility_GetEnvironmentVariables_Port,
   Lib_Utility_GetEnvironmentVariables_Returns,
   Lib_Utility_GetPackageVersion_PackageJson,
   Lib_Utility_GetPackageVersion_PackageJsonRaw,
@@ -91,15 +89,6 @@ export function getEnvironmentVariables(): Lib_Utility_GetEnvironmentVariables_R
   const pfsenseSshIp: Lib_Utility_GetEnvironmentVariables_PfsenseSshIp = (typeof process.env['PFSENSE_SSH_IP'] === 'string' && process.env['PFSENSE_SSH_IP'] !== '') ? process.env['PFSENSE_SSH_IP'] : undefined;
   const pfsenseSshPort: Lib_Utility_GetEnvironmentVariables_PfsenseSshPort = (typeof process.env['PFSENSE_SSH_PORT'] === 'string' && process.env['PFSENSE_SSH_PORT'] !== '') ? process.env['PFSENSE_SSH_PORT'] : undefined;
   const pfsenseUsername: Lib_Utility_GetEnvironmentVariables_PfsenseUsername = (typeof process.env['PFSENSE_USERNAME'] === 'string' && process.env['PFSENSE_USERNAME'] !== '') ? process.env['PFSENSE_USERNAME'] : undefined;
-
-  let port: Lib_Utility_GetEnvironmentVariables_Port = (typeof process.env['PORT'] === 'string' && process.env['PORT'] !== '') ? process.env['PORT'] : undefined;
-
-  if (port === undefined) {
-    logWarn('The environment variable "PORT" has not been defined. Defaulting to 22603 ...');
-
-    port = '22603';
-  }
-
   const adminWebauthnRpName: Lib_Utility_GetEnvironmentVariables_AdminWebauthnRpName = (typeof process.env['ADMIN_WEBAUTHN_RP_NAME'] === 'string' && process.env['ADMIN_WEBAUTHN_RP_NAME'] !== '') ? process.env['ADMIN_WEBAUTHN_RP_NAME'] : 'pfSense Actions';
 
   return env.parse({
@@ -110,7 +99,6 @@ export function getEnvironmentVariables(): Lib_Utility_GetEnvironmentVariables_R
     pfsenseSshIp,
     pfsenseSshPort,
     pfsenseUsername,
-    port,
   });
 }
 

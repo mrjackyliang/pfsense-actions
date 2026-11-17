@@ -15,6 +15,7 @@ import type {
   Web_Api_ConnectionTest,
   Web_Api_CreatedToken,
   Web_Api_CreateTokenInput,
+  Web_Api_Diagnostics,
   Web_Api_ErrorEnvelope,
   Web_Api_ErrorIssue,
   Web_Api_LoginInput,
@@ -32,6 +33,14 @@ import type {
   Web_Api_TotpSetup,
   Web_Api_UpdateTokenInput,
 } from '@/types/web/api.d.ts';
+import type {
+  Web_Backup_Document,
+  Web_Backup_ExportSections,
+  Web_Backup_Grant,
+  Web_Backup_ImportPreview,
+  Web_Backup_ImportResult,
+  Web_Backup_Purpose,
+} from '@/types/web/backup.d.ts';
 import type {
   Web_Notifications_CreateInput,
   Web_Notifications_Event,
@@ -389,6 +398,18 @@ const connectionTestSchema: Web_Api_Schema<Web_Api_ConnectionTest> = z.object({
 });
 
 /**
+ * API - Diagnostics schema.
+ *
+ * Reads whether Debug logging is on, for the Connection page's switch.
+ * The same shape answers both reading and changing it.
+ *
+ * @since 2.1.0
+ */
+const diagnosticsSchema: Web_Api_Schema<Web_Api_Diagnostics> = z.object({
+  debugLogging: z.boolean(),
+});
+
+/**
  * API - Activity event schema.
  *
  * Stores this module-level value in one named location.
@@ -445,6 +466,85 @@ const overviewSchema: Web_Api_Schema<Web_Api_Overview> = z.object({
   uptimeSeconds: z.number(),
   version: z.string(),
 });
+
+/**
+ * API - Backup grant schema.
+ *
+ * Validates the short-lived credential returned after identity confirmation.
+ * The raw value stays in the active dialog until its one operation consumes it.
+ *
+ * @since 2.1.0
+ */
+const backupGrantSchema: Web_Api_Schema<Web_Backup_Grant> = z.object({
+  expiresAt: z.string(),
+  grant: z.string(),
+}).strict();
+
+/**
+ * API - Backup import schemas.
+ *
+ * Validates preview and apply summaries before the wizard renders them.
+ * Portable file contents use the stricter browser format schema separately.
+ *
+ * @since 2.1.0
+ */
+const backupImportSummarySchema = z.object({
+  accessTokens: z.object({
+    added: z.number().int().nonnegative(),
+    skipped: z.number().int().nonnegative(),
+  }).strict(),
+  connection: z.enum([
+    'added',
+    'replaced',
+    'skipped',
+  ]),
+  notifications: z.object({
+    added: z.number().int().nonnegative(),
+    replaced: z.number().int().nonnegative(),
+  }).strict(),
+}).strict();
+
+/**
+ * API - Backup import preview schema.
+ *
+ * Validates the file-versus-here plan used by the Settings and Review steps.
+ * The server remains authoritative about replacement and duplicate behavior.
+ *
+ * @since 2.1.0
+ */
+const backupImportPreviewSchema: Web_Api_Schema<Web_Backup_ImportPreview> = z.object({
+  appVersion: z.string(),
+  exportedAt: z.string(),
+  sections: z.array(z.object({
+    file: z.string(),
+    here: z.string(),
+    id: z.enum([
+      'connection',
+      'notifications',
+      'accessTokens',
+    ]),
+    label: z.string(),
+    reason: z.string().optional(),
+    willImport: z.boolean(),
+  }).strict()),
+  summary: backupImportSummarySchema,
+}).strict();
+
+/**
+ * API - Backup import result schema.
+ *
+ * Adds the committed section list to the preview summary.
+ * Progress presentation uses this response only after the transaction succeeds.
+ *
+ * @since 2.1.0
+ */
+const backupImportResultSchema: Web_Api_Schema<Web_Backup_ImportResult> = backupImportSummarySchema.extend({
+  importedSections: z.array(z.enum([
+    'connection',
+    'notifications',
+    'accessTokens',
+  ])),
+}).strict();
 
 /**
  * API.
@@ -1096,6 +1196,38 @@ export const testConnection = async (): Promise<Web_Api_ConnectionTest> => reque
 );
 
 /**
+ * API - Gets diagnostics.
+ *
+ * Reads whether Debug logging is on.
+ * The Connection page shows it on its switch.
+ *
+ * @since 2.1.0
+ */
+export const getDiagnostics = async (): Promise<Web_Api_Diagnostics> => requestJSON(
+  '/api/v1/diagnostics',
+  diagnosticsSchema,
+);
+
+/**
+ * API - Update diagnostics.
+ *
+ * Turns Debug logging on or off and answers with the saved setting.
+ * The change takes effect at once, without a restart.
+ *
+ * @since 2.1.0
+ */
+export const updateDiagnostics = async (
+  input: Web_Api_Diagnostics,
+): Promise<Web_Api_Diagnostics> => requestJSON(
+  '/api/v1/diagnostics',
+  diagnosticsSchema,
+  {
+    body: input,
+    method: 'PUT',
+  },
+);
+
+/**
  * API - Gets tokens.
  *
  * Centralizes this operation for the surrounding workflow.
@@ -1271,4 +1403,139 @@ export const testNotification = async (notificationId: string): Promise<Web_Noti
   `/api/v1/notifications/${encodeURIComponent(notificationId)}/test`,
   notificationTestSchema,
   { method: 'POST' },
+);
+
+/**
+ * API - Confirm backup operation.
+ *
+ * Exchanges fresh password and authenticator proof for one scoped, single-use grant.
+ * The caller submits it only to the selected export or import operation.
+ *
+ * @since 2.1.0
+ */
+export const confirmBackupOperation = async (purpose: Web_Backup_Purpose, password: string, code: string): Promise<string> => {
+  const result: Web_Backup_Grant = await requestJSON(
+    '/api/v1/backup/confirmation',
+    backupGrantSchema,
+    {
+      body: {
+        ...((code === '') ? {} : { code }),
+        password,
+        purpose,
+      },
+      method: 'POST',
+    },
+  );
+
+  return result['grant'];
+};
+
+/**
+ * API - Confirm backup operation with passkey.
+ *
+ * Runs a session- and purpose-bound WebAuthn ceremony for a one-use grant.
+ * This provides the passwordless alternative offered by the shared confirmation step.
+ *
+ * @since 2.1.0
+ */
+export const confirmBackupOperationWithPasskey = async (purpose: Web_Backup_Purpose): Promise<string> => {
+  const ceremony: Web_Api_PasskeyCeremony = await requestJSON(
+    '/api/v1/backup/confirmation/passkey/options',
+    passkeyCeremonySchema,
+    {
+      body: { purpose },
+      method: 'POST',
+    },
+  );
+  const credential: Record<string, unknown> = await getPasskey(ceremony['options']);
+  const result: Web_Backup_Grant = await requestJSON(
+    '/api/v1/backup/confirmation/passkey/verify',
+    backupGrantSchema,
+    {
+      body: {
+        ceremonyId: ceremony['ceremonyId'],
+        credential,
+        purpose,
+      },
+      method: 'POST',
+    },
+  );
+
+  return result['grant'];
+};
+
+/**
+ * API - Download backup export.
+ *
+ * Streams the secret-bearing response directly into a temporary browser download.
+ * No response document is retained in application state or browser storage.
+ *
+ * @since 2.1.0
+ */
+export const downloadBackupExport = async (sections: Web_Backup_ExportSections, grant: string): Promise<void> => {
+  const response: Response = await fetch('/api/v1/backup/export', {
+    ...buildRequest({
+      body: {
+        grant,
+        sections,
+      },
+      method: 'POST',
+    }),
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    throw await responseError(response);
+  }
+
+  const contentDisposition: string = response.headers.get('Content-Disposition') ?? '';
+  const filenameMatch: RegExpMatchArray | null = contentDisposition.match(/filename="([^"]+)"/u);
+  const filename: string = filenameMatch?.[1] ?? `pfsense-actions-export-${new Date().toISOString().slice(0, 10)}.json`;
+  const objectUrl: string = URL.createObjectURL(await response.blob());
+  const link: HTMLAnchorElement = document.createElement('a');
+
+  try {
+    link.href = objectUrl;
+    link.download = filename;
+    link.click();
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+};
+
+/**
+ * API - Preview backup import.
+ *
+ * Sends a strictly parsed document for a read-only comparison with current state.
+ * The response explains each section before the user confirms the import.
+ *
+ * @since 2.1.0
+ */
+export const previewBackupImport = async (document: Web_Backup_Document): Promise<Web_Backup_ImportPreview> => requestJSON(
+  '/api/v1/backup/imports/preview',
+  backupImportPreviewSchema,
+  {
+    body: { document },
+    method: 'POST',
+  },
+);
+
+/**
+ * API - Apply backup import.
+ *
+ * Submits the reviewed document with a freshly confirmed import grant.
+ * The server consumes the grant before applying the transactional change.
+ *
+ * @since 2.1.0
+ */
+export const applyBackupImport = async (document: Web_Backup_Document, grant: string): Promise<Web_Backup_ImportResult> => requestJSON(
+  '/api/v1/backup/imports',
+  backupImportResultSchema,
+  {
+    body: {
+      document,
+      grant,
+    },
+    method: 'POST',
+  },
 );

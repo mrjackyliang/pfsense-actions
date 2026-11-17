@@ -15,25 +15,27 @@ import type {
   Routes_Web_Runner_ConsoleHeaders_Response,
   Routes_Web_Runner_ConsoleHeaders_Returns,
   Routes_Web_Runner_Constructor_Root,
-  Routes_Web_Runner_RedirectBrowsers_Next,
-  Routes_Web_Runner_RedirectBrowsers_Preferred,
-  Routes_Web_Runner_RedirectBrowsers_Request,
-  Routes_Web_Runner_RedirectBrowsers_Response,
-  Routes_Web_Runner_RedirectBrowsers_Returns,
   Routes_Web_Runner_Register_App,
   Routes_Web_Runner_Register_Returns,
+  Routes_Web_Runner_RegisterFallback_App,
+  Routes_Web_Runner_RegisterFallback_Returns,
   Routes_Web_Runner_Root,
   Routes_Web_Runner_SendApplication_IndexPath,
   Routes_Web_Runner_SendApplication_Request,
   Routes_Web_Runner_SendApplication_Response,
   Routes_Web_Runner_SendApplication_Returns,
+  Routes_Web_Runner_SendBrowserApplication_Next,
+  Routes_Web_Runner_SendBrowserApplication_Preferred,
+  Routes_Web_Runner_SendBrowserApplication_Request,
+  Routes_Web_Runner_SendBrowserApplication_Response,
+  Routes_Web_Runner_SendBrowserApplication_Returns,
 } from '@/types/routes/web.d.ts';
 
 /**
  * Routes - Web.
  *
- * Serves the built console at /admin and sends browsers that open the root there.
- * Every console path returns the same page, and the interface picks the screen.
+ * Serves the built console for root-level page addresses while retaining the
+ * /admin static build. API requests continue through to their route modules.
  *
  * @since 2.0.0
  */
@@ -69,8 +71,8 @@ export class Runner {
   /**
    * Routes - Web - Register.
    *
-   * Installs the root redirect, the console's strict browser policy, its files, and the page.
-   * The redirect must be registered before the root connectivity alias.
+   * Installs the root browser entry, the console's strict browser policy, its
+   * files, and the legacy /admin page before the root connectivity alias.
    *
    * @param {Routes_Web_Runner_Register_App} app - App.
    *
@@ -79,7 +81,7 @@ export class Runner {
    * @since 2.0.0
    */
   public register(app: Routes_Web_Runner_Register_App): Routes_Web_Runner_Register_Returns {
-    app.get('/', this['redirectBrowsers'].bind(this));
+    app.get('/', this['sendBrowserApplication'].bind(this));
 
     app.use('/admin', this['consoleHeaders'].bind(this));
 
@@ -99,6 +101,24 @@ export class Runner {
       '/admin',
       '/admin/*',
     ], this['sendApplication'].bind(this));
+
+    return;
+  }
+
+  /**
+   * Routes - Web - Register Fallback.
+   *
+   * Installs the HTML fallback after API routes so refreshes and unknown page
+   * addresses reach React without changing API or static-file behavior.
+   *
+   * @param {Routes_Web_Runner_RegisterFallback_App} app - App.
+   *
+   * @returns {Routes_Web_Runner_RegisterFallback_Returns}
+   *
+   * @since 2.1.0
+   */
+  public registerFallback(app: Routes_Web_Runner_RegisterFallback_App): Routes_Web_Runner_RegisterFallback_Returns {
+    app.get('*', this['sendBrowserApplication'].bind(this));
 
     return;
   }
@@ -156,34 +176,44 @@ export class Runner {
   }
 
   /**
-   * Routes - Web - Redirect Browsers.
+   * Routes - Web - Send Browser Application.
    *
-   * Sends a browser that opens the root address to the console.
-   * Requests with a token, or that prefer JSON, continue to the connectivity alias.
+   * Sends the application only to HTML navigation requests outside the API.
+   * Token-authenticated and JSON requests continue to the normal route chain.
    *
-   * @param {Routes_Web_Runner_RedirectBrowsers_Request}  request  - Request.
-   * @param {Routes_Web_Runner_RedirectBrowsers_Response} response - Response.
-   * @param {Routes_Web_Runner_RedirectBrowsers_Next}     next     - Next.
+   * @param {Routes_Web_Runner_SendBrowserApplication_Request}  request  - Request.
+   * @param {Routes_Web_Runner_SendBrowserApplication_Response} response - Response.
+   * @param {Routes_Web_Runner_SendBrowserApplication_Next}     next     - Next.
    *
    * @private
    *
-   * @returns {Routes_Web_Runner_RedirectBrowsers_Returns}
+   * @returns {Routes_Web_Runner_SendBrowserApplication_Returns}
    *
-   * @since 2.0.0
+   * @since 2.1.0
    */
-  private redirectBrowsers(request: Routes_Web_Runner_RedirectBrowsers_Request, response: Routes_Web_Runner_RedirectBrowsers_Response, next: Routes_Web_Runner_RedirectBrowsers_Next): Routes_Web_Runner_RedirectBrowsers_Returns {
-    const preferred: Routes_Web_Runner_RedirectBrowsers_Preferred = request.accepts([
+  private sendBrowserApplication(request: Routes_Web_Runner_SendBrowserApplication_Request, response: Routes_Web_Runner_SendBrowserApplication_Response, next: Routes_Web_Runner_SendBrowserApplication_Next): Routes_Web_Runner_SendBrowserApplication_Returns {
+    const preferred: Routes_Web_Runner_SendBrowserApplication_Preferred = request.accepts([
       'json',
       'html',
     ]);
 
-    if (request.get('Authorization') === undefined && preferred === 'html') {
-      response.redirect(302, '/admin/');
+    if (
+      request.path.startsWith('/api/') === true
+      || request.get('Authorization') !== undefined
+      || preferred !== 'html'
+    ) {
+      next();
 
       return;
     }
 
-    next();
+    response.set({
+      'Content-Security-Policy': 'default-src \'self\'; base-uri \'none\'; connect-src \'self\'; font-src \'self\'; form-action \'self\'; frame-ancestors \'none\'; img-src \'self\' data:; object-src \'none\'; script-src \'self\'; style-src \'self\'',
+      'Permissions-Policy': 'camera=(), geolocation=(), microphone=()',
+      'X-Frame-Options': 'DENY',
+    });
+
+    this.sendApplication(request, response);
 
     return;
   }

@@ -6,13 +6,17 @@ import rateLimit from 'express-rate-limit';
 import { Runner as Access } from './lib/access.js';
 import { Runner as Attempts } from './lib/attempts.js';
 import {
+  getClientLimitKey,
   isTrustedProxyAddress,
   sendError,
 } from './lib/http.js';
 import {
+  isDebugLogging,
+  logDebug,
   logError,
   logInfo,
   logWarn,
+  setDebugLogging,
 } from './lib/logger.js';
 import { Runner as Notifier } from './lib/notifier.js';
 import { Runner as State } from './lib/state.js';
@@ -23,6 +27,7 @@ import {
 } from './lib/utility.js';
 import { Runner as Actions } from './routes/actions.js';
 import { Runner as Auth } from './routes/auth.js';
+import { Runner as Backup } from './routes/backup.js';
 import { Runner as Console } from './routes/console.js';
 import { Runner as Notifications } from './routes/notifications.js';
 import { Runner as Security } from './routes/security.js';
@@ -51,12 +56,21 @@ import type {
   Server_Runner_HandleNotFound_Request,
   Server_Runner_HandleNotFound_Response,
   Server_Runner_HandleNotFound_Returns,
+  Server_Runner_ListenPort,
+  Server_Runner_LogRequestTiming_Elapsed,
+  Server_Runner_LogRequestTiming_Next,
+  Server_Runner_LogRequestTiming_Path,
+  Server_Runner_LogRequestTiming_Request,
+  Server_Runner_LogRequestTiming_Response,
+  Server_Runner_LogRequestTiming_Returns,
+  Server_Runner_LogRequestTiming_StartedAt,
   Server_Runner_Notifier,
   Server_Runner_RegisterRoutes_Access,
   Server_Runner_RegisterRoutes_Attempts,
   Server_Runner_RegisterRoutes_Returns,
   Server_Runner_Run_Instance,
   Server_Runner_Run_Returns,
+  Server_Runner_SlowRequestMilliseconds,
   Server_Runner_Start_KeyPath,
   Server_Runner_Start_RemovedSecrets,
   Server_Runner_Start_Returns,
@@ -89,7 +103,7 @@ export class Runner {
   /**
    * Server - Environment.
    *
-   * Retains the validated process configuration, including the listening port.
+   * Retains the validated process configuration, such as the data directory.
    * Bootstrap secrets in it are only read once by the state store.
    *
    * @private
@@ -97,6 +111,18 @@ export class Runner {
    * @since 2.0.0
    */
   readonly #environment: Server_Runner_Environment;
+
+  /**
+   * Server - Listen Port.
+   *
+   * The fixed port the console and API listen on inside the container.
+   * A different host port is chosen with the port mapping, not an environment variable.
+   *
+   * @private
+   *
+   * @since 2.1.0
+   */
+  static readonly #listenPort: Server_Runner_ListenPort = 22603;
 
   /**
    * Server - Notifier.
@@ -109,6 +135,18 @@ export class Runner {
    * @since 2.0.0
    */
   readonly #notifier: Server_Runner_Notifier;
+
+  /**
+   * Server - Slow Request Milliseconds.
+   *
+   * How long a request has to take before Debug logging notes it as slow.
+   * Quick requests stay out of the log so the slow ones stand out.
+   *
+   * @private
+   *
+   * @since 2.1.0
+   */
+  static readonly #slowRequestMilliseconds: Server_Runner_SlowRequestMilliseconds = 1000;
 
   /**
    * Server - State.
@@ -220,9 +258,15 @@ export class Runner {
     const removedSecrets: Server_Runner_Start_RemovedSecrets = this.#state.getKeyReplacement();
     const keyPath: Server_Runner_Start_KeyPath = join(this.#environment['dataDirectory'], 'keys', 'installation.key');
 
-    this.#app.listen(this.#environment['port'], () => {
+    setDebugLogging(this.#state.getDebugLogging());
+
+    this.#app.listen(Runner.#listenPort, () => {
       logInfo(`Running pfSense Actions ${getPackageVersion()}`);
-      logInfo(`Listening on port ${this.#environment['port']}`);
+      logInfo(`Listening on port ${Runner.#listenPort}`);
+
+      if (isDebugLogging() === true) {
+        logInfo('debug logging is on');
+      }
 
       if (setupClaim !== undefined) {
         logWarn('No administrator account exists yet. Open the console at /admin/ to create it.');
@@ -266,6 +310,7 @@ export class Runner {
 
         return;
       },
+      keyGenerator: (request) => getClientLimitKey(request),
       legacyHeaders: false,
       limit: 120,
       standardHeaders: true,
@@ -277,6 +322,12 @@ export class Runner {
     this.#app.set('trust proxy', isTrustedProxyAddress);
 
     this.#app.use(this['baseHeaders'].bind(this));
+
+    this.#app.use(this['logRequestTiming'].bind(this));
+
+    this.#app.use('/api/v1/backup', express.json({
+      limit: '10mb',
+    }));
 
     this.#app.use(express.json({
       limit: '64kb',
@@ -386,10 +437,59 @@ export class Runner {
   }
 
   /**
+   * Server - Log Request Timing.
+   *
+   * While Debug logging is on, notes requests that take a second or more and requests
+   * the browser cancels before the answer is sent. The query string is left out.
+   *
+   * @param {Server_Runner_LogRequestTiming_Request}  request  - Request.
+   * @param {Server_Runner_LogRequestTiming_Response} response - Response.
+   * @param {Server_Runner_LogRequestTiming_Next}     next     - Next.
+   *
+   * @private
+   *
+   * @returns {Server_Runner_LogRequestTiming_Returns}
+   *
+   * @since 2.1.0
+   */
+  private logRequestTiming(request: Server_Runner_LogRequestTiming_Request, response: Server_Runner_LogRequestTiming_Response, next: Server_Runner_LogRequestTiming_Next): Server_Runner_LogRequestTiming_Returns {
+    if (isDebugLogging() === false) {
+      next();
+
+      return;
+    }
+
+    const startedAt: Server_Runner_LogRequestTiming_StartedAt = Date.now();
+    const path: Server_Runner_LogRequestTiming_Path = request.originalUrl.split('?')[0] ?? '/';
+
+    response.on('finish', () => {
+      const elapsed: Server_Runner_LogRequestTiming_Elapsed = Date.now() - startedAt;
+
+      if (elapsed >= Runner.#slowRequestMilliseconds) {
+        logDebug(`Slow request: ${request.method} ${path} answered ${String(response.statusCode)} after ${String(elapsed)} ms`);
+      }
+
+      return;
+    });
+
+    response.on('close', () => {
+      if (response.writableFinished === false) {
+        logDebug(`The browser canceled ${request.method} ${path} after ${String(Date.now() - startedAt)} ms`);
+      }
+
+      return;
+    });
+
+    next();
+
+    return;
+  }
+
+  /**
    * Server - Register Routes.
    *
    * Registers the console, the actions, and the API areas after shared middleware.
-   * The web module goes first so the root redirect runs before the connectivity alias.
+   * The web entry goes first, while its deep-link fallback follows every API.
    *
    * @private
    *
@@ -407,6 +507,8 @@ export class Runner {
 
     new Auth(this.#state, access, attempts).register(this.#app);
 
+    new Backup(this.#state, access, attempts).register(this.#app);
+
     new Security(this.#state, access, attempts).register(this.#app);
 
     new Tokens(this.#state, access).register(this.#app);
@@ -414,6 +516,8 @@ export class Runner {
     new Console(this.#state, access).register(this.#app);
 
     new Notifications(this.#state, access, this.#notifier).register(this.#app);
+
+    new Web(this.#webRoot).registerFallback(this.#app);
 
     this.#app.use(this['handleNotFound'].bind(this));
 

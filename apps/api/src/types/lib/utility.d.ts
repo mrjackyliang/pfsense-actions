@@ -54,8 +54,6 @@ export type Lib_Utility_GetEnvironmentVariables_PfsenseSshPort = string | undefi
 
 export type Lib_Utility_GetEnvironmentVariables_PfsenseUsername = string | undefined;
 
-export type Lib_Utility_GetEnvironmentVariables_Port = string | undefined;
-
 /**
  * Lib - Utility - Get Package Version.
  *

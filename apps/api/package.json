@@ -1,6 +1,6 @@
 {
   "name": "pfsense-actions-app-api",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "license": "MIT",
   "type": "module",
   "private": true,
@@ -39,7 +39,7 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
-    "@cbnventures/nova": "0.38.0",
+    "@cbnventures/nova": "0.44.0",
     "@types/express": "5.0.0",
     "@types/node": "24.9.1",
     "@types/nodemailer": "8.0.2",

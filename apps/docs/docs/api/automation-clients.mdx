@@ -21,13 +21,13 @@ tags:
 
 import { Terminology } from '@cbnventures/docusaurus-preset-nova/blocks';
 
-Connect scripts and shortcuts to pfSense Actions while keeping each <Terminology title="a scoped credential issued to one API client" to="/docs/reference/terminology#personal-access-token">personal access token</Terminology> in the client's own secret store.
+Connect scripts and shortcuts to pfSense Actions while keeping each <Terminology title="The pfa_ key a script sends to call the API" to="/docs/reference/terminology#access-tokens">personal access token</Terminology> in the client's own secret store.
 
 ## Why Use Personal Access Tokens for Scripts?
 
 1. Works with curl, shell scripts, and shortcuts that can't complete an interactive sign-in.
-2. Gives each script only the <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scopes</Terminology> it needs, so a lost token can't reach other <Terminology title="one allowlisted pfSense operation behind an API route" to="/docs/reference/terminology#action">actions</Terminology>.
-3. Lets you revoke one script's access in the <Terminology title="the protected browser admin interface at /admin" to="/docs/reference/terminology#operations-console">operations console</Terminology> without touching the others.
+2. Gives each script only the <Terminology title="What a token may do; each action needs exactly one" to="/docs/reference/terminology#access-tokens">scopes</Terminology> it needs, so a lost token can't reach other <Terminology title="One fixed pfSense task you can call, like ping or wake" to="/docs/reference/terminology#core-concepts">actions</Terminology>.
+3. Lets you revoke one script's access in the <Terminology title="The /admin web page for tokens and settings" to="/docs/reference/terminology#core-concepts">operations console</Terminology> without touching the others.
 
 ## Store the Token on macOS
 
@@ -83,9 +83,9 @@ The script exits with an error for any HTTP error, so AppleScript shows the aler
 
 ## Download the Mac Wake-on-LAN Script
 
-[Wake on LAN via pfSense Actions](https://github.com/mrjackyliang/mrjackyliang/blob/main/applescript/pfsense-actions-wol/script.applescript) is a ready-made AppleScript that wakes a computer, waits until it answers pings, and then opens Moonlight, Parsec, or Windows App so you can connect to it. It keeps a list of computers and stores each computer's <Terminology title="a scoped credential issued to one API client" to="/docs/reference/terminology#personal-access-token">personal access token</Terminology> in the macOS Keychain.
+[Wake on LAN via pfSense Actions](https://github.com/mrjackyliang/mrjackyliang/blob/main/applescript/pfsense-actions-wol/script.applescript) is a ready-made AppleScript that wakes a computer, waits until it answers pings, and then opens Moonlight, Parsec, or Windows App so you can connect to it. It keeps a list of computers and stores each computer's <Terminology title="The pfa_ key a script sends to call the API" to="/docs/reference/terminology#access-tokens">personal access token</Terminology> in the macOS Keychain.
 
-- **Needs** — pfSense Actions at an HTTPS address, such as behind the [HTTPS reverse proxy](/docs/getting-started/https-reverse-proxy/), and a token with the `wol:execute` and `reachability:read` <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scopes</Terminology>.
+- **Needs** — pfSense Actions at an HTTPS address, such as behind the [HTTPS reverse proxy](/docs/getting-started/https-reverse-proxy/), and a token with the `wol:execute` and `reachability:read` <Terminology title="What a token may do; each action needs exactly one" to="/docs/reference/terminology#access-tokens">scopes</Terminology>.
 - **Asks for** — A name for the computer, the HTTPS address, the token, the broadcast address, the computer's IP address and MAC address, and how many seconds to wait for it to boot.
 - **Keeps** — The computers in `~/.config/pfsense-actions-wol/config.plist`, and each token in the Keychain under **Wake on LAN via pfSense Actions**.
 - **Waits politely** — It checks the computer with repeated reachability checks of up to 10 attempts each, and pauses whenever it reaches the rate limit of 3 requests per 10 seconds.
@@ -106,15 +106,15 @@ The script exits with an error for any HTTP error, so AppleScript shows the aler
 
 ## Handle Status Codes
 
-| Status       | What it means for the script                                                                                                                                                                            |
-|--------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `200`        | pfSense carried out the request.                                                                                                                                                                        |
-| `401`        | The token was revoked, has expired, or was stored incorrectly, so the script needs a valid one.                                                                                                         |
-| `403`        | The token lacks the route's <Terminology title="a named capability granted to a token" to="/docs/reference/terminology#scope">scope</Terminology>.                                                      |
-| `429`        | The script sent too many requests in 10 seconds, so it's worth waiting before trying again.                                                                                                             |
-| `502`        | The sign-in to pfSense or the command failed.                                                                                                                                                           |
-| `503`        | No pfSense connection is saved yet, its credential was removed, or, for the ping route, no attempt met the condition.                                                                                   |
-| `400`, `500` | The body was invalid, or the <Terminology title="the pfSense Actions service between clients and pfSense" to="/docs/reference/terminology#controller">controller</Terminology> hit an unexpected error. |
+| Status       | What it means for the script                                                                                                                                                                               |
+|--------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `200`        | pfSense carried out the request.                                                                                                                                                                           |
+| `401`        | The token was revoked, has expired, or was stored incorrectly, so the script needs a valid one.                                                                                                            |
+| `403`        | The token lacks the route's <Terminology title="What a token may do; each action needs exactly one" to="/docs/reference/terminology#access-tokens">scope</Terminology>.                                    |
+| `429`        | The script hit the action limit of 3 requests in 10 seconds or the `/api/v1` limit of 120 a minute, so it is worth waiting for `Retry-After` before trying again.                                          |
+| `502`        | The sign-in to pfSense or the command failed.                                                                                                                                                              |
+| `503`        | No pfSense connection is saved yet, its credential was removed, or, for the ping route, no attempt met the condition.                                                                                      |
+| `400`, `500` | The body was invalid, or the <Terminology title="pfSense Actions itself, the go-between for your clients" to="/docs/reference/terminology#core-concepts">controller</Terminology> hit an unexpected error. |
 
 Every error response carries a JSON body with `error.code` and `error.message`, so a script can show the message or branch on the code, as listed in [Status Codes and Limits](/docs/api/status-codes/).
 

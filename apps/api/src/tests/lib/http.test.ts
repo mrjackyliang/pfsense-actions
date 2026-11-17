@@ -9,6 +9,7 @@ import z from 'zod';
 import {
   buildCookie,
   getClientAddress,
+  getClientLimitKey,
   getRequestHost,
   getRequestHostname,
   getRequestOrigin,
@@ -83,6 +84,50 @@ describe('trusted proxies', () => {
     undefined,
   ])('ignores forwarded headers from %s', (address) => {
     expect(isTrustedProxyAddress(address)).toBe(false);
+
+    return;
+  });
+
+  it.each([
+    [
+      '192.168.1.50',
+      '192.168.1.50',
+    ],
+    [
+      '::ffff:192.168.1.50',
+      '192.168.1.50',
+    ],
+    [
+      '2001:db8:1234:5678:9abc::1',
+      '2001:db8:1234:5600::/56',
+    ],
+    [
+      '2001:db8:1234:56ff:ffff:ffff:ffff:ffff',
+      '2001:db8:1234:5600::/56',
+    ],
+    [
+      '2001:db8:1234:5700::1',
+      '2001:db8:1234:5700::/56',
+    ],
+    [
+      '::1',
+      '::/56',
+    ],
+    [
+      '64:ff9b::192.0.2.1',
+      '64:ff9b::/56',
+    ],
+    [
+      'fe80::1%en0',
+      'fe80::/56',
+    ],
+  ])('counts the visitor %s as %s for rate and sign-in limits', (ip, limitKey) => {
+    expect(getClientLimitKey(createRequest({
+      headers: {},
+      ip,
+      protocol: 'http',
+      remoteAddress: ip,
+    }))).toBe(limitKey);
 
     return;
   });

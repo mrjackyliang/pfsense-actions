@@ -6,8 +6,7 @@
       "critical": false,
       "dependencies": [],
       "environment": {
-        "DATA_DIRECTORY": "/data",
-        "PORT": "22603"
+        "DATA_DIRECTORY": "/data"
       },
       "healthCommand": "node -e \"const net = require('node:net'); const socket = net.connect(22603, '127.0.0.1'); socket.on('connect', () => { socket.end(); process.exit(0); }); socket.on('error', () => process.exit(1));\"",
       "kind": "longrun",

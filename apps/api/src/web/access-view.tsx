@@ -61,9 +61,7 @@ const endpoints: Web_Components_Endpoint[] = [
  * @since 2.0.0
  */
 export const AccessView = ({
-  createdToken,
   onCreateToken,
-  onDismissCreatedToken,
   onRevokeToken,
   onUpdateToken,
   tokens,
@@ -165,31 +163,6 @@ export const AccessView = ({
         </Button>
       </div>
 
-      {(createdToken === null) ? null : (
-        <div className="token-reveal" aria-live="polite">
-          <div className="token-reveal-head">
-            <strong>{`Token for ${createdToken['token']['name']}`}</strong>
-            <span>{'Copy it now. It won\'t be shown again.'}</span>
-          </div>
-          <div className="copy-row">
-            <code>{createdToken['plaintext']}</code>
-            <button
-              className="icon-button"
-              onClick={(): void => {
-                void copyValue('token', createdToken['plaintext']);
-              }}
-              title="Copy token"
-              type="button"
-            >
-              <Icon name={(copied === 'token') ? 'check' : 'copy'} size={16} />
-            </button>
-          </div>
-          <div className="panel-actions">
-            <Button onClick={onDismissCreatedToken}>Done</Button>
-          </div>
-        </div>
-      )}
-
       <div className="panel">
         <section className="form-section">
           <div className="form-section-head">
@@ -227,6 +200,7 @@ export const AccessView = ({
                       Edit
                     </Button>
                     <Button
+                      icon="remove"
                       onClick={(): void => {
                         setRevokeError('');
                         setRevoking(token);

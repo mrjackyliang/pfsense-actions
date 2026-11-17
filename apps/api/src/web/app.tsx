@@ -20,10 +20,20 @@ import {
   testConnection,
   updateToken,
 } from '@/web/api.ts';
+import {
+  appRouteForView,
+  resolveAppNavigationPath,
+} from '@/web/app-navigation.ts';
 import { AppShell } from '@/web/app-shell.tsx';
 import { AuthenticationScreen } from '@/web/auth-screen.tsx';
 import { ConnectionView } from '@/web/connection-view.tsx';
 import { KeyNotice } from '@/web/key-notice.tsx';
+import {
+  applyNavigationPath,
+  pushNavigationPath,
+  replaceNavigationPath,
+  startNavigationHistory,
+} from '@/web/navigation.ts';
 import { NotificationsView } from '@/web/notifications-view.tsx';
 import { OverviewView } from '@/web/overview-view.tsx';
 import { BrandMark } from '@/web/primitives.tsx';
@@ -43,11 +53,17 @@ import type {
   Web_Api_UpdateTokenInput,
 } from '@/types/web/api.d.ts';
 import type {
+  Web_AppNavigation_PathMatch,
+  Web_AppNavigation_Route,
+} from '@/types/web/app-navigation.d.ts';
+import type {
   Web_App_Phase,
   Web_App_RemovedSecretAction,
 } from '@/types/web/app.d.ts';
 import type {
+  Web_Components_ConnectionStatus,
   Web_Components_ConnectionTestResult,
+  Web_Components_ShellStatus,
   Web_Components_View,
 } from '@/types/web/components.d.ts';
 
@@ -83,6 +99,72 @@ const describeRemovedSecret = (removedSecret: Web_Api_RemovedSecret): Web_App_Re
 };
 
 /**
+ * App - Describe connection.
+ *
+ * Reduces the saved connection and its latest test to the generic status data
+ * consumed by the shared shell's desktop card and phone pill.
+ *
+ * @param {Web_Api_Connection | null}           connection     - Connection.
+ * @param {Web_Components_ConnectionTestResult} connectionTest - Connection test.
+ *
+ * @returns {Web_Components_ConnectionStatus}
+ *
+ * @since 2.0.0
+ */
+const describeConnection = (
+  connection: Web_Api_Connection | null,
+  connectionTest: Web_Components_ConnectionTestResult,
+): Web_Components_ConnectionStatus => {
+  if (connection === null) {
+    return {
+      detail: 'Loading…',
+      label: 'pfSense',
+      tone: 'idle',
+    };
+  }
+
+  if (!connection['configured']) {
+    return {
+      detail: 'Set up the SSH connection',
+      label: 'Not connected',
+      tone: 'blocked',
+    };
+  }
+
+  if (connection['credentialSaved'] === false) {
+    return {
+      detail: (connection['credentialType'] === 'privateKey') ? 'Enter the private key again' : 'Enter the password again',
+      label: 'Not connected',
+      tone: 'blocked',
+    };
+  }
+
+  const target: string = `${connection['pfsenseUsername'] ?? ''}@${connection['pfsenseSshIp'] ?? ''}`;
+
+  if (connectionTest === true) {
+    return {
+      detail: target,
+      label: 'Connected',
+      tone: 'protected',
+    };
+  }
+
+  if (connectionTest === false) {
+    return {
+      detail: 'The last test failed',
+      label: 'Can\'t reach pfSense',
+      tone: 'blocked',
+    };
+  }
+
+  return {
+    detail: target,
+    label: 'pfSense',
+    tone: 'idle',
+  };
+};
+
+/**
  * App.
  *
  * Centralizes this operation for the surrounding workflow.
@@ -91,6 +173,7 @@ const describeRemovedSecret = (removedSecret: Web_Api_RemovedSecret): Web_App_Re
  * @since 2.0.0
  */
 export const App = (): ReactElement => {
+  const initialNavigation: Web_AppNavigation_PathMatch = resolveAppNavigationPath(window.location.pathname);
   const [
     phase,
     setPhase,
@@ -100,9 +183,10 @@ export const App = (): ReactElement => {
     setUsername,
   ] = useState<string>('');
   const [
-    activeView,
-    setActiveView,
-  ] = useState<Web_Components_View>('overview');
+    activeRoute,
+    setActiveRoute,
+  ] = useState<Web_AppNavigation_Route>(initialNavigation['route']);
+  const activeView: Web_Components_View = activeRoute['view'];
   const [
     overview,
     setOverview,
@@ -123,10 +207,6 @@ export const App = (): ReactElement => {
     tokens,
     setTokens,
   ] = useState<Web_Api_Token[]>([]);
-  const [
-    createdToken,
-    setCreatedToken,
-  ] = useState<Web_Api_CreatedToken | null>(null);
   const [
     removedSecrets,
     setRemovedSecrets,
@@ -155,10 +235,8 @@ export const App = (): ReactElement => {
     setConnection(null);
     setConnectionTest(null);
     setTokens([]);
-    setCreatedToken(null);
     setRemovedSecrets([]);
     setConnectionDirty(false);
-    setActiveView('overview');
     setPhase('login');
   };
 
@@ -266,6 +344,79 @@ export const App = (): ReactElement => {
   });
 
   /**
+   * App - Applies route.
+   *
+   * Keeps the rendered page synchronized with a resolved browser address.
+   * Browser Back and Forward reuse this transition without pushing history.
+   *
+   * @param {Web_AppNavigation_Route} route - Route.
+   *
+   * @since 2.1.0
+   */
+  const applyAppRoute = (route: Web_AppNavigation_Route): void => {
+    setConnectionDirty(false);
+    setActiveRoute(route);
+    window.scrollTo(0, 0);
+
+    return;
+  };
+
+  /**
+   * App - Opens route.
+   *
+   * Preserves the connection editor's unsaved-change guard, pushes browser
+   * history, and then applies the selected page and its refresh behavior.
+   *
+   * @param {Web_AppNavigation_Route} route - Route.
+   *
+   * @since 2.1.0
+   */
+  const openRoute = (route: Web_AppNavigation_Route): void => {
+    if (route['view'] === activeView) {
+      return;
+    }
+
+    if (connectionDirty && !window.confirm('Discard your unsaved changes?')) {
+      return;
+    }
+
+    pushNavigationPath(window, route['path']);
+    applyAppRoute(route);
+
+    if (route['view'] === 'activity') {
+      void loadActivity();
+    } else if (route['view'] === 'connection') {
+      void loadConnection();
+    } else if (route['view'] === 'overview') {
+      void loadOverview();
+    }
+
+    return;
+  };
+
+  /**
+   * App - Opens view.
+   *
+   * Resolves shell destinations through the app-owned path table before the
+   * shared History API transition runs.
+   *
+   * @param {Web_Components_View} view - View.
+   *
+   * @since 2.1.0
+   */
+  const openView = (view: Web_Components_View): void => {
+    openRoute(appRouteForView(view));
+
+    return;
+  };
+
+  useEffect((): (() => void) => startNavigationHistory(
+    window,
+    resolveAppNavigationPath,
+    applyAppRoute,
+  ), []);
+
+  /**
    * App - Enter application.
    *
    * Centralizes this operation for the surrounding workflow.
@@ -283,6 +434,7 @@ export const App = (): ReactElement => {
 
     setUsername(principal['username'] ?? 'Administrator');
     setRemovedSecrets(principal['removedSecrets'] ?? []);
+    applyNavigationPath(window, resolveAppNavigationPath, applyAppRoute);
     setPhase('application');
 
     await Promise.all([
@@ -350,6 +502,10 @@ export const App = (): ReactElement => {
     try {
       await logout();
     } finally {
+      const rootNavigation: Web_AppNavigation_PathMatch = resolveAppNavigationPath('/');
+
+      replaceNavigationPath(window, rootNavigation['path']);
+      applyAppRoute(rootNavigation['route']);
       resetSession();
     }
   };
@@ -385,14 +541,13 @@ export const App = (): ReactElement => {
       case 'access': {
         return (
           <AccessView
-            createdToken={createdToken}
-            onCreateToken={async (input: Web_Api_CreateTokenInput): Promise<void> => {
+            onCreateToken={async (input: Web_Api_CreateTokenInput): Promise<Web_Api_CreatedToken> => {
               const nextToken: Web_Api_CreatedToken = await createToken(input);
 
-              setCreatedToken(nextToken);
               await loadTokens();
+
+              return nextToken;
             }}
-            onDismissCreatedToken={(): void => setCreatedToken(null)}
             onRevokeToken={async (tokenId: string): Promise<void> => {
               await revokeToken(tokenId);
               await loadTokens();
@@ -410,6 +565,14 @@ export const App = (): ReactElement => {
           <ConnectionView
             connection={connection}
             connectionTest={connectionTest}
+            onBackupImported={async (): Promise<void> => {
+              setConnectionTest(null);
+              await Promise.all([
+                loadOverview(),
+                loadTokens(),
+                loadRemovedSecrets(),
+              ]);
+            }}
             onDirtyChange={setConnectionDirty}
             onSave={(savedConnection: Web_Api_Connection): void => {
               setConnectionDirty(false);
@@ -458,36 +621,6 @@ export const App = (): ReactElement => {
     }
   };
 
-  /**
-   * App - Opens view.
-   *
-   * Centralizes this operation for the surrounding workflow.
-   * Callers reuse one implementation instead of repeating the behavior.
-   *
-   * @since 2.0.0
-   */
-  const openView = (view: Web_Components_View): void => {
-    if (view === activeView) {
-      return;
-    }
-
-    if (connectionDirty && !window.confirm('Discard your unsaved changes?')) {
-      return;
-    }
-
-    setConnectionDirty(false);
-    setActiveView(view);
-    window.scrollTo(0, 0);
-
-    if (view === 'activity') {
-      void loadActivity();
-    } else if (view === 'connection') {
-      void loadConnection();
-    } else if (view === 'overview') {
-      void loadOverview();
-    }
-  };
-
   const notice: ReactElement | null = (removedSecrets.length === 0) ? null : (
     <KeyNotice
       appName="pfSense Actions"
@@ -504,17 +637,21 @@ export const App = (): ReactElement => {
       removedAt={removedSecrets.at(-1)?.['removedAt'] ?? ''}
     />
   );
+  const connectionStatus: Web_Components_ConnectionStatus = describeConnection(connection, connectionTest);
+  const shellStatus: Web_Components_ShellStatus = {
+    ...connectionStatus,
+    onOpen: (): void => openView('connection'),
+  };
 
   return (
     <AppShell
       activeView={activeView}
-      connection={connection}
-      connectionTest={connectionTest}
       notice={notice}
       onLogout={(): void => {
         void signOut();
       }}
       onViewChange={openView}
+      status={shellStatus}
       username={username}
     >
       {renderView()}

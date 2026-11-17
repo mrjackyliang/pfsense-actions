@@ -1,14 +1,20 @@
 import {
   BlogPreview,
+  BrowserFrame,
   Canvas,
   Features,
+  Showcase,
   Spotlight,
-  Stats,
 } from '@cbnventures/docusaurus-preset-nova/blocks';
 import Head from '@docusaurus/Head';
 import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
+import ThemedImage from '@theme/ThemedImage';
 
+import activityLogOneDark from '../../docs/console/_assets_/activity-log-1-dark.png';
+import activityLogOneLight from '../../docs/console/_assets_/activity-log-1-light.png';
+import notificationsOneDark from '../../docs/console/_assets_/notifications-1-dark.png';
+import notificationsOneLight from '../../docs/console/_assets_/notifications-1-light.png';
 import styles from './index.module.css';
 
 import type {
@@ -65,14 +71,11 @@ function Home(): Pages_Index_Home_Returns {
                   Wake a computer, check an address, or read basic system information without sharing your pfSense login with every script and shortcut.
                 </p>
                 <div className="nova-hero-actions">
-                  <Link className="nova-cta-primary" to="/docs/overview/">
+                  <Link className="nova-cta-primary" to="/docs/getting-started/install-with-docker/">
                     Get Started
                   </Link>
-                  <Link
-                    className="nova-cta-secondary"
-                    to="https://github.com/mrjackyliang/pfsense-actions"
-                  >
-                    View on GitHub
+                  <Link className="nova-cta-secondary" to="/docs/overview/">
+                    Learn More
                   </Link>
                 </div>
               </div>
@@ -133,53 +136,64 @@ function Home(): Pages_Index_Home_Returns {
           ]}
         />
 
-        <Stats
-          heading="API at a Glance"
-          items={[
-            {
-              value: '4',
-              label: 'Action routes',
-              color: 'primary',
-            },
-            {
-              value: '3',
-              label: 'Token scopes',
-              color: 'accent',
-            },
-            {
-              value: '1',
-              label: 'Target firewall',
-              color: 'primary',
-            },
-            {
-              value: '0',
-              label: 'Arbitrary commands',
-              color: 'accent',
-            },
-          ]}
-        />
-
-        <Spotlight surface="alt" heading="A small API on purpose.">
-          <div className={styles['spotlight-content']}>
-            <p className="nova-section-description">
-              pfSense Actions exposes the few operations that are useful in unattended workflows. Broader administration stays in pfSense, where it belongs.
-            </p>
-            <div className={styles['spotlight-actions']}>
-              <Link className="nova-cta-primary" to="/docs/api/request-basics/">
-                Review the API
-              </Link>
-              <Link className="nova-cta-secondary" to="/docs/operations/security-model/">
-                Read the Security Model
-              </Link>
-            </div>
-          </div>
+        <Spotlight surface="alt" heading="Inside the Operations Console" className={styles['shot-spotlight']}>
+          <Showcase
+            tabsLabel="Operations console pages"
+            items={[
+              {
+                label: 'Activity',
+                heading: 'Every action on the record',
+                description: 'The activity log shows which token ran each action, who signed in, and what changed. Request bodies, targets, and SSH output are never recorded.',
+                link: {
+                  label: 'Review the Activity Log',
+                  to: '/docs/console/activity-log/',
+                },
+                content: (
+                  <BrowserFrame title="pfSense Actions" url="localhost:22603" favicon="/favicon.svg">
+                    <ThemedImage
+                      sources={{
+                        light: activityLogOneLight,
+                        dark: activityLogOneDark,
+                      }}
+                      alt="Activity page listing recent access, token, configuration, and service events with their time"
+                      width={1280}
+                      height={706}
+                    />
+                  </BrowserFrame>
+                ),
+              },
+              {
+                label: 'Notifications',
+                heading: 'Hear about it when pfSense stops answering',
+                description: 'Send alerts to ntfy, Telegram, email, and other services when pfSense stops answering, sign-in is locked, or an action fails. Test each destination before you rely on it.',
+                link: {
+                  label: 'Set Up Notifications',
+                  to: '/docs/console/notifications/',
+                },
+                content: (
+                  <BrowserFrame title="pfSense Actions" url="localhost:22603" favicon="/favicon.svg">
+                    <ThemedImage
+                      sources={{
+                        light: notificationsOneLight,
+                        dark: notificationsOneDark,
+                      }}
+                      alt="Notifications page listing four destinations with their services, event counts, and last sends"
+                      width={1280}
+                      height={479}
+                    />
+                  </BrowserFrame>
+                ),
+              },
+            ]}
+          />
         </Spotlight>
 
         <BlogPreview
           heading="From the Blog"
-          description="Release notes, upgrade guides, and notes on automating pfSense safely."
+          description="Launches, milestones, and what's new in pfSense Actions."
           auto={true}
           limit={3}
+          sort="newest"
         />
       </main>
     </Layout>

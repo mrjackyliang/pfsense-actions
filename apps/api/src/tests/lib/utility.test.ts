@@ -44,7 +44,6 @@ describe('environment', () => {
       'PFSENSE_SSH_IP',
       'PFSENSE_SSH_PORT',
       'PFSENSE_USERNAME',
-      'PORT',
     ]) {
       vi.stubEnv(name, '');
     }
@@ -69,7 +68,6 @@ describe('environment', () => {
     expect(getEnvironmentVariables()).toEqual({
       adminWebauthnRpName: 'pfSense Actions',
       dataDirectory: join(directory, 'data'),
-      port: 22603,
     });
 
     return;
@@ -82,7 +80,6 @@ describe('environment', () => {
       pfsensePrivateKey: 'fixture-private-key',
       pfsenseSshIp: '192.0.2.1',
       pfsenseUsername: 'fixture-user',
-      port: 22603,
     };
 
     expect(getDeprecationWarnings(environment, {
@@ -96,7 +93,6 @@ describe('environment', () => {
     expect(getDeprecationWarnings({
       adminWebauthnRpName: 'pfSense Actions',
       dataDirectory: join(directory, 'data'),
-      port: 22603,
     }, {
       connection: false,
     })).toEqual([]);

@@ -12,6 +12,7 @@ import {
   startTotpSetup,
   summaryFor,
 } from '@/web/api.ts';
+import { appConfig } from '@/web/app-config.ts';
 import { FieldLabel } from '@/web/field-label.tsx';
 import {
   Button,
@@ -222,7 +223,7 @@ export const TotpDialog = ({
    */
   const downloadCodes = (): void => {
     const lines: string[] = [
-      `pfSense Actions recovery codes for ${window.location.host}`,
+      `${appConfig['appName']} recovery codes for ${window.location.host}`,
       '',
       ...recoveryCodes,
       '',
@@ -233,7 +234,7 @@ export const TotpDialog = ({
     const link: HTMLAnchorElement = document.createElement('a');
 
     link.href = url;
-    link.download = 'pfsense-actions-recovery-codes.txt';
+    link.download = appConfig['recoveryCodeFileName'];
     link.click();
     URL.revokeObjectURL(url);
   };

@@ -4,7 +4,8 @@ import {
   sendError,
   sendValidationError,
 } from '../lib/http.js';
-import { connectionUpdate } from '../lib/schema.js';
+import { logInfo, setDebugLogging } from '../lib/logger.js';
+import { connectionUpdate, diagnosticsUpdate } from '../lib/schema.js';
 import { getPackageVersion } from '../lib/utility.js';
 
 import type {
@@ -35,6 +36,15 @@ import type {
   Routes_Console_Runner_RouteConnectionUpdate_RequestBody,
   Routes_Console_Runner_RouteConnectionUpdate_Response,
   Routes_Console_Runner_RouteConnectionUpdate_Returns,
+  Routes_Console_Runner_RouteDiagnostics_Request,
+  Routes_Console_Runner_RouteDiagnostics_Response,
+  Routes_Console_Runner_RouteDiagnostics_Returns,
+  Routes_Console_Runner_RouteDiagnosticsUpdate_ActorId,
+  Routes_Console_Runner_RouteDiagnosticsUpdate_Enabled,
+  Routes_Console_Runner_RouteDiagnosticsUpdate_Request,
+  Routes_Console_Runner_RouteDiagnosticsUpdate_RequestBody,
+  Routes_Console_Runner_RouteDiagnosticsUpdate_Response,
+  Routes_Console_Runner_RouteDiagnosticsUpdate_Returns,
   Routes_Console_Runner_RouteOverview_Administrator,
   Routes_Console_Runner_RouteOverview_Request,
   Routes_Console_Runner_RouteOverview_Response,
@@ -119,6 +129,10 @@ export class Runner {
     app.put('/api/v1/connection', this.#access.requireSession(true), handleAsync(this['routeConnectionUpdate'].bind(this)));
 
     app.post('/api/v1/connection/test', this.#access.requireSession(true), handleAsync(this['routeConnectionTest'].bind(this)));
+
+    app.get('/api/v1/diagnostics', this.#access.requireSession(false), this['routeDiagnostics'].bind(this));
+
+    app.put('/api/v1/diagnostics', this.#access.requireSession(true), this['routeDiagnosticsUpdate'].bind(this));
 
     return;
   }
@@ -288,6 +302,71 @@ export class Runner {
     this.#state.updateConnection(candidate, actorId);
 
     response.json(this.getConnectionResource());
+
+    return;
+  }
+
+  /**
+   * Routes - Console - Route Diagnostics.
+   *
+   * Reports whether Debug logging is on for the Connection page's switch.
+   * The setting is the same for every session.
+   *
+   * @param {Routes_Console_Runner_RouteDiagnostics_Request}  _request - Request.
+   * @param {Routes_Console_Runner_RouteDiagnostics_Response} response - Response.
+   *
+   * @private
+   *
+   * @returns {Routes_Console_Runner_RouteDiagnostics_Returns}
+   *
+   * @since 2.1.0
+   */
+  private routeDiagnostics(_request: Routes_Console_Runner_RouteDiagnostics_Request, response: Routes_Console_Runner_RouteDiagnostics_Response): Routes_Console_Runner_RouteDiagnostics_Returns {
+    response.json({
+      debugLogging: this.#state.getDebugLogging(),
+    });
+
+    return;
+  }
+
+  /**
+   * Routes - Console - Route Diagnostics Update.
+   *
+   * Turns Debug logging on or off, saves it, and applies it to the running logger.
+   * A real change logs debug logging is on or off, so the log shows where DEBUG lines start.
+   *
+   * @param {Routes_Console_Runner_RouteDiagnosticsUpdate_Request}  request  - Request.
+   * @param {Routes_Console_Runner_RouteDiagnosticsUpdate_Response} response - Response.
+   *
+   * @private
+   *
+   * @returns {Routes_Console_Runner_RouteDiagnosticsUpdate_Returns}
+   *
+   * @since 2.1.0
+   */
+  private routeDiagnosticsUpdate(request: Routes_Console_Runner_RouteDiagnosticsUpdate_Request, response: Routes_Console_Runner_RouteDiagnosticsUpdate_Response): Routes_Console_Runner_RouteDiagnosticsUpdate_Returns {
+    const requestBody: Routes_Console_Runner_RouteDiagnosticsUpdate_RequestBody = diagnosticsUpdate.safeParse(request.body);
+
+    if (requestBody.success === false) {
+      sendValidationError(response, 422, requestBody.error, 'Choose whether debug logging is on or off.');
+
+      return;
+    }
+
+    const actorId: Routes_Console_Runner_RouteDiagnosticsUpdate_ActorId = response.locals['actorId'];
+    const enabled: Routes_Console_Runner_RouteDiagnosticsUpdate_Enabled = requestBody.data['debugLogging'];
+
+    if (enabled !== this.#state.getDebugLogging()) {
+      this.#state.setDebugLogging(enabled, actorId);
+
+      setDebugLogging(enabled);
+
+      logInfo((enabled === true) ? 'debug logging is on' : 'debug logging is off');
+    }
+
+    response.json({
+      debugLogging: enabled,
+    });
 
     return;
   }

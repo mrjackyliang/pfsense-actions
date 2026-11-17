@@ -44,6 +44,51 @@ import {
 import { verifyTotpCode } from './totp.js';
 
 import type {
+  Lib_Backup_Document,
+  Lib_Backup_ExportSections,
+  Lib_Backup_ImportPreview,
+  Lib_Backup_ImportResult,
+  Lib_Backup_ImportSummary,
+  Lib_Backup_State_AccessTokenDocumentMapper,
+  Lib_Backup_State_AccessTokenPredicate,
+  Lib_Backup_State_AccessTokens,
+  Lib_Backup_State_ActorId,
+  Lib_Backup_State_AppVersion,
+  Lib_Backup_State_Connection,
+  Lib_Backup_State_ConnectionAction,
+  Lib_Backup_State_ConnectionCredential,
+  Lib_Backup_State_ConnectionDescription,
+  Lib_Backup_State_CurrentTargets,
+  Lib_Backup_State_ExistingTarget,
+  Lib_Backup_State_ImportedSections,
+  Lib_Backup_State_ImportSections,
+  Lib_Backup_State_Labels,
+  Lib_Backup_State_LastUsedAt,
+  Lib_Backup_State_NotificationDocumentMapper,
+  Lib_Backup_State_NotificationId,
+  Lib_Backup_State_NotificationPredicate,
+  Lib_Backup_State_Notifications,
+  Lib_Backup_State_Now,
+  Lib_Backup_State_PluralSuffix,
+  Lib_Backup_State_SealedSecrets,
+  Lib_Backup_State_SectionLabelMapper,
+  Lib_Backup_State_SectionMapper,
+  Lib_Backup_State_SectionPredicate,
+  Lib_Backup_State_StringSet,
+  Lib_Backup_State_TargetEntryMapper,
+  Lib_Backup_State_TargetIdMapper,
+  Lib_Backup_State_TargetMap,
+  Lib_Backup_State_TokenMetadata,
+  Lib_Backup_State_TokenMetadataMapper,
+  Lib_Backup_State_TokenName,
+  Lib_Backup_State_TokenRowHashMapper,
+  Lib_Backup_State_TokenRowIdMapper,
+  Lib_Backup_State_TokenRowNameMapper,
+  Lib_Backup_State_TokenRows,
+  Lib_Backup_State_TokenSummary,
+  Lib_Backup_State_TransactionCallback,
+} from '@/types/lib/backup.d.ts';
+import type {
   Lib_State_Runner_ActivityLimit,
   Lib_State_Runner_AddActivity_Action,
   Lib_State_Runner_AddActivity_ActorId,
@@ -195,6 +240,7 @@ import type {
   Lib_State_Runner_GetConnection_Returns,
   Lib_State_Runner_GetConnection_Row,
   Lib_State_Runner_GetConnection_StoredConnection,
+  Lib_State_Runner_GetDebugLogging_Returns,
   Lib_State_Runner_GetEnvironmentImports_Returns,
   Lib_State_Runner_GetKeyReplacement_Returns,
   Lib_State_Runner_GetMetadata_Key,
@@ -322,6 +368,9 @@ import type {
   Lib_State_Runner_SealNotificationSecrets_Returns,
   Lib_State_Runner_SealNotificationSecrets_Secrets,
   Lib_State_Runner_SessionDurationMilliseconds,
+  Lib_State_Runner_SetDebugLogging_ActorId,
+  Lib_State_Runner_SetDebugLogging_Enabled,
+  Lib_State_Runner_SetDebugLogging_Returns,
   Lib_State_Runner_SetMetadata_Key,
   Lib_State_Runner_SetMetadata_Returns,
   Lib_State_Runner_SetMetadata_Value,
@@ -653,6 +702,558 @@ export class Runner {
     this.initialize();
 
     return;
+  }
+
+  /**
+   * Lib - State - Apply Backup Import.
+   *
+   * Replaces or adds every selected configuration section in one SQLite transaction.
+   * The activity entry records only counts and section names, never imported values.
+   *
+   * @param {Lib_Backup_Document}      document - Document.
+   * @param {Lib_Backup_State_ActorId} actorId  - Actor id.
+   *
+   * @returns {Lib_Backup_ImportResult}
+   *
+   * @since 2.1.0
+   */
+  public applyBackupImport(document: Lib_Backup_Document, actorId: Lib_Backup_State_ActorId): Lib_Backup_ImportResult {
+    const preview: Lib_Backup_ImportPreview = this.previewBackupImport(document);
+
+    /**
+     * Lib - State - Apply Backup Import - Will Import.
+     *
+     * Keeps sections whose file data changes this installation.
+     * The resulting list also drives the redacted activity summary.
+     *
+     * @returns {boolean}
+     *
+     * @since 2.1.0
+     */
+    const willImport: Lib_Backup_State_SectionPredicate = (section) => section['willImport'];
+
+    /**
+     * Lib - State - Apply Backup Import - Section Id.
+     *
+     * Projects a planned section into its stable identifier.
+     * Progress and result contracts share these identifiers.
+     *
+     * @returns {Lib_Backup_SectionId}
+     *
+     * @since 2.1.0
+     */
+    const sectionId: Lib_Backup_State_SectionMapper = (section) => section['id'];
+    const importedSections: Lib_Backup_State_ImportedSections = preview['sections'].filter(willImport).map(sectionId);
+
+    /**
+     * Lib - State - Apply Backup Import - Apply.
+     *
+     * Performs every configuration write under one transaction boundary.
+     * Any thrown database failure rolls the complete import back.
+     *
+     * @returns {void}
+     *
+     * @since 2.1.0
+     */
+    const applyImport: Lib_Backup_State_TransactionCallback = () => {
+      if (document['connection'] !== undefined && document['connection'] !== null) {
+        this.insertConnection({
+          ...((document['connection']['credentialType'] === 'password') ? { pfsensePassword: document['connection']['credential'] } : { pfsensePrivateKey: document['connection']['credential'] }),
+          pfsenseSshIp: document['connection']['pfsenseSshIp'],
+          pfsenseSshPort: document['connection']['pfsenseSshPort'],
+          pfsenseUsername: document['connection']['pfsenseUsername'],
+        });
+
+        this.#database.prepare('DELETE FROM removed_secrets WHERE kind = \'pfsense-credential\'').run();
+      }
+
+      if (document['notifications'] !== undefined) {
+        /**
+         * Lib - State - Apply Backup Import - Target Entry.
+         *
+         * Indexes current notification targets by their case-insensitive names.
+         * Matching names are replaced while retaining the existing identifier.
+         *
+         * @returns {Lib_Backup_State_TargetEntry}
+         *
+         * @since 2.1.0
+         */
+        const targetEntry: Lib_Backup_State_TargetEntryMapper = (target) => [
+          target['name'].toLocaleLowerCase(),
+          target,
+        ];
+
+        /**
+         * Lib - State - Apply Backup Import - Target Id.
+         *
+         * Projects a stored notification into its identifier.
+         * New targets avoid every identifier already present.
+         *
+         * @returns {string}
+         *
+         * @since 2.1.0
+         */
+        const targetId: Lib_Backup_State_TargetIdMapper = (target) => target['id'];
+        const existingTargets: Lib_Backup_State_TargetMap = new Map(this.getStoredNotificationTargets().map(targetEntry));
+        const usedIds: Lib_Backup_State_StringSet = new Set(this.getStoredNotificationTargets().map(targetId));
+
+        for (const notification of document['notifications']) {
+          const existingTarget: Lib_Backup_State_ExistingTarget = existingTargets.get(notification['name'].toLocaleLowerCase());
+          let id: Lib_Backup_State_NotificationId = (existingTarget === undefined) ? notification['id'] : existingTarget['id'];
+
+          while (existingTarget === undefined && usedIds.has(id) === true) {
+            id = `ntf-${randomBytes(8).toString('hex')}`;
+          }
+
+          const sealedSecrets: Lib_Backup_State_SealedSecrets = this.sealNotificationSecrets(notification['secrets']);
+          const now: Lib_Backup_State_Now = new Date().toISOString();
+
+          if (existingTarget === undefined) {
+            this.#database.prepare('INSERT INTO notification_targets (id, name, service, events, settings, secret_fields, missing_secrets, secrets_ciphertext, secrets_iv, secrets_auth_tag, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, \'[]\', ?, ?, ?, ?, ?)').run(
+              id,
+              notification['name'],
+              notification['service'],
+              JSON.stringify(notification['events']),
+              JSON.stringify(notification['settings']),
+              JSON.stringify(Object.keys(notification['secrets']).sort()),
+              (sealedSecrets === undefined) ? null : sealedSecrets['ciphertext'],
+              (sealedSecrets === undefined) ? null : sealedSecrets['iv'],
+              (sealedSecrets === undefined) ? null : sealedSecrets['authTag'],
+              now,
+              now,
+            );
+          } else {
+            this.#database.prepare('UPDATE notification_targets SET name = ?, service = ?, events = ?, settings = ?, secret_fields = ?, missing_secrets = \'[]\', secrets_ciphertext = ?, secrets_iv = ?, secrets_auth_tag = ?, updated_at = ? WHERE id = ?').run(
+              notification['name'],
+              notification['service'],
+              JSON.stringify(notification['events']),
+              JSON.stringify(notification['settings']),
+              JSON.stringify(Object.keys(notification['secrets']).sort()),
+              (sealedSecrets === undefined) ? null : sealedSecrets['ciphertext'],
+              (sealedSecrets === undefined) ? null : sealedSecrets['iv'],
+              (sealedSecrets === undefined) ? null : sealedSecrets['authTag'],
+              now,
+              id,
+            );
+          }
+
+          usedIds.add(id);
+
+          this.#database.prepare('DELETE FROM removed_secrets WHERE kind = \'notification\' AND notification_id = ?').run(id);
+        }
+      }
+
+      if (document['accessTokens'] !== undefined) {
+        const existingRows: Lib_Backup_State_TokenRows = this.#database.prepare('SELECT id, name, token_hash AS tokenHash FROM api_tokens').all() as Lib_Backup_State_TokenRows;
+
+        /**
+         * Lib - State - Apply Backup Import - Token Id.
+         *
+         * Projects a stored token row into its identifier.
+         * Any matching identifier makes the imported token a duplicate.
+         *
+         * @returns {string}
+         *
+         * @since 2.1.0
+         */
+        const rowId: Lib_Backup_State_TokenRowIdMapper = (row) => row['id'];
+
+        /**
+         * Lib - State - Apply Backup Import - Token Name.
+         *
+         * Normalizes a stored token name for case-insensitive duplicate checks.
+         * Names follow the same uniqueness rule as token creation.
+         *
+         * @returns {string}
+         *
+         * @since 2.1.0
+         */
+        const rowName: Lib_Backup_State_TokenRowNameMapper = (row) => row['name'].toLocaleLowerCase();
+
+        /**
+         * Lib - State - Apply Backup Import - Token Hash.
+         *
+         * Projects a stored token row into its authentication hash.
+         * Matching hashes are skipped even when their labels differ.
+         *
+         * @returns {string}
+         *
+         * @since 2.1.0
+         */
+        const rowHash: Lib_Backup_State_TokenRowHashMapper = (row) => row['tokenHash'];
+        const ids: Lib_Backup_State_StringSet = new Set(existingRows.map(rowId));
+        const names: Lib_Backup_State_StringSet = new Set(existingRows.map(rowName));
+        const hashes: Lib_Backup_State_StringSet = new Set(existingRows.map(rowHash));
+
+        for (const accessToken of document['accessTokens']) {
+          if (
+            ids.has(accessToken['id']) === true
+            || names.has(accessToken['name'].toLocaleLowerCase()) === true
+            || hashes.has(accessToken['tokenHash']) === true
+          ) {
+            continue;
+          }
+
+          this.insertToken({
+            createdAt: accessToken['createdAt'],
+            ...((accessToken['expiresAt'] === null) ? {} : { expiresAt: accessToken['expiresAt'] }),
+            id: accessToken['id'],
+            name: accessToken['name'],
+            scopes: accessToken['scopes'],
+            tokenHash: accessToken['tokenHash'],
+          });
+
+          if (accessToken['lastUsedAt'] !== null) {
+            this.#database.prepare('UPDATE api_tokens SET last_used_at = ? WHERE id = ?').run(accessToken['lastUsedAt'], accessToken['id']);
+          }
+
+          ids.add(accessToken['id']);
+
+          names.add(accessToken['name'].toLocaleLowerCase());
+
+          hashes.add(accessToken['tokenHash']);
+        }
+      }
+
+      /**
+       * Lib - State - Apply Backup Import - Section Label.
+       *
+       * Converts internal section identifiers into safe activity-log words.
+       * The labels never contain imported values or secrets.
+       *
+       * @returns {string}
+       *
+       * @since 2.1.0
+       */
+      const sectionLabel: Lib_Backup_State_SectionLabelMapper = (section) => ({
+        accessTokens: 'access tokens',
+        connection: 'connection',
+        notifications: 'notifications',
+      })[section];
+      const labels: Lib_Backup_State_Labels = importedSections.map(sectionLabel);
+
+      this.addActivity(actorId, 'backup-imported', 'configuration', 'succeeded', `Imported backup configuration: ${labels.join(', ')}`);
+
+      return;
+    };
+
+    this.transaction(applyImport);
+
+    return {
+      ...preview['summary'],
+      importedSections,
+    };
+  }
+
+  /**
+   * Lib - State - Create Backup Document.
+   *
+   * Opens selected secrets only long enough to assemble the response document.
+   * Account identity, sessions, security factors, claims, and activity never enter it.
+   *
+   * @param {Lib_Backup_ExportSections}   sections   - Sections.
+   * @param {Lib_Backup_State_AppVersion} appVersion - App version.
+   *
+   * @returns {Lib_Backup_Document}
+   *
+   * @since 2.1.0
+   */
+  public createBackupDocument(sections: Lib_Backup_ExportSections, appVersion: Lib_Backup_State_AppVersion): Lib_Backup_Document {
+    const document: Lib_Backup_Document = {
+      appVersion,
+      exportedAt: new Date().toISOString(),
+      format: 'pfsense-actions-export',
+      version: 1,
+    };
+
+    if (sections['connection'] === true) {
+      const connection: Lib_Backup_State_Connection = this.getStoredConnection();
+      let credential: Lib_Backup_State_ConnectionCredential = '';
+
+      if (connection !== undefined) {
+        if (connection['pfsensePassword'] !== undefined) {
+          credential = connection['pfsensePassword'];
+        } else {
+          credential = connection['pfsensePrivateKey'] ?? '';
+        }
+      }
+
+      Reflect.set(document, 'connection', (connection === undefined) ? null : {
+        credential,
+        credentialType: (connection['pfsensePassword'] === undefined) ? 'privateKey' : 'password',
+        pfsenseSshIp: connection['pfsenseSshIp'],
+        pfsenseSshPort: connection['pfsenseSshPort'],
+        pfsenseUsername: connection['pfsenseUsername'],
+      });
+    }
+
+    if (sections['notifications'] === true) {
+      /**
+       * Lib - State - Create Backup Document - Notification.
+       *
+       * Opens one target's secrets into its portable export representation.
+       * Delivery history and removed-secret markers stay local.
+       *
+       * @returns {Lib_Backup_Notification}
+       *
+       * @since 2.1.0
+       */
+      const notificationDocument: Lib_Backup_State_NotificationDocumentMapper = (target) => ({
+        events: [...target['events']],
+        id: target['id'],
+        name: target['name'],
+        secrets: this.openNotificationSecrets(target),
+        service: target['service'],
+        settings: { ...target['settings'] },
+      });
+
+      Reflect.set(document, 'notifications', this.getStoredNotificationTargets().map(notificationDocument));
+    }
+
+    if (sections['accessTokens'] === true) {
+      /**
+       * Lib - State - Create Backup Document - Token Metadata.
+       *
+       * Indexes public token names and last-used times by identifier.
+       * Stored authentication records supply the matching hash and scopes.
+       *
+       * @returns {Lib_Backup_State_TokenMetadataEntry}
+       *
+       * @since 2.1.0
+       */
+      const tokenMetadata: Lib_Backup_State_TokenMetadataMapper = (token) => [
+        token['id'],
+        token,
+      ];
+      const metadata: Lib_Backup_State_TokenMetadata = new Map(this.getTokens().map(tokenMetadata));
+
+      /**
+       * Lib - State - Create Backup Document - Access Token.
+       *
+       * Joins public metadata with the exact stored authentication hash.
+       * The raw personal access token is never reconstructed.
+       *
+       * @returns {Lib_Backup_AccessToken}
+       *
+       * @since 2.1.0
+       */
+      const accessTokenDocument: Lib_Backup_State_AccessTokenDocumentMapper = (token) => {
+        const summary: Lib_Backup_State_TokenSummary = metadata.get(token['id']);
+        const lastUsedAt: Lib_Backup_State_LastUsedAt = (summary === undefined) ? null : summary['lastUsedAt'];
+        const name: Lib_Backup_State_TokenName = (summary === undefined) ? token['id'] : summary['name'];
+
+        return {
+          createdAt: token['createdAt'] ?? new Date(0).toISOString(),
+          expiresAt: token['expiresAt'] ?? null,
+          id: token['id'],
+          lastUsedAt,
+          name,
+          scopes: [...token['scopes']],
+          tokenHash: token['tokenHash'],
+        };
+      };
+
+      Reflect.set(document, 'accessTokens', this.getStoredTokens().map(accessTokenDocument));
+    }
+
+    return document;
+  }
+
+  /**
+   * Lib - State - Preview Backup Import.
+   *
+   * Compares portable sections with the current installation without changing state.
+   * Names decide notification replacement, while any matching token identity is skipped.
+   *
+   * @param {Lib_Backup_Document} document - Document.
+   *
+   * @returns {Lib_Backup_ImportPreview}
+   *
+   * @since 2.1.0
+   */
+  public previewBackupImport(document: Lib_Backup_Document): Lib_Backup_ImportPreview {
+    const currentConnection: Lib_Backup_State_Connection = this.getStoredConnection();
+    const currentTargets: Lib_Backup_State_CurrentTargets = this.getStoredNotificationTargets();
+    const currentTokenRows: Lib_Backup_State_TokenRows = this.#database.prepare('SELECT id, name, token_hash AS tokenHash FROM api_tokens').all() as Lib_Backup_State_TokenRows;
+
+    /**
+     * Lib - State - Preview Backup Import - Target Name.
+     *
+     * Normalizes target names for replacement planning.
+     * Matching names are replaced instead of duplicated.
+     *
+     * @returns {string}
+     *
+     * @since 2.1.0
+     */
+    const targetName: Lib_Backup_State_TargetIdMapper = (target) => target['name'].toLocaleLowerCase();
+
+    /**
+     * Lib - State - Preview Backup Import - Token Id.
+     *
+     * Projects current tokens into their stable identifiers.
+     * The identifier participates in duplicate detection.
+     *
+     * @returns {string}
+     *
+     * @since 2.1.0
+     */
+    const tokenId: Lib_Backup_State_TokenRowIdMapper = (token) => token['id'];
+
+    /**
+     * Lib - State - Preview Backup Import - Token Name.
+     *
+     * Normalizes current token names for duplicate planning.
+     * The comparison matches token creation's case-insensitive rule.
+     *
+     * @returns {string}
+     *
+     * @since 2.1.0
+     */
+    const tokenName: Lib_Backup_State_TokenRowNameMapper = (token) => token['name'].toLocaleLowerCase();
+
+    /**
+     * Lib - State - Preview Backup Import - Token Hash.
+     *
+     * Projects current tokens into their stored hashes.
+     * A matching credential is skipped regardless of name.
+     *
+     * @returns {string}
+     *
+     * @since 2.1.0
+     */
+    const tokenHash: Lib_Backup_State_TokenRowHashMapper = (token) => token['tokenHash'];
+    const targetNames: Lib_Backup_State_StringSet = new Set(currentTargets.map(targetName));
+    const tokenIds: Lib_Backup_State_StringSet = new Set(currentTokenRows.map(tokenId));
+    const tokenNames: Lib_Backup_State_StringSet = new Set(currentTokenRows.map(tokenName));
+    const tokenHashes: Lib_Backup_State_StringSet = new Set(currentTokenRows.map(tokenHash));
+    const notifications: Lib_Backup_State_Notifications = document['notifications'] ?? [];
+    const accessTokens: Lib_Backup_State_AccessTokens = document['accessTokens'] ?? [];
+
+    /**
+     * Lib - State - Preview Backup Import - Add Access Token.
+     *
+     * Selects imported tokens with no matching identifier, name, or hash.
+     * These records can be inserted without changing current credentials.
+     *
+     * @returns {boolean}
+     *
+     * @since 2.1.0
+     */
+    const addAccessToken: Lib_Backup_State_AccessTokenPredicate = (token) => (
+      tokenIds.has(token['id']) === false
+      && tokenNames.has(token['name'].toLocaleLowerCase()) === false
+      && tokenHashes.has(token['tokenHash']) === false
+    );
+
+    /**
+     * Lib - State - Preview Backup Import - Skip Access Token.
+     *
+     * Selects tokens already represented by an identifier, name, or hash.
+     * Skipped records leave the current token untouched.
+     *
+     * @returns {boolean}
+     *
+     * @since 2.1.0
+     */
+    const skipAccessToken: Lib_Backup_State_AccessTokenPredicate = (token) => (
+      tokenIds.has(token['id']) === true
+      || tokenNames.has(token['name'].toLocaleLowerCase()) === true
+      || tokenHashes.has(token['tokenHash']) === true
+    );
+
+    /**
+     * Lib - State - Preview Backup Import - Add Notification.
+     *
+     * Selects targets whose name is not present here.
+     * They will be inserted during the transaction.
+     *
+     * @returns {boolean}
+     *
+     * @since 2.1.0
+     */
+    const addNotification: Lib_Backup_State_NotificationPredicate = (target) => targetNames.has(target['name'].toLocaleLowerCase()) === false;
+
+    /**
+     * Lib - State - Preview Backup Import - Replace Notification.
+     *
+     * Selects targets whose name already exists here.
+     * Their portable configuration will replace the matching target.
+     *
+     * @returns {boolean}
+     *
+     * @since 2.1.0
+     */
+    const replaceNotification: Lib_Backup_State_NotificationPredicate = (target) => targetNames.has(target['name'].toLocaleLowerCase()) === true;
+    let connectionAction: Lib_Backup_State_ConnectionAction = 'skipped';
+
+    if (document['connection'] !== undefined && document['connection'] !== null) {
+      connectionAction = (currentConnection === undefined) ? 'added' : 'replaced';
+    }
+
+    const summary: Lib_Backup_ImportSummary = {
+      accessTokens: {
+        added: accessTokens.filter(addAccessToken).length,
+        skipped: accessTokens.filter(skipAccessToken).length,
+      },
+      connection: connectionAction,
+      notifications: {
+        added: notifications.filter(addNotification).length,
+        replaced: notifications.filter(replaceNotification).length,
+      },
+    };
+    const sections: Lib_Backup_State_ImportSections = [];
+
+    if (Object.hasOwn(document, 'connection') === true) {
+      let fileConnection: Lib_Backup_State_ConnectionDescription = 'No saved connection';
+      const hereConnection: Lib_Backup_State_ConnectionDescription = (currentConnection === undefined) ? 'No saved connection' : `${currentConnection['pfsenseSshIp']}:${String(currentConnection['pfsenseSshPort'])}`;
+
+      if (document['connection'] !== undefined && document['connection'] !== null) {
+        fileConnection = `${document['connection']['pfsenseSshIp']}:${String(document['connection']['pfsenseSshPort'])}`;
+      }
+
+      sections.push({
+        file: fileConnection,
+        here: hereConnection,
+        id: 'connection',
+        label: 'Connection',
+        ...((document['connection'] === null) ? { reason: 'The file does not contain a saved connection.' } : {}),
+        willImport: document['connection'] !== undefined && document['connection'] !== null,
+      });
+    }
+
+    if (document['notifications'] !== undefined) {
+      const fileSuffix: Lib_Backup_State_PluralSuffix = (notifications.length === 1) ? '' : 's';
+      const hereSuffix: Lib_Backup_State_PluralSuffix = (currentTargets.length === 1) ? '' : 's';
+
+      sections.push({
+        file: `${String(notifications.length)} target${fileSuffix}`,
+        here: `${String(currentTargets.length)} target${hereSuffix}`,
+        id: 'notifications',
+        label: 'Notifications',
+        willImport: true,
+      });
+    }
+
+    if (document['accessTokens'] !== undefined) {
+      const fileSuffix: Lib_Backup_State_PluralSuffix = (accessTokens.length === 1) ? '' : 's';
+      const hereSuffix: Lib_Backup_State_PluralSuffix = (currentTokenRows.length === 1) ? '' : 's';
+
+      sections.push({
+        file: `${String(accessTokens.length)} token${fileSuffix}`,
+        here: `${String(currentTokenRows.length)} token${hereSuffix}`,
+        id: 'accessTokens',
+        label: 'Access tokens',
+        willImport: true,
+      });
+    }
+
+    return {
+      appVersion: document['appVersion'],
+      exportedAt: document['exportedAt'],
+      sections,
+      summary,
+    };
   }
 
   /**
@@ -1476,6 +2077,20 @@ export class Runner {
   }
 
   /**
+   * Lib - State - Get Debug Logging.
+   *
+   * Reads whether Debug logging is on, which is off until someone turns it on.
+   * The setting lives in the metadata table, so it survives restarts.
+   *
+   * @returns {Lib_State_Runner_GetDebugLogging_Returns}
+   *
+   * @since 2.1.0
+   */
+  public getDebugLogging(): Lib_State_Runner_GetDebugLogging_Returns {
+    return this.getMetadata('debug_logging') === 'true';
+  }
+
+  /**
    * Lib - State - Get Environment Imports.
    *
    * Reports what the deprecated environment variables filled in during this start.
@@ -2128,6 +2743,31 @@ export class Runner {
     });
 
     return recoveryCodes;
+  }
+
+  /**
+   * Lib - State - Set Debug Logging.
+   *
+   * Saves whether Debug logging is on and records the change in the activity log.
+   * The caller applies it to the running logger.
+   *
+   * @param {Lib_State_Runner_SetDebugLogging_Enabled} enabled - Enabled.
+   * @param {Lib_State_Runner_SetDebugLogging_ActorId} actorId - Actor id.
+   *
+   * @returns {Lib_State_Runner_SetDebugLogging_Returns}
+   *
+   * @since 2.1.0
+   */
+  public setDebugLogging(enabled: Lib_State_Runner_SetDebugLogging_Enabled, actorId: Lib_State_Runner_SetDebugLogging_ActorId): Lib_State_Runner_SetDebugLogging_Returns {
+    this.transaction(() => {
+      this.setMetadata('debug_logging', (enabled === true) ? 'true' : 'false');
+
+      this.addActivity(actorId, 'debug-logging-updated', 'configuration', 'succeeded', (enabled === true) ? 'Turned debug logging on' : 'Turned debug logging off');
+
+      return;
+    });
+
+    return;
   }
 
   /**

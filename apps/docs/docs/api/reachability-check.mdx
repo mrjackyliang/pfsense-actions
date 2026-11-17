@@ -28,17 +28,17 @@ Ask the firewall to ping one IP address with `POST /api/v1/ping`, also at `POST 
 
 ## Request Body
 
-| Field       | Description                                                                                                                                                                                                   |
-|-------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `count`     | Required. The maximum number of <Terminology title="one five-packet ping run in a reachability check" to="/docs/reference/terminology#ping-attempt">ping attempts</Terminology>, an integer from `1` to `10`. |
-| `ipAddress` | Required. The IPv4 or IPv6 address to ping from the firewall, not a hostname.                                                                                                                                 |
-| `strict`    | Optional boolean, `false` by default. When `true`, an attempt counts only with zero packet loss.                                                                                                              |
+| Field       | Description                                                                                                                                                                                                  |
+|-------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `count`     | Required. The maximum number of <Terminology title="One five-packet ping; count sets how many to try" to="/docs/reference/terminology#api-actions">ping attempts</Terminology>, an integer from `1` to `10`. |
+| `ipAddress` | Required. The IPv4 or IPv6 address to ping from the firewall, not a hostname.                                                                                                                                |
+| `strict`    | Optional boolean, `false` by default. When `true`, an attempt counts only with zero packet loss.                                                                                                             |
 
 ## How Attempts Work
 
-- Each <Terminology title="one five-packet ping run in a reachability check" to="/docs/reference/terminology#ping-attempt">ping attempt</Terminology> runs `ping -c 5 <ipAddress>` on the firewall, so one request sends at most 50 echo requests.
+- Each <Terminology title="One five-packet ping; count sets how many to try" to="/docs/reference/terminology#api-actions">ping attempt</Terminology> runs `ping -c 5 <ipAddress>` on the firewall, so one request sends at most 50 echo requests.
 - Attempts run one after another and stop at the first one that meets the condition, so a target that never answers uses up every attempt before the route answers `503`.
-- Without <Terminology title="requiring zero packet loss for a reachable result" to="/docs/reference/terminology#strict-mode">strict mode</Terminology>, an attempt succeeds when `ping` doesn't report `100.0% packet loss`. With <Terminology title="requiring zero packet loss for a reachable result" to="/docs/reference/terminology#strict-mode">strict mode</Terminology>, it succeeds only when `ping` reports `0.0% packet loss`.
+- Without <Terminology title="Reachable only with zero packet loss, not just one reply" to="/docs/reference/terminology#api-actions">strict mode</Terminology>, an attempt succeeds when `ping` doesn't report `100.0% packet loss`. With <Terminology title="Reachable only with zero packet loss, not just one reply" to="/docs/reference/terminology#api-actions">strict mode</Terminology>, it succeeds only when `ping` reports `0.0% packet loss`.
 - Each attempt takes several seconds while `ping` sends its five packets, and pfSense Actions sets no time limit on the command. It's worth setting client and proxy timeouts with the largest `count` you use in mind.
 
 ## Responses
@@ -53,7 +53,7 @@ Ask the firewall to ping one IP address with `POST /api/v1/ping`, also at `POST 
 | `503`  | `connection_not_configured` | No pfSense connection is saved yet, or its credential was removed.   |
 
 - `401`, `403`, `429`, and `500` behave as described in [Status Codes and Limits](/docs/api/status-codes/).
-- A `502` or `500` also sends **Action failed** to the <Terminology title="a place pfSense Actions sends alerts to" to="/docs/reference/terminology#notification-destination">notification destinations</Terminology> that chose it, while `target_unreachable` doesn't, as described in [Notifications](/docs/console/notifications/#events).
+- A `502` or `500` also sends **Action failed** to the <Terminology title="Where an alert goes: ntfy, Telegram, email, webhook" to="/docs/reference/terminology#notifications">notification destinations</Terminology> that chose it, while `target_unreachable` doesn't, as described in [Notifications](/docs/console/notifications/#events).
 
 ## Examples
 
@@ -81,5 +81,5 @@ Require every packet of an attempt to come back, with up to ten attempts.
 
 ## IPv6 Notes
 
-- The request accepts IPv6 addresses, including link-local addresses with a zone such as `fe80::1%igb0`.
+- The request accepts IPv6 addresses, including link-local addresses written without a zone. An address with a zone, such as `fe80::1%igb0`, returns `400`.
 - pfSense Actions passes the address to the firewall's `ping` command unchanged, and its tests don't cover IPv6 targets. Whether an IPv6 target works depends on the `ping` command in your pfSense release.
