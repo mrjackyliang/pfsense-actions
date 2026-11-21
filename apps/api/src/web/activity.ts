@@ -5,7 +5,7 @@ import type {
 } from '@/types/web/activity.d.ts';
 
 /**
- * Web - Activity - Category Labels.
+ * Activity - Category Labels.
  *
  * Gives each stored category the broader label shown beside activity events.
  * Configuration includes both connection and notification destination changes.
@@ -20,7 +20,7 @@ const categoryLabels: Web_Activity_CategoryLabels = {
 };
 
 /**
- * Web - Activity - Activity Category Label.
+ * Activity - Category Label.
  *
  * Returns the console label for one stored activity category.
  * The label stays broader than any one action inside that category.

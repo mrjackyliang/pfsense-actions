@@ -16,6 +16,12 @@
   <h1>pfSense Actions</h1>
 <!-- nova-region-end: header -->
 <!-- nova-region: badges -->
+  <a href="https://hub.docker.com/r/mrjackyliang/pfsense-actions">
+    <img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/mrjackyliang/pfsense-actions?style=for-the-badge&logo=docker&logoColor=%23ffffff&color=%23b25da6">
+  </a>
+  <a href="https://hub.docker.com/r/mrjackyliang/pfsense-actions">
+    <img alt="Docker Image Size" src="https://img.shields.io/docker/image-size/mrjackyliang/pfsense-actions?style=for-the-badge&logo=docker&logoColor=%23ffffff&color=%236688c3">
+  </a>
   <a href="https://github.com/mrjackyliang/pfsense-actions/releases">
     <img alt="GitHub Releases" src="https://img.shields.io/github/v/release/mrjackyliang/pfsense-actions?style=for-the-badge&logo=github&logoColor=%23ffffff&color=%23b25da6">
   </a>
@@ -24,6 +30,9 @@
   </a>
   <a href="https://github.com/mrjackyliang/pfsense-actions/blob/HEAD/LICENSE">
     <img alt="GitHub License" src="https://img.shields.io/github/license/mrjackyliang/pfsense-actions?style=for-the-badge&logo=googledocs&logoColor=%23ffffff&color=%2348a56a">
+  </a>
+  <a href="https://github.com/mrjackyliang/pfsense-actions/actions">
+    <img alt="Test Coverage" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fmrjackyliang.github.io%2Fpfsense-actions%2Fbadges%2Fcoverage.json&style=for-the-badge&logo=vitest&logoColor=%23ffffff">
   </a>
   <a href="https://github.com/sponsors/mrjackyliang">
     <img alt="Become a GitHub Sponsor" src="https://img.shields.io/badge/github-sponsor-gray?style=for-the-badge&logo=githubsponsors&logoColor=%23ffffff&color=%23eaaf41">
@@ -37,7 +46,7 @@
 <!-- nova-region: introduction -->
 ## Introduction
 
-pfSense Actions is a small self-hosted controller for safely triggering a focused set of firewall operations. It turns reviewed pfSense commands into authenticated HTTP actions for home automation and network workflows without exposing a general shell, packaged as a predictable Express service and Docker image.
+Give scripts and home automation a few reviewed pfSense commands over HTTP instead of a shell. Scoped tokens limit what each caller can run, while the operations console and alerts show what happened.
 <!-- nova-region-end: introduction -->
 
 <!-- nova-region: documentation -->

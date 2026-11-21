@@ -10,41 +10,62 @@ import {
 } from '@/web/api.ts';
 import { showToast } from '@/web/toast.ts';
 
-import type { ReactElement } from 'react';
+import type {
+  Web_DebugLoggingPanel_DebugLoggingPanel_Active,
+  Web_DebugLoggingPanel_DebugLoggingPanel_DebugLogging,
+  Web_DebugLoggingPanel_DebugLoggingPanel_DebugLoggingState,
+  Web_DebugLoggingPanel_DebugLoggingPanel_Enabled,
+  Web_DebugLoggingPanel_DebugLoggingPanel_Returns,
+  Web_DebugLoggingPanel_DebugLoggingPanel_Saving,
+  Web_DebugLoggingPanel_DebugLoggingPanel_SavingState,
+  Web_DebugLoggingPanel_DebugLoggingPanel_SetDebugLogging,
+  Web_DebugLoggingPanel_DebugLoggingPanel_SetSaving,
+  Web_DebugLoggingPanel_DebugLoggingPanel_Toggle,
+  Web_DebugLoggingPanel_DebugLoggingPanel_Toggle_Enabled,
+  Web_DebugLoggingPanel_DebugLoggingPanel_Toggle_Previous,
+  Web_DebugLoggingPanel_DebugLoggingPanel_Toggle_Returns,
+  Web_DebugLoggingPanel_DebugLoggingPanel_Toggle_Saved,
+} from '@/types/web/debug-logging-panel.d.ts';
 
 /**
- * Debug Logging Panel.
+ * Debug Logging Panel - Debug Logging Panel.
  *
  * Shows the Debug logging switch and saves each change as soon as it's made.
  * The switch waits for the saved setting before it can be turned.
  *
+ * @returns {Web_DebugLoggingPanel_DebugLoggingPanel_Returns}
+ *
  * @since 2.1.0
  */
-export const DebugLoggingPanel = (): ReactElement => {
-  const [
-    debugLogging,
-    setDebugLogging,
-  ] = useState<boolean | null>(null);
-  const [
-    saving,
-    setSaving,
-  ] = useState<boolean>(false);
+export const DebugLoggingPanel = (): Web_DebugLoggingPanel_DebugLoggingPanel_Returns => {
+  const debugLoggingState: Web_DebugLoggingPanel_DebugLoggingPanel_DebugLoggingState = useState<Web_DebugLoggingPanel_DebugLoggingPanel_DebugLogging>(null);
+  const debugLogging: Web_DebugLoggingPanel_DebugLoggingPanel_DebugLogging = debugLoggingState[0];
+  const setDebugLogging: Web_DebugLoggingPanel_DebugLoggingPanel_SetDebugLogging = debugLoggingState[1];
+  const savingState: Web_DebugLoggingPanel_DebugLoggingPanel_SavingState = useState<Web_DebugLoggingPanel_DebugLoggingPanel_Saving>(false);
+  const saving: Web_DebugLoggingPanel_DebugLoggingPanel_Saving = savingState[0];
+  const setSaving: Web_DebugLoggingPanel_DebugLoggingPanel_SetSaving = savingState[1];
 
-  useEffect((): (() => void) => {
-    let active: boolean = true;
+  useEffect(() => {
+    let active: Web_DebugLoggingPanel_DebugLoggingPanel_Active = true;
 
-    getDiagnostics().then((diagnostics): void => {
-      if (active) {
+    getDiagnostics().then((diagnostics) => {
+      if (active === true) {
         setDebugLogging(diagnostics['debugLogging']);
       }
-    }).catch((caughtError: unknown): void => {
-      if (active) {
+
+      return;
+    }).catch((caughtError) => {
+      if (active === true) {
         showToast(summaryFor(caughtError, [], 'Debug logging couldn\'t be loaded. Reload the page.'), false);
       }
+
+      return;
     });
 
-    return (): void => {
+    return () => {
       active = false;
+
+      return;
     };
   }, []);
 
@@ -54,16 +75,20 @@ export const DebugLoggingPanel = (): ReactElement => {
    * Moves the switch at once, saves it, and shows what the server kept.
    * A failed save puts the switch back where it was.
    *
+   * @param {Web_DebugLoggingPanel_DebugLoggingPanel_Toggle_Enabled} enabled - Enabled.
+   *
+   * @returns {Web_DebugLoggingPanel_DebugLoggingPanel_Toggle_Returns}
+   *
    * @since 2.1.0
    */
-  const toggle = async (enabled: boolean): Promise<void> => {
-    const previous: boolean | null = debugLogging;
+  const toggle: Web_DebugLoggingPanel_DebugLoggingPanel_Toggle = async (enabled: Web_DebugLoggingPanel_DebugLoggingPanel_Toggle_Enabled): Web_DebugLoggingPanel_DebugLoggingPanel_Toggle_Returns => {
+    const previous: Web_DebugLoggingPanel_DebugLoggingPanel_Toggle_Previous = debugLogging;
 
     setDebugLogging(enabled);
     setSaving(true);
 
     try {
-      const saved = await updateDiagnostics({ debugLogging: enabled });
+      const saved: Web_DebugLoggingPanel_DebugLoggingPanel_Toggle_Saved = await updateDiagnostics({ debugLogging: enabled });
 
       setDebugLogging(saved['debugLogging']);
     } catch (caughtError) {
@@ -72,9 +97,11 @@ export const DebugLoggingPanel = (): ReactElement => {
     } finally {
       setSaving(false);
     }
+
+    return;
   };
 
-  const enabled: boolean = debugLogging === true;
+  const enabled: Web_DebugLoggingPanel_DebugLoggingPanel_Enabled = debugLogging === true;
 
   return (
     <div className="panel">
@@ -90,13 +117,15 @@ export const DebugLoggingPanel = (): ReactElement => {
             </div>
             <div className="setting-control">
               <label className="switch-control">
-                <span className="switch-label">{(enabled) ? 'On' : 'Off'}</span>
+                <span className="switch-label">{(enabled === true) ? 'On' : 'Off'}</span>
                 <input
                   aria-label="Debug logging"
                   checked={enabled}
-                  disabled={debugLogging === null || saving}
-                  onChange={(event): void => {
+                  disabled={debugLogging === null || saving === true}
+                  onChange={(event) => {
                     void toggle(event.currentTarget.checked);
+
+                    return;
                   }}
                   type="checkbox"
                 />

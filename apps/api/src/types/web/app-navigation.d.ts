@@ -43,3 +43,10 @@ export type Web_AppNavigation_Route = {
  * @since 2.1.0
  */
 export type Web_AppNavigation_PathMatch = Web_Navigation_PathMatch<Web_AppNavigation_Route>;
+
+/**
+ * App Navigation.
+ *
+ * @since 2.2.1
+ */
+export type Web_AppNavigation_ResolveAppNavigationPath_Pathname = string;

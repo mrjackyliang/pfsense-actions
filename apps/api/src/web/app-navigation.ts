@@ -2,12 +2,13 @@ import type {
   Web_AppNavigation_Items,
   Web_AppNavigation_PathMatch,
   Web_AppNavigation_Paths,
+  Web_AppNavigation_ResolveAppNavigationPath_Pathname,
   Web_AppNavigation_Route,
 } from '@/types/web/app-navigation.d.ts';
 import type { Web_Components_View } from '@/types/web/components.d.ts';
 
 /**
- * App Navigation - Paths.
+ * App Navigation - App Navigation Paths.
  *
  * Owns every bookmarkable console address. Shared history code consumes the
  * routes produced here while dialogs and sheets remain local interface state.
@@ -25,7 +26,7 @@ export const appNavigationPaths: Web_AppNavigation_Paths = {
 };
 
 /**
- * App Navigation - Items.
+ * App Navigation - App Navigation Items.
  *
  * Defines pfSense Actions navigation separately from the shared shell and
  * helpers. Desktop keeps this full order while phones derive their four tabs.
@@ -104,7 +105,7 @@ export const appNavigationItems: Web_AppNavigation_Items = [
 ];
 
 /**
- * App Navigation - Route for view.
+ * App Navigation - App Route For View.
  *
  * Returns the canonical path used by shell navigation. The root address is a
  * valid Overview alias, while explicit Overview navigation uses /overview.
@@ -162,18 +163,18 @@ export const appRouteForView = (view: Web_Components_View): Web_AppNavigation_Ro
 };
 
 /**
- * App Navigation - Resolve path.
+ * App Navigation - Resolve App Navigation Path.
  *
  * Parses every full console page. Unknown paths fall back to Overview and
  * request a History API replacement instead of adding a Back destination.
  *
- * @param {string} pathname - Pathname.
+ * @param {Web_AppNavigation_ResolveAppNavigationPath_Pathname} pathname - Pathname.
  *
  * @returns {Web_AppNavigation_PathMatch}
  *
  * @since 2.1.0
  */
-export const resolveAppNavigationPath = (pathname: string): Web_AppNavigation_PathMatch => {
+export const resolveAppNavigationPath = (pathname: Web_AppNavigation_ResolveAppNavigationPath_Pathname): Web_AppNavigation_PathMatch => {
   if (pathname === appNavigationPaths['root']) {
     return {
       path: pathname,

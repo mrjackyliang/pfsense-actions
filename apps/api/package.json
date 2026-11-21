@@ -1,6 +1,6 @@
 {
   "name": "pfsense-actions-app-api",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "license": "MIT",
   "type": "module",
   "private": true,
@@ -17,6 +17,7 @@
     "check:types-tests": "nova utility type-check --project tsconfig.tests.json",
     "check:types-web": "nova utility type-check --project tsconfig.web.json",
     "check:test": "vitest run",
+    "check:coverage": "vitest run --coverage",
     "build": "nova utility run-scripts --sequential --node-env production \"build:*\"",
     "build:reset": "shx rm -rf ./build",
     "build:transpile": "nova utility transpile --project tsconfig.source.json",
@@ -39,7 +40,7 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
-    "@cbnventures/nova": "0.44.0",
+    "@cbnventures/nova": "0.49.0",
     "@types/express": "5.0.0",
     "@types/node": "24.9.1",
     "@types/nodemailer": "8.0.2",
@@ -48,6 +49,7 @@
     "@types/react-dom": "19.3.0",
     "@types/ssh2": "1.15.4",
     "@vitejs/plugin-react": "6.1.2",
+    "@vitest/coverage-v8": "4.1.12",
     "eslint": "9.39.5",
     "notyf": "3.10.0",
     "react": "19.3.1",

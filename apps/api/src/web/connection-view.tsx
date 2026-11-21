@@ -18,83 +18,134 @@ import {
 import { showToast } from '@/web/toast.ts';
 
 import type {
-  FormEvent,
-  ReactElement,
-} from 'react';
-
-import type { Web_Api_CredentialType } from '@/types/web/api.d.ts';
-import type { Web_Components_ConnectionView_Props } from '@/types/web/components.d.ts';
+  Web_ConnectionView_ConnectionView_Address,
+  Web_ConnectionView_ConnectionView_AddressState,
+  Web_ConnectionView_ConnectionView_Busy,
+  Web_ConnectionView_ConnectionView_BusyState,
+  Web_ConnectionView_ConnectionView_Configured,
+  Web_ConnectionView_ConnectionView_Connection,
+  Web_ConnectionView_ConnectionView_ConnectionTest,
+  Web_ConnectionView_ConnectionView_Credential,
+  Web_ConnectionView_ConnectionView_CredentialSaved,
+  Web_ConnectionView_ConnectionView_CredentialState,
+  Web_ConnectionView_ConnectionView_CredentialType,
+  Web_ConnectionView_ConnectionView_CredentialTypeState,
+  Web_ConnectionView_ConnectionView_Dirty,
+  Web_ConnectionView_ConnectionView_Error,
+  Web_ConnectionView_ConnectionView_ErrorState,
+  Web_ConnectionView_ConnectionView_FieldIssue,
+  Web_ConnectionView_ConnectionView_FieldIssue_Field,
+  Web_ConnectionView_ConnectionView_FieldIssue_Message,
+  Web_ConnectionView_ConnectionView_FieldIssue_Returns,
+  Web_ConnectionView_ConnectionView_Hydrated,
+  Web_ConnectionView_ConnectionView_HydratedState,
+  Web_ConnectionView_ConnectionView_KeepsCredential,
+  Web_ConnectionView_ConnectionView_OnBackupImported,
+  Web_ConnectionView_ConnectionView_OnDirtyChange,
+  Web_ConnectionView_ConnectionView_OnSave,
+  Web_ConnectionView_ConnectionView_OnTestConnection,
+  Web_ConnectionView_ConnectionView_Port,
+  Web_ConnectionView_ConnectionView_PortState,
+  Web_ConnectionView_ConnectionView_Props,
+  Web_ConnectionView_ConnectionView_Returns,
+  Web_ConnectionView_ConnectionView_Save,
+  Web_ConnectionView_ConnectionView_Save_Event,
+  Web_ConnectionView_ConnectionView_Save_Returns,
+  Web_ConnectionView_ConnectionView_Save_Saved,
+  Web_ConnectionView_ConnectionView_SavedAddress,
+  Web_ConnectionView_ConnectionView_SavedCredentialLabel,
+  Web_ConnectionView_ConnectionView_SavedCredentialType,
+  Web_ConnectionView_ConnectionView_SavedPort,
+  Web_ConnectionView_ConnectionView_SavedUsername,
+  Web_ConnectionView_ConnectionView_SetAddress,
+  Web_ConnectionView_ConnectionView_SetBusy,
+  Web_ConnectionView_ConnectionView_SetCredential,
+  Web_ConnectionView_ConnectionView_SetCredentialType,
+  Web_ConnectionView_ConnectionView_SetError,
+  Web_ConnectionView_ConnectionView_SetHydrated,
+  Web_ConnectionView_ConnectionView_SetPort,
+  Web_ConnectionView_ConnectionView_SetUsername,
+  Web_ConnectionView_ConnectionView_ShowError,
+  Web_ConnectionView_ConnectionView_ShowError_CaughtError,
+  Web_ConnectionView_ConnectionView_ShowError_Message,
+  Web_ConnectionView_ConnectionView_ShowError_Returns,
+  Web_ConnectionView_ConnectionView_Test,
+  Web_ConnectionView_ConnectionView_Test_Returns,
+  Web_ConnectionView_ConnectionView_TestResult,
+  Web_ConnectionView_ConnectionView_Username,
+  Web_ConnectionView_ConnectionView_UsernameState,
+  Web_ConnectionView_ConnectionView_Warn,
+  Web_ConnectionView_ConnectionView_Warn_Event,
+  Web_ConnectionView_ConnectionView_Warn_Returns,
+} from '@/types/web/connection-view.d.ts';
 
 /**
- * Connection View.
+ * Connection View - Connection View.
  *
  * Stores this module-level value in one named location.
  * Related code reuses it instead of duplicating the definition.
  *
+ * @param {Web_ConnectionView_ConnectionView_Props} props - Props.
+ *
+ * @returns {Web_ConnectionView_ConnectionView_Returns}
+ *
  * @since 2.0.0
  */
-export const ConnectionView = ({
-  connection,
-  connectionTest,
-  onBackupImported,
-  onDirtyChange,
-  onSave,
-  onTestConnection,
-}: Web_Components_ConnectionView_Props): ReactElement => {
-  const [
-    address,
-    setAddress,
-  ] = useState<string>('');
-  const [
-    port,
-    setPort,
-  ] = useState<string>('22');
-  const [
-    username,
-    setUsername,
-  ] = useState<string>('');
-  const [
-    credentialType,
-    setCredentialType,
-  ] = useState<Web_Api_CredentialType>('privateKey');
-  const [
-    credential,
-    setCredential,
-  ] = useState<string>('');
-  const [
-    busy,
-    setBusy,
-  ] = useState<boolean>(false);
-  const [
-    error,
-    setError,
-  ] = useState<unknown>(null);
-  const [
-    hydrated,
-    setHydrated,
-  ] = useState<boolean>(false);
+export const ConnectionView = (props: Web_ConnectionView_ConnectionView_Props): Web_ConnectionView_ConnectionView_Returns => {
+  const connection: Web_ConnectionView_ConnectionView_Connection = props['connection'];
+  const connectionTest: Web_ConnectionView_ConnectionView_ConnectionTest = props['connectionTest'];
+  const onBackupImported: Web_ConnectionView_ConnectionView_OnBackupImported = props['onBackupImported'];
+  const onDirtyChange: Web_ConnectionView_ConnectionView_OnDirtyChange = props['onDirtyChange'];
+  const onSave: Web_ConnectionView_ConnectionView_OnSave = props['onSave'];
+  const onTestConnection: Web_ConnectionView_ConnectionView_OnTestConnection = props['onTestConnection'];
+  const addressState: Web_ConnectionView_ConnectionView_AddressState = useState<Web_ConnectionView_ConnectionView_Address>('');
+  const address: Web_ConnectionView_ConnectionView_Address = addressState[0];
+  const setAddress: Web_ConnectionView_ConnectionView_SetAddress = addressState[1];
+  const portState: Web_ConnectionView_ConnectionView_PortState = useState<Web_ConnectionView_ConnectionView_Port>('22');
+  const port: Web_ConnectionView_ConnectionView_Port = portState[0];
+  const setPort: Web_ConnectionView_ConnectionView_SetPort = portState[1];
+  const usernameState: Web_ConnectionView_ConnectionView_UsernameState = useState<Web_ConnectionView_ConnectionView_Username>('');
+  const username: Web_ConnectionView_ConnectionView_Username = usernameState[0];
+  const setUsername: Web_ConnectionView_ConnectionView_SetUsername = usernameState[1];
+  const credentialTypeState: Web_ConnectionView_ConnectionView_CredentialTypeState = useState<Web_ConnectionView_ConnectionView_CredentialType>('privateKey');
+  const credentialType: Web_ConnectionView_ConnectionView_CredentialType = credentialTypeState[0];
+  const setCredentialType: Web_ConnectionView_ConnectionView_SetCredentialType = credentialTypeState[1];
+  const credentialState: Web_ConnectionView_ConnectionView_CredentialState = useState<Web_ConnectionView_ConnectionView_Credential>('');
+  const credential: Web_ConnectionView_ConnectionView_Credential = credentialState[0];
+  const setCredential: Web_ConnectionView_ConnectionView_SetCredential = credentialState[1];
+  const busyState: Web_ConnectionView_ConnectionView_BusyState = useState<Web_ConnectionView_ConnectionView_Busy>(false);
+  const busy: Web_ConnectionView_ConnectionView_Busy = busyState[0];
+  const setBusy: Web_ConnectionView_ConnectionView_SetBusy = busyState[1];
+  const errorState: Web_ConnectionView_ConnectionView_ErrorState = useState<Web_ConnectionView_ConnectionView_Error>(null);
+  const error: Web_ConnectionView_ConnectionView_Error = errorState[0];
+  const setError: Web_ConnectionView_ConnectionView_SetError = errorState[1];
+  const hydratedState: Web_ConnectionView_ConnectionView_HydratedState = useState<Web_ConnectionView_ConnectionView_Hydrated>(false);
+  const hydrated: Web_ConnectionView_ConnectionView_Hydrated = hydratedState[0];
+  const setHydrated: Web_ConnectionView_ConnectionView_SetHydrated = hydratedState[1];
 
-  useEffect((): void => {
+  useEffect(() => {
     if (connection === null) {
       setHydrated(false);
 
       return;
     }
 
-    setAddress((connection['configured']) ? (connection['pfsenseSshIp'] ?? '') : '');
-    setPort(String((connection['configured']) ? (connection['pfsenseSshPort'] ?? 22) : 22));
-    setUsername((connection['configured']) ? (connection['pfsenseUsername'] ?? '') : '');
-    setCredentialType((connection['configured']) ? (connection['credentialType'] ?? 'privateKey') : 'privateKey');
+    setAddress((connection['configured'] === true) ? (connection['pfsenseSshIp'] ?? '') : '');
+    setPort(String((connection['configured'] === true) ? (connection['pfsenseSshPort'] ?? 22) : 22));
+    setUsername((connection['configured'] === true) ? (connection['pfsenseUsername'] ?? '') : '');
+    setCredentialType((connection['configured'] === true) ? (connection['credentialType'] ?? 'privateKey') : 'privateKey');
     setCredential('');
     setHydrated(true);
+
+    return;
   }, [connection]);
 
-  const configured: boolean = connection?.['configured'] === true;
-  const savedAddress: string = (configured) ? (connection?.['pfsenseSshIp'] ?? '') : '';
-  const savedPort: string = String((configured) ? (connection?.['pfsenseSshPort'] ?? 22) : 22);
-  const savedUsername: string = (configured) ? (connection?.['pfsenseUsername'] ?? '') : '';
-  const savedCredentialType: Web_Api_CredentialType = (configured) ? (connection?.['credentialType'] ?? 'privateKey') : 'privateKey';
-  const dirty: boolean = hydrated && (
+  const configured: Web_ConnectionView_ConnectionView_Configured = connection !== null && connection['configured'] === true;
+  const savedAddress: Web_ConnectionView_ConnectionView_SavedAddress = (configured === true && connection !== null) ? (connection['pfsenseSshIp'] ?? '') : '';
+  const savedPort: Web_ConnectionView_ConnectionView_SavedPort = String((configured === true && connection !== null) ? (connection['pfsenseSshPort'] ?? 22) : 22);
+  const savedUsername: Web_ConnectionView_ConnectionView_SavedUsername = (configured === true && connection !== null) ? (connection['pfsenseUsername'] ?? '') : '';
+  const savedCredentialType: Web_ConnectionView_ConnectionView_SavedCredentialType = (configured === true && connection !== null) ? (connection['credentialType'] ?? 'privateKey') : 'privateKey';
+  const dirty: Web_ConnectionView_ConnectionView_Dirty = hydrated && (
     address !== savedAddress
     || port !== savedPort
     || username !== savedUsername
@@ -103,31 +154,37 @@ export const ConnectionView = ({
   );
 
   // Closing or refreshing the tab keeps the browser's native data-loss warning.
-  useEffect((): (() => void) => {
+  useEffect(() => {
     /**
      * Connection View - Warn.
      *
      * Centralizes this operation for the surrounding workflow.
      * Callers reuse one implementation instead of repeating the behavior.
      *
+     * @param {Web_ConnectionView_ConnectionView_Warn_Event} event - Event.
+     *
+     * @returns {Web_ConnectionView_ConnectionView_Warn_Returns}
+     *
      * @since 2.0.0
      */
-    const warn = (event: BeforeUnloadEvent): void => {
+    const warn: Web_ConnectionView_ConnectionView_Warn = (event: Web_ConnectionView_ConnectionView_Warn_Event): Web_ConnectionView_ConnectionView_Warn_Returns => {
       event.preventDefault();
+
+      return;
     };
 
-    if (dirty) {
+    if (dirty === true) {
       window.addEventListener('beforeunload', warn);
     }
 
-    return (): void => window.removeEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
 
   // The app owns in-console navigation, so it needs the same dirty state.
-  useEffect((): (() => void) => {
+  useEffect(() => {
     onDirtyChange(dirty);
 
-    return (): void => onDirtyChange(false);
+    return () => onDirtyChange(false);
   }, [
     dirty,
     onDirtyChange,
@@ -142,34 +199,46 @@ export const ConnectionView = ({
     );
   }
 
-  const credentialSaved: boolean = connection['credentialSaved'] !== false;
-  const keepsCredential: boolean = configured && credentialSaved && connection['credentialType'] === credentialType;
-  const savedCredentialLabel: string = (connection['credentialType'] === 'privateKey') ? 'Private key' : 'Password';
+  const credentialSaved: Web_ConnectionView_ConnectionView_CredentialSaved = connection['credentialSaved'] !== false;
+  const keepsCredential: Web_ConnectionView_ConnectionView_KeepsCredential = (
+    configured
+    && credentialSaved
+    && connection['credentialType'] === credentialType
+  );
+  const savedCredentialLabel: Web_ConnectionView_ConnectionView_SavedCredentialLabel = (connection['credentialType'] === 'privateKey') ? 'Private key' : 'Password';
 
   /**
-   * Connection View - Field issue.
+   * Connection View - Field Issue.
    *
    * Centralizes this operation for the surrounding workflow.
    * Callers reuse one implementation instead of repeating the behavior.
    *
+   * @param {Web_ConnectionView_ConnectionView_FieldIssue_Field} field - Field.
+   *
+   * @returns {Web_ConnectionView_ConnectionView_FieldIssue_Returns}
+   *
    * @since 2.0.0
    */
-  const fieldIssue = (field: string): ReactElement | null => {
-    const message: string = issueFor(error, field);
+  const fieldIssue: Web_ConnectionView_ConnectionView_FieldIssue = (field: Web_ConnectionView_ConnectionView_FieldIssue_Field): Web_ConnectionView_ConnectionView_FieldIssue_Returns => {
+    const message: Web_ConnectionView_ConnectionView_FieldIssue_Message = issueFor(error, field);
 
     return (message === '') ? null : <small className="field-error">{message}</small>;
   };
 
   /**
-   * Connection View - Show error.
+   * Connection View - Show Error.
    *
    * Keeps an error that belongs to a field beside that field
    * and shows any other error as a toast.
    *
+   * @param {Web_ConnectionView_ConnectionView_ShowError_CaughtError} caughtError - Caught error.
+   *
+   * @returns {Web_ConnectionView_ConnectionView_ShowError_Returns}
+   *
    * @since 2.0.0
    */
-  const showError = (caughtError: unknown): void => {
-    const message: string = summaryFor(caughtError, [
+  const showError: Web_ConnectionView_ConnectionView_ShowError = (caughtError: Web_ConnectionView_ConnectionView_ShowError_CaughtError): Web_ConnectionView_ConnectionView_ShowError_Returns => {
+    const message: Web_ConnectionView_ConnectionView_ShowError_Message = summaryFor(caughtError, [
       'credential',
       'pfsenseSshIp',
       'pfsenseSshPort',
@@ -181,6 +250,8 @@ export const ConnectionView = ({
     if (message !== '') {
       showToast(message, false);
     }
+
+    return;
   };
 
   /**
@@ -189,15 +260,20 @@ export const ConnectionView = ({
    * Centralizes this operation for the surrounding workflow.
    * Callers reuse one implementation instead of repeating the behavior.
    *
+   * @param {Web_ConnectionView_ConnectionView_Save_Event} event - Event.
+   *
+   * @returns {Web_ConnectionView_ConnectionView_Save_Returns}
+   *
    * @since 2.0.0
    */
-  const save = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+  const save: Web_ConnectionView_ConnectionView_Save = async (event: Web_ConnectionView_ConnectionView_Save_Event): Web_ConnectionView_ConnectionView_Save_Returns => {
     event.preventDefault();
+
     setBusy(true);
     setError(null);
 
     try {
-      const saved = await updateConnection({
+      const saved: Web_ConnectionView_ConnectionView_Save_Saved = await updateConnection({
         ...((credential === '') ? {} : { credential }),
         credentialType,
         pfsenseSshIp: address.trim(),
@@ -218,6 +294,8 @@ export const ConnectionView = ({
     } finally {
       setBusy(false);
     }
+
+    return;
   };
 
   /**
@@ -226,9 +304,11 @@ export const ConnectionView = ({
    * Centralizes this operation for the surrounding workflow.
    * Callers reuse one implementation instead of repeating the behavior.
    *
+   * @returns {Web_ConnectionView_ConnectionView_Test_Returns}
+   *
    * @since 2.0.0
    */
-  const test = async (): Promise<void> => {
+  const test: Web_ConnectionView_ConnectionView_Test = async (): Web_ConnectionView_ConnectionView_Test_Returns => {
     setBusy(true);
     setError(null);
 
@@ -239,9 +319,11 @@ export const ConnectionView = ({
     } finally {
       setBusy(false);
     }
+
+    return;
   };
 
-  let testResult: ReactElement | null = null;
+  let testResult: Web_ConnectionView_ConnectionView_TestResult = null;
 
   if (connectionTest === true) {
     testResult = (
@@ -268,18 +350,20 @@ export const ConnectionView = ({
         <p>{'pfSense Actions signs in over SSH to run each action. New settings are tested before they\'re saved.'}</p>
       </div>
 
-      {(configured) ? (
+      {(configured === true) ? (
         <div className="panel">
           <section className="form-section">
             <div className="form-section-head">
               <h2>Saved connection</h2>
               <Button
                 disabled={busy}
-                onClick={(): void => {
+                onClick={() => {
                   void test();
+
+                  return;
                 }}
               >
-                {(busy) ? 'Testing…' : 'Test connection'}
+                {(busy === true) ? 'Testing…' : 'Test connection'}
               </Button>
             </div>
             <dl className="details">
@@ -293,7 +377,7 @@ export const ConnectionView = ({
               </div>
               <div>
                 <dt>Sign-in</dt>
-                <dd>{(credentialSaved) ? savedCredentialLabel : `${savedCredentialLabel}, not saved`}</dd>
+                <dd>{(credentialSaved === true) ? savedCredentialLabel : `${savedCredentialLabel}, not saved`}</dd>
               </div>
               <div>
                 <dt>Last test</dt>
@@ -307,33 +391,33 @@ export const ConnectionView = ({
       <div className="panel">
         <form className="form-section" noValidate onSubmit={save}>
           <div className="form-section-head">
-            <h2>{(configured) ? 'Change connection' : 'Set up the connection'}</h2>
+            <h2>{(configured === true) ? 'Change connection' : 'Set up the connection'}</h2>
           </div>
 
           <div className="field-row">
             <FieldLabel>
               <span>pfSense address</span>
-              <input aria-invalid={issueFor(error, 'pfsenseSshIp') !== ''} autoCapitalize="none" className="monospace" inputMode="decimal" onChange={(event): void => setAddress(event.currentTarget.value)} placeholder="e.g. 192.168.1.1" spellCheck={false} value={address} />
+              <input aria-invalid={issueFor(error, 'pfsenseSshIp') !== ''} autoCapitalize="none" className="monospace" inputMode="decimal" onChange={(event) => setAddress(event.currentTarget.value)} placeholder="e.g. 192.168.1.1" spellCheck={false} value={address} />
               {fieldIssue('pfsenseSshIp') ?? <small>{'The firewall\'s IP address. Hostnames aren\'t accepted.'}</small>}
             </FieldLabel>
             <FieldLabel>
               <span>SSH port</span>
-              <input aria-invalid={issueFor(error, 'pfsenseSshPort') !== ''} className="monospace" inputMode="numeric" onChange={(event): void => setPort(event.currentTarget.value)} value={port} />
+              <input aria-invalid={issueFor(error, 'pfsenseSshPort') !== ''} className="monospace" inputMode="numeric" onChange={(event) => setPort(event.currentTarget.value)} value={port} />
               {fieldIssue('pfsenseSshPort')}
             </FieldLabel>
           </div>
 
           <FieldLabel>
             <span>SSH username</span>
-            <input {...passwordManagerIgnore} aria-invalid={issueFor(error, 'pfsenseUsername') !== ''} autoCapitalize="none" autoComplete="off" onChange={(event): void => setUsername(event.currentTarget.value)} placeholder="e.g. admin" spellCheck={false} value={username} />
+            <input {...passwordManagerIgnore} aria-invalid={issueFor(error, 'pfsenseUsername') !== ''} autoCapitalize="none" autoComplete="off" onChange={(event) => setUsername(event.currentTarget.value)} placeholder="e.g. admin" spellCheck={false} value={username} />
             {fieldIssue('pfsenseUsername')}
           </FieldLabel>
 
           <div className="field">
             <span id="credential-type-label">Sign in with</span>
             <div aria-labelledby="credential-type-label" className="segmented segmented-fit" role="group">
-              <button aria-pressed={credentialType === 'privateKey'} onClick={(): void => setCredentialType('privateKey')} type="button">Private key</button>
-              <button aria-pressed={credentialType === 'password'} onClick={(): void => setCredentialType('password')} type="button">Password</button>
+              <button aria-pressed={credentialType === 'privateKey'} onClick={() => setCredentialType('privateKey')} type="button">Private key</button>
+              <button aria-pressed={credentialType === 'password'} onClick={() => setCredentialType('password')} type="button">Password</button>
             </div>
           </div>
 
@@ -343,8 +427,8 @@ export const ConnectionView = ({
               <textarea
                 aria-invalid={issueFor(error, 'credential') !== ''}
                 className="monospace credential-key"
-                onChange={(event): void => setCredential(event.currentTarget.value)}
-                placeholder={(keepsCredential) ? 'Leave empty to keep the saved key' : 'e.g. -----BEGIN OPENSSH PRIVATE KEY-----'}
+                onChange={(event) => setCredential(event.currentTarget.value)}
+                placeholder={(keepsCredential === true) ? 'Leave empty to keep the saved key' : 'e.g. -----BEGIN OPENSSH PRIVATE KEY-----'}
                 rows={5}
                 spellCheck={false}
                 value={credential}
@@ -354,8 +438,8 @@ export const ConnectionView = ({
                 {...passwordManagerIgnore}
                 aria-invalid={issueFor(error, 'credential') !== ''}
                 autoComplete="off"
-                onChange={(event): void => setCredential(event.currentTarget.value)}
-                placeholder={(keepsCredential) ? 'Leave empty to keep the saved password' : ''}
+                onChange={(event) => setCredential(event.currentTarget.value)}
+                placeholder={(keepsCredential === true) ? 'Leave empty to keep the saved password' : ''}
                 type="password"
                 value={credential}
               />
@@ -364,8 +448,16 @@ export const ConnectionView = ({
           </FieldLabel>
 
           <div className="panel-actions">
-            <Button disabled={busy || address.trim() === '' || username.trim() === ''} type="submit" variant="primary">
-              {(busy) ? 'Testing…' : 'Test and save'}
+            <Button
+              disabled={(
+                busy === true
+                || address.trim() === ''
+                || username.trim() === ''
+              )}
+              type="submit"
+              variant="primary"
+            >
+              {(busy === true) ? 'Testing…' : 'Test and save'}
             </Button>
           </div>
         </form>

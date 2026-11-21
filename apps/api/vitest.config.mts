@@ -1,5 +1,6 @@
 import { fileURLToPath, URL } from 'node:url';
 
+import { VitestCoverage } from '@cbnventures/nova/toolkit';
 import { defineConfig } from 'vitest/config';
 
 /**
@@ -23,5 +24,6 @@ export default defineConfig({
       'tests/**/*.test.ts',
     ],
     passWithNoTests: true,
+    coverage: VitestCoverage.options(),
   },
 });

@@ -1,12 +1,28 @@
 import { z } from 'zod';
 
 import { notificationServices } from '@/web/notification-services.js';
+import {
+  lowercaseSlugPattern,
+  notificationTargetIdPattern,
+  sha256HashPattern,
+} from '@/web/regex.js';
 
-import type { Web_Api_Schema } from '@/types/web/api.d.ts';
-import type { Web_Backup_Document } from '@/types/web/backup.d.ts';
+import type {
+  Web_BackupFormat_BackupDocumentSchema,
+  Web_BackupFormat_BackupDocumentSchema_NotificationIds,
+  Web_BackupFormat_BackupDocumentSchema_NotificationNames,
+  Web_BackupFormat_BackupDocumentSchema_TokenHashes,
+  Web_BackupFormat_BackupDocumentSchema_TokenIds,
+  Web_BackupFormat_BackupDocumentSchema_TokenNames,
+  Web_BackupFormat_NotificationSchema_PlainKeys,
+  Web_BackupFormat_NotificationSchema_SecretKeys,
+  Web_BackupFormat_NotificationSchema_Service,
+  Web_BackupFormat_ParseBackupDocument_Returns,
+  Web_BackupFormat_ParseBackupDocument_Value,
+} from '@/types/web/backup-format.d.ts';
 
 /**
- * Backup Format - Event schema.
+ * Backup Format - Event Schema.
  *
  * Restricts notification subscriptions to events this app currently emits.
  * Unknown event names make the complete file invalid.
@@ -23,7 +39,7 @@ const eventSchema = z.enum([
 ]);
 
 /**
- * Backup Format - Service schema.
+ * Backup Format - Service Schema.
  *
  * Restricts portable targets to notification integrations supported here.
  * Service-specific field validation runs after this discriminant is known.
@@ -45,7 +61,7 @@ const serviceSchema = z.enum([
 ]);
 
 /**
- * Backup Format - String map schema.
+ * Backup Format - String Map Schema.
  *
  * Bounds keys and values used by notification settings and plain-text secrets.
  * Strict notification objects prevent nested or unrelated configuration.
@@ -55,7 +71,7 @@ const serviceSchema = z.enum([
 const stringMapSchema = z.record(z.string().min(1).max(64), z.string().max(4096));
 
 /**
- * Backup Format - Notification schema.
+ * Backup Format - Notification Schema.
  *
  * Validates one portable target and keeps public and secret fields separated.
  * Field names must match the selected service's current definition.
@@ -63,21 +79,21 @@ const stringMapSchema = z.record(z.string().min(1).max(64), z.string().max(4096)
  * @since 2.1.0
  */
 const notificationSchema = z.object({
-  events: z.array(eventSchema).min(1).max(6).refine((events): boolean => new Set(events).size === events.length),
-  id: z.string().regex(/^ntf-[0-9a-f]{16}$/u),
+  events: z.array(eventSchema).min(1).max(6).refine((events) => new Set(events).size === events.length),
+  id: z.string().regex(new RegExp(notificationTargetIdPattern, 'u')),
   name: z.string().trim().min(1).max(80),
   secrets: stringMapSchema,
   service: serviceSchema,
   settings: stringMapSchema,
-}).strict().superRefine((notification, context): void => {
-  const service = notificationServices.find((definition): boolean => definition['key'] === notification['service']);
+}).strict().superRefine((notification, context) => {
+  const service: Web_BackupFormat_NotificationSchema_Service = notificationServices.find((definition) => definition['key'] === notification['service']);
 
   if (service === undefined) {
     return;
   }
 
-  const plainKeys: Set<string> = new Set(service['fields'].filter((field): boolean => field['secret'] === false).map((field): string => field['key']));
-  const secretKeys: Set<string> = new Set(service['fields'].filter((field): boolean => field['secret']).map((field): string => field['key']));
+  const plainKeys: Web_BackupFormat_NotificationSchema_PlainKeys = new Set(service['fields'].filter((field) => field['secret'] === false).map((field) => field['key']));
+  const secretKeys: Web_BackupFormat_NotificationSchema_SecretKeys = new Set(service['fields'].filter((field) => field['secret']).map((field) => field['key']));
 
   for (const key of Object.keys(notification['settings'])) {
     if (plainKeys.has(key) === false) {
@@ -104,29 +120,31 @@ const notificationSchema = z.object({
       });
     }
   }
+
+  return;
 });
 
 /**
- * Backup Format - Backup document schema.
+ * Backup Format - Backup Document Schema.
  *
  * Mirrors the server's strict version-one export contract in the browser.
  * Unknown keys, duplicate identities, and unsupported nested values are rejected.
  *
  * @since 2.1.0
  */
-export const backupDocumentSchema: Web_Api_Schema<Web_Backup_Document> = z.object({
+export const backupDocumentSchema: Web_BackupFormat_BackupDocumentSchema = z.object({
   accessTokens: z.array(z.object({
     createdAt: z.iso.datetime({ offset: true }),
     expiresAt: z.iso.datetime({ offset: true }).nullable(),
-    id: z.string().min(1).max(64).regex(/^[a-z][a-z0-9-]*$/u),
+    id: z.string().min(1).max(64).regex(new RegExp(lowercaseSlugPattern, 'u')),
     lastUsedAt: z.iso.datetime({ offset: true }).nullable(),
     name: z.string().trim().min(1).max(80),
     scopes: z.array(z.enum([
       'pfsense:read',
       'reachability:read',
       'wol:execute',
-    ])).min(1).max(3).refine((scopes): boolean => new Set(scopes).size === scopes.length),
-    tokenHash: z.string().regex(/^[0-9a-f]{64}$/u),
+    ])).min(1).max(3).refine((scopes) => new Set(scopes).size === scopes.length),
+    tokenHash: z.string().regex(new RegExp(sha256HashPattern, 'u')),
   }).strict()).max(1000).optional(),
   appVersion: z.string().min(1).max(64),
   connection: z.object({
@@ -146,7 +164,7 @@ export const backupDocumentSchema: Web_Api_Schema<Web_Backup_Document> = z.objec
   format: z.literal('pfsense-actions-export'),
   notifications: z.array(notificationSchema).max(1000).optional(),
   version: z.literal(1),
-}).strict().superRefine((document, context): void => {
+}).strict().superRefine((document, context) => {
   if (
     Object.hasOwn(document, 'connection') === false
     && document['notifications'] === undefined
@@ -158,11 +176,11 @@ export const backupDocumentSchema: Web_Api_Schema<Web_Backup_Document> = z.objec
     });
   }
 
-  const notificationNames: string[] = (document['notifications'] ?? []).map((notification): string => notification['name'].toLocaleLowerCase());
-  const notificationIds: string[] = (document['notifications'] ?? []).map((notification): string => notification['id']);
-  const tokenNames: string[] = (document['accessTokens'] ?? []).map((token): string => token['name'].toLocaleLowerCase());
-  const tokenIds: string[] = (document['accessTokens'] ?? []).map((token): string => token['id']);
-  const tokenHashes: string[] = (document['accessTokens'] ?? []).map((token): string => token['tokenHash']);
+  const notificationNames: Web_BackupFormat_BackupDocumentSchema_NotificationNames = (document['notifications'] ?? []).map((notification) => notification['name'].toLocaleLowerCase());
+  const notificationIds: Web_BackupFormat_BackupDocumentSchema_NotificationIds = (document['notifications'] ?? []).map((notification) => notification['id']);
+  const tokenNames: Web_BackupFormat_BackupDocumentSchema_TokenNames = (document['accessTokens'] ?? []).map((token) => token['name'].toLocaleLowerCase());
+  const tokenIds: Web_BackupFormat_BackupDocumentSchema_TokenIds = (document['accessTokens'] ?? []).map((token) => token['id']);
+  const tokenHashes: Web_BackupFormat_BackupDocumentSchema_TokenHashes = (document['accessTokens'] ?? []).map((token) => token['tokenHash']);
 
   if (
     new Set(notificationNames).size !== notificationNames.length
@@ -176,14 +194,18 @@ export const backupDocumentSchema: Web_Api_Schema<Web_Backup_Document> = z.objec
       message: 'The export contains duplicate targets or tokens.',
     });
   }
+
+  return;
 });
 
 /**
- * Backup Format - Parse backup document.
+ * Backup Format - Parse Backup Document.
  *
  * Converts an untrusted uploaded JSON value into the strict portable contract.
  * The wizard never previews or applies the original unvalidated value.
  *
+ * @returns {Web_BackupFormat_ParseBackupDocument_Returns}
+ *
  * @since 2.1.0
  */
-export const parseBackupDocument = (value: unknown): Web_Backup_Document => backupDocumentSchema.parse(value);
+export const parseBackupDocument = (value: Web_BackupFormat_ParseBackupDocument_Value): Web_BackupFormat_ParseBackupDocument_Returns => backupDocumentSchema.parse(value);

@@ -1,0 +1,21 @@
+{
+  "files": [
+    "rootfs/etc/nova-docker/legacy-state-paths",
+    "rootfs/etc/nova-docker/writable-paths",
+    "rootfs/etc/s6-overlay/s6-rc.d/nova-container-init/dependencies.d/base",
+    "rootfs/etc/s6-overlay/s6-rc.d/nova-container-init/type",
+    "rootfs/etc/s6-overlay/s6-rc.d/nova-container-init/up",
+    "rootfs/etc/s6-overlay/s6-rc.d/pfsense-actions/dependencies.d/nova-container-init",
+    "rootfs/etc/s6-overlay/s6-rc.d/pfsense-actions/finish",
+    "rootfs/etc/s6-overlay/s6-rc.d/pfsense-actions/run",
+    "rootfs/etc/s6-overlay/s6-rc.d/pfsense-actions/timeout-down",
+    "rootfs/etc/s6-overlay/s6-rc.d/pfsense-actions/timeout-finish",
+    "rootfs/etc/s6-overlay/s6-rc.d/pfsense-actions/timeout-kill",
+    "rootfs/etc/s6-overlay/s6-rc.d/pfsense-actions/type",
+    "rootfs/etc/s6-overlay/user-bundles.d/user/contents.d/nova-container-init",
+    "rootfs/etc/s6-overlay/user-bundles.d/user/contents.d/pfsense-actions",
+    "rootfs/usr/local/libexec/nova-docker/healthcheck",
+    "rootfs/usr/local/libexec/nova-docker/init-user",
+    "rootfs/usr/local/libexec/nova-docker/log"
+  ]
+}

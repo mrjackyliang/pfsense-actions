@@ -5,8 +5,8 @@
       "slug": "pfsense-actions"
     },
     "description": {
-      "short": "A small authenticated controller for running focused remote actions on a pfSense firewall",
-      "long": "pfSense Actions is a small self-hosted controller for safely triggering a focused set of firewall operations. It turns reviewed pfSense commands into authenticated HTTP actions for home automation and network workflows without exposing a general shell, packaged as a predictable Express service and Docker image."
+      "short": "Trigger a few scoped pfSense actions over HTTP, without handing anyone a shell",
+      "long": "Give scripts and home automation a few reviewed pfSense commands over HTTP instead of a shell. Scoped tokens limit what each caller can run, while the operations console and alerts show what happened."
     },
     "keywords": [
       "pfsense",
@@ -158,10 +158,124 @@
     ],
     "issueTemplate": {
       "bugReportFields": [
-        "nodejs",
+        "docker",
         "pfsense",
-        "docker"
-      ]
+        "web",
+        "screenshots",
+        "notifications"
+      ],
+      "customQuestions": {
+        "bug": [
+          {
+            "type": "dropdown",
+            "id": "affected-area",
+            "attributes": {
+              "label": "Affected Area",
+              "description": "Select the pfSense Actions area involved.",
+              "options": [
+                "Connectivity Check",
+                "System Information",
+                "Reachability Check",
+                "Wake-on-LAN",
+                "Token or Scope",
+                "Operations Console",
+                "Scheduled Health Check",
+                "Notifications",
+                "Other"
+              ]
+            },
+            "validations": {
+              "required": true
+            }
+          },
+          {
+            "type": "dropdown",
+            "id": "failure-stage",
+            "attributes": {
+              "label": "Failure Stage",
+              "description": "Select the stage where the request failed.",
+              "options": [
+                "Authentication",
+                "Request Validation",
+                "SSH Connection",
+                "Command Execution",
+                "Response Handling",
+                "Not Sure"
+              ]
+            },
+            "validations": {
+              "required": false
+            }
+          }
+        ],
+        "feature": [
+          {
+            "type": "dropdown",
+            "id": "affected-area",
+            "attributes": {
+              "label": "Affected Area",
+              "description": "Select the pfSense Actions area involved.",
+              "options": [
+                "Connectivity Check",
+                "System Information",
+                "Reachability Check",
+                "Wake-on-LAN",
+                "Token or Scope",
+                "Operations Console",
+                "Scheduled Health Check",
+                "Notifications",
+                "Other"
+              ]
+            },
+            "validations": {
+              "required": true
+            }
+          }
+        ],
+        "support": [
+          {
+            "type": "dropdown",
+            "id": "affected-area",
+            "attributes": {
+              "label": "Affected Area",
+              "description": "Select the pfSense Actions area involved.",
+              "options": [
+                "Connectivity Check",
+                "System Information",
+                "Reachability Check",
+                "Wake-on-LAN",
+                "Token or Scope",
+                "Operations Console",
+                "Scheduled Health Check",
+                "Notifications",
+                "Other"
+              ]
+            },
+            "validations": {
+              "required": true
+            }
+          },
+          {
+            "type": "dropdown",
+            "id": "failure-stage",
+            "attributes": {
+              "label": "Failure Stage",
+              "description": "Select the stage where the request failed.",
+              "options": [
+                "Authentication",
+                "Request Validation",
+                "SSH Connection",
+                "Command Execution",
+                "Response Handling",
+                "Not Sure"
+              ]
+            },
+            "validations": {
+              "required": false
+            }
+          }
+        ]
+      }
     }
   },
   "dockerHub": {
@@ -200,7 +314,7 @@
         "release"
       ],
       "runsOn": "ubuntu-24.04",
-      "timeoutMinutes": 45,
+      "timeoutMinutes": 90,
       "build": [
         "./apps/docs"
       ],
@@ -231,16 +345,22 @@
     "license": "https://github.com/mrjackyliang/pfsense-actions/blob/HEAD/LICENSE",
     "logo": "https://mrjackyliang.github.io/pfsense-actions/images/logo.svg",
     "documentation": "https://mrjackyliang.github.io/pfsense-actions/",
+    "docker": "https://hub.docker.com/r/mrjackyliang/pfsense-actions",
     "fundSources": [
       "https://github.com/sponsors/mrjackyliang",
       "https://liang.nyc/paypal"
-    ]
+    ],
+    "privacyPolicy": "https://github.com/mrjackyliang/mrjackyliang/blob/HEAD/PRIVACY.md",
+    "termsOfUse": "https://github.com/mrjackyliang/mrjackyliang/blob/HEAD/TERMS.md"
   },
   "readme": {
     "badges": [
+      "docker-pulls",
+      "docker-image-size",
       "github-release",
       "github-top-language",
       "github-license",
+      "coverage",
       "funding"
     ]
   },
@@ -305,11 +425,24 @@
       ]
     }
   },
+  "attributeFiles": {
+    "./packages/docker/.gitattributes": {
+      "bundles": [
+        "docker-scripts"
+      ],
+      "patterns": []
+    }
+  },
   "agents": [
     "claude-code",
     "codex"
   ],
   "recipes": {
+    "docker": {
+      "sync-image": {
+        "enabled": true
+      }
+    },
     "docker-hub": {
       "sync-identity": {
         "enabled": true
@@ -385,6 +518,11 @@
         "enabled": true
       },
       "update-introduction": {
+        "enabled": true
+      }
+    },
+    "tsconfig": {
+      "sync-references": {
         "enabled": true
       }
     },
@@ -624,6 +762,9 @@
     }
   },
   "settings": {
+    "coverage": {
+      "minimum": 70
+    },
     "lockStepVersioning": true,
     "runWorkspaces": {
       "cache": {

@@ -128,6 +128,12 @@ warning at every start. Never commit or bake credentials into the image.
   succeeded unless it is proven idempotent.
 - Configure SSH host-key trust deliberately; do not silently accept a changed host key.
 
+#### Notification Adapter Rules
+
+- Keep every third-party notification API behind its project-owned service adapter in
+  `apps/api/src/lib/notifiers/`; `notifications.ts` owns payload building and the public
+  notification functions, not service requests.
+
 ### Error Strategy
 
 | Layer            | Strategy                                                                             |

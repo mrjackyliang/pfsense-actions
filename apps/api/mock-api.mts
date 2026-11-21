@@ -2,205 +2,173 @@ import { randomBytes } from 'node:crypto';
 
 import { toDataURL } from 'qrcode';
 
+import {
+  administratorUsernamePattern,
+  ipAddressPattern,
+  notificationPathPattern,
+  separatorsPattern,
+  tokenPathPattern,
+  totpCodePattern,
+} from './src/web/regex.js';
+
 import type {
-  IncomingMessage,
-  ServerResponse,
-} from 'node:http';
-
-import type { Plugin } from 'vite';
-
-/**
- * Mock API - Mock scope.
- *
- * Names this local contract so fixtures and handlers agree.
- * Keeping one shape prevents the surrounding workflow from drifting.
- *
- * @since 2.0.0
- */
-type MockScope = 'pfsense:read' | 'reachability:read' | 'wol:execute';
-
-/**
- * Mock API - Mock token.
- *
- * Names this local contract so fixtures and handlers agree.
- * Keeping one shape prevents the surrounding workflow from drifting.
- *
- * @since 2.0.0
- */
-type MockToken = {
-  createdAt: string
-  expiresAt: string | null
-  id: string
-  lastUsedAt: string | null
-  name: string
-  scopes: MockScope[]
-};
-
-/**
- * Mock API - Mock passkey.
- *
- * Names this local contract so fixtures and handlers agree.
- * Keeping one shape prevents the surrounding workflow from drifting.
- *
- * @since 2.0.0
- */
-type MockPasskey = {
-  createdAt: string
-  hostname: string | null
-  id: string
-  lastUsedAt: string | null
-  name: string
-};
-
-/**
- * Mock API - Mock token input.
- *
- * Names this local contract so fixtures and handlers agree.
- * Keeping one shape prevents the surrounding workflow from drifting.
- *
- * @since 2.0.0
- */
-type MockTokenInput = {
-  name: string
-  scopes: MockScope[]
-};
-
-/**
- * Mock API - Mock activity.
- *
- * Names this local contract so fixtures and handlers agree.
- * Keeping one shape prevents the surrounding workflow from drifting.
- *
- * @since 2.0.0
- */
-type MockActivity = {
-  action: string
-  actorId: string
-  category: 'access' | 'configuration' | 'service' | 'token'
-  createdAt: string
-  id: string
-  outcome: 'failed' | 'succeeded'
-  summary: string
-};
-
-/**
- * Mock API - Mock connection.
- *
- * Names this local contract so fixtures and handlers agree.
- * Keeping one shape prevents the surrounding workflow from drifting.
- *
- * @since 2.0.0
- */
-type MockConnection = {
-  credentialSaved: boolean
-  credentialType: 'password' | 'privateKey'
-  pfsenseSshIp: string
-  pfsenseSshPort: number
-  pfsenseUsername: string
-};
-
-/**
- * Mock API - Mock notification service.
- *
- * Names this local contract so fixtures and handlers agree.
- * Keeping one shape prevents the surrounding workflow from drifting.
- *
- * @since 2.0.0
- */
-type MockNotificationService = 'apprise' | 'discord' | 'email' | 'gotify' | 'matrix' | 'ntfy' | 'ntfy-reverse-proxy' | 'pushover' | 'slack' | 'telegram' | 'webhook';
-
-/**
- * Mock API - Mock notification.
- *
- * Names this local contract so fixtures and handlers agree.
- * Keeping one shape prevents the surrounding workflow from drifting.
- *
- * @since 2.0.0
- */
-type MockNotification = {
-  createdAt: string
-  events: string[]
-  id: string
-  lastAttemptAt: string | null
-  lastError: string | null
-  name: string
-  secrets: Record<string, true>
-  secretsMissing: string[]
-  service: MockNotificationService
-  settings: Record<string, string>
-  updatedAt: string
-};
-
-// MockNotificationField is one service field: [key, message when missing, secret, required].
-
-/**
- * Mock API - Mock notification field.
- *
- * Names this local contract so fixtures and handlers agree.
- * Keeping one shape prevents the surrounding workflow from drifting.
- *
- * @since 2.0.0
- */
-type MockNotificationField = [string, string, boolean, boolean];
-
-// MockNotificationInput is a checked create or edit body, with the optional secrets to clear.
-
-/**
- * Mock API - Mock notification input.
- *
- * Names this local contract so fixtures and handlers agree.
- * Keeping one shape prevents the surrounding workflow from drifting.
- *
- * @since 2.0.0
- */
-type MockNotificationInput = Pick<MockNotification, 'events' | 'name' | 'secrets' | 'service' | 'settings'> & {
-  clearSecrets: string[]
-};
-
-type MockBackupPurpose = 'export' | 'import';
-
-type MockBackupDocument = {
-  accessTokens?: Array<{
-    createdAt: string
-    expiresAt: string | null
-    id: string
-    lastUsedAt: string | null
-    name: string
-    scopes: MockScope[]
-    tokenHash: string
-  }>
-  appVersion: string
-  connection?: {
-    credential: string
-    credentialType: 'password' | 'privateKey'
-    pfsenseSshIp: string
-    pfsenseSshPort: number
-    pfsenseUsername: string
-  } | null
-  exportedAt: string
-  format: 'pfsense-actions-export'
-  notifications?: Array<{
-    events: string[]
-    id: string
-    name: string
-    secrets: Record<string, string>
-    service: MockNotificationService
-    settings: Record<string, string>
-  }>
-  version: 1
-};
-
-type MockBackupSummary = {
-  accessTokens: {
-    added: number
-    skipped: number
-  }
-  connection: 'added' | 'replaced' | 'skipped'
-  notifications: {
-    added: number
-    replaced: number
-  }
-};
+  MockApi_Activity,
+  MockApi_ActivitySeeds,
+  MockApi_ActivitySequence,
+  MockApi_Administrator,
+  MockApi_BackupGrant,
+  MockApi_BackupPasskeyPurposes,
+  MockApi_BackupSummary_ConnectionAction,
+  MockApi_BackupSummary_Document,
+  MockApi_BackupSummary_Hashes,
+  MockApi_BackupSummary_ImportedNotifications,
+  MockApi_BackupSummary_ImportedTokens,
+  MockApi_BackupSummary_NotificationNames,
+  MockApi_BackupSummary_Returns,
+  MockApi_BackupSummary_TokenIds,
+  MockApi_BackupSummary_TokenNames,
+  MockApi_Connection,
+  MockApi_ConnectionCredential,
+  MockApi_ConnectionResource_Returns,
+  MockApi_CsrfToken,
+  MockApi_DebugLogging,
+  MockApi_HandleRequest_Address,
+  MockApi_HandleRequest_Body,
+  MockApi_HandleRequest_CeremonyId,
+  MockApi_HandleRequest_CeremonyPasskeyName,
+  MockApi_HandleRequest_CheckPassword,
+  MockApi_HandleRequest_CheckPassword_Field,
+  MockApi_HandleRequest_CheckPassword_Returns,
+  MockApi_HandleRequest_ClaimUsernameIssue,
+  MockApi_HandleRequest_Code,
+  MockApi_HandleRequest_Connected,
+  MockApi_HandleRequest_CurrentUsername,
+  MockApi_HandleRequest_Document,
+  MockApi_HandleRequest_Existing,
+  MockApi_HandleRequest_ExistingHashes,
+  MockApi_HandleRequest_ExistingIds,
+  MockApi_HandleRequest_ExistingNames,
+  MockApi_HandleRequest_ExportDocument,
+  MockApi_HandleRequest_ExportSecretEntry,
+  MockApi_HandleRequest_ExportSections,
+  MockApi_HandleRequest_FoundNotification,
+  MockApi_HandleRequest_FoundToken,
+  MockApi_HandleRequest_ImportedSecretEntry,
+  MockApi_HandleRequest_ImportedSections,
+  MockApi_HandleRequest_Index,
+  MockApi_HandleRequest_IssueBackupGrant,
+  MockApi_HandleRequest_IssueBackupGrant_ExpiresAt,
+  MockApi_HandleRequest_IssueBackupGrant_Purpose,
+  MockApi_HandleRequest_IssueBackupGrant_Returns,
+  MockApi_HandleRequest_IssueBackupGrant_Token,
+  MockApi_HandleRequest_IsTotpCode,
+  MockApi_HandleRequest_Method,
+  MockApi_HandleRequest_NewUsernameIssue,
+  MockApi_HandleRequest_Notification,
+  MockApi_HandleRequest_NotificationInput,
+  MockApi_HandleRequest_NotificationInput_Clearable,
+  MockApi_HandleRequest_NotificationInput_ClearSecretKeys,
+  MockApi_HandleRequest_NotificationInput_ClearSecrets,
+  MockApi_HandleRequest_NotificationInput_Events,
+  MockApi_HandleRequest_NotificationInput_Existing,
+  MockApi_HandleRequest_NotificationInput_InvalidIndex,
+  MockApi_HandleRequest_NotificationInput_Key,
+  MockApi_HandleRequest_NotificationInput_Missing,
+  MockApi_HandleRequest_NotificationInput_Name,
+  MockApi_HandleRequest_NotificationInput_Replaced,
+  MockApi_HandleRequest_NotificationInput_Required,
+  MockApi_HandleRequest_NotificationInput_Returns,
+  MockApi_HandleRequest_NotificationInput_Saved,
+  MockApi_HandleRequest_NotificationInput_Secret,
+  MockApi_HandleRequest_NotificationInput_Secrets,
+  MockApi_HandleRequest_NotificationInput_Service,
+  MockApi_HandleRequest_NotificationInput_Settings,
+  MockApi_HandleRequest_NotificationInput_Value,
+  MockApi_HandleRequest_NotificationInput_Values,
+  MockApi_HandleRequest_NotificationInputResult,
+  MockApi_HandleRequest_NotificationMatch,
+  MockApi_HandleRequest_Now,
+  MockApi_HandleRequest_Passkey,
+  MockApi_HandleRequest_PasskeyId,
+  MockApi_HandleRequest_PasskeyName,
+  MockApi_HandleRequest_Path,
+  MockApi_HandleRequest_Plaintext,
+  MockApi_HandleRequest_PreviewSections,
+  MockApi_HandleRequest_Purpose,
+  MockApi_HandleRequest_RecoveryCode,
+  MockApi_HandleRequest_Request,
+  MockApi_HandleRequest_Response,
+  MockApi_HandleRequest_Returns,
+  MockApi_HandleRequest_Summary,
+  MockApi_HandleRequest_Token,
+  MockApi_HandleRequest_TokenInput,
+  MockApi_HandleRequest_TokenInput_ExceptId,
+  MockApi_HandleRequest_TokenInput_Name,
+  MockApi_HandleRequest_TokenInput_Returns,
+  MockApi_HandleRequest_TokenInput_Scopes,
+  MockApi_HandleRequest_TokenInputResult,
+  MockApi_HandleRequest_TokenMatch,
+  MockApi_HandleRequest_TotpUri,
+  MockApi_HandleRequest_Url,
+  MockApi_KeyReplaced,
+  MockApi_Minute,
+  MockApi_MockApi_Next,
+  MockApi_MockApi_Request,
+  MockApi_MockApi_Response,
+  MockApi_MockApi_Returns,
+  MockApi_MockNotificationService,
+  MockApi_NewRecoveryCodes_Code,
+  MockApi_NewRecoveryCodes_Returns,
+  MockApi_NormalizeCode_Returns,
+  MockApi_NormalizeCode_Value,
+  MockApi_NotificationEvents,
+  MockApi_NotificationFields,
+  MockApi_Notifications,
+  MockApi_PasskeyCeremonies,
+  MockApi_Passkeys,
+  MockApi_PendingChallenge,
+  MockApi_ReadBody_Chunks,
+  MockApi_ReadBody_Request,
+  MockApi_ReadBody_Returns,
+  MockApi_ReadBody_Text,
+  MockApi_RecordActivity_Event,
+  MockApi_RecordActivity_MinutesAgo,
+  MockApi_RecordActivity_Returns,
+  MockApi_RecoveryCodes,
+  MockApi_RemovedSecrets,
+  MockApi_ScopeOrder,
+  MockApi_SecretKeys,
+  MockApi_SendEmpty_Response,
+  MockApi_SendEmpty_Returns,
+  MockApi_SendError_Code,
+  MockApi_SendError_Message,
+  MockApi_SendError_Response,
+  MockApi_SendError_Returns,
+  MockApi_SendError_Status,
+  MockApi_SendFieldError_Code,
+  MockApi_SendFieldError_Field,
+  MockApi_SendFieldError_Message,
+  MockApi_SendFieldError_Response,
+  MockApi_SendFieldError_Returns,
+  MockApi_SendFieldError_Status,
+  MockApi_SendJson_Body,
+  MockApi_SendJson_Response,
+  MockApi_SendJson_Returns,
+  MockApi_SendJson_Status,
+  MockApi_SetupCode,
+  MockApi_SignedIn,
+  MockApi_StartedAt,
+  MockApi_StartSession_Response,
+  MockApi_StartSession_Returns,
+  MockApi_StartSession_Status,
+  MockApi_TokenHashes,
+  MockApi_TokenHashes_Entry,
+  MockApi_Tokens,
+  MockApi_TotpEnabled,
+  MockApi_TotpPending,
+  MockApi_UsernameIssue_Returns,
+  MockApi_UsernameIssue_Value,
+} from './src/types/mock-api.d.ts';
 
 // Each service's fields: [key, message when missing, secret, required].
 
@@ -212,7 +180,7 @@ type MockBackupSummary = {
  *
  * @since 2.0.0
  */
-const notificationFields: Record<MockNotificationService, [string, string, boolean, boolean][]> = {
+const notificationFields: MockApi_NotificationFields = {
   'apprise': [
     [
       'url',
@@ -397,12 +365,7 @@ const notificationFields: Record<MockNotificationService, [string, string, boole
  *
  * @since 2.0.0
  */
-const notificationEvents: {
-  defaultEnabled: boolean
-  description: string
-  key: string
-  label: string
-}[] = [
+const notificationEvents: MockApi_NotificationEvents = [
   {
     defaultEnabled: true,
     description: 'The app started without its key and removed what it locked.',
@@ -449,7 +412,7 @@ const notificationEvents: {
  *
  * @since 2.0.0
  */
-const scopeOrder: MockScope[] = [
+const scopeOrder: MockApi_ScopeOrder = [
   'pfsense:read',
   'reachability:read',
   'wol:execute',
@@ -463,7 +426,7 @@ const scopeOrder: MockScope[] = [
  *
  * @since 2.0.0
  */
-const setupCode: string = 'ABCDE-FGHJK-LMNPQ';
+const setupCode: MockApi_SetupCode = 'ABCDE-FGHJK-LMNPQ';
 
 /**
  * Mock API - Csrf token.
@@ -473,7 +436,7 @@ const setupCode: string = 'ABCDE-FGHJK-LMNPQ';
  *
  * @since 2.0.0
  */
-const csrfToken: string = 'pfc_mockmockmockmockmockmockmockmock';
+const csrfToken: MockApi_CsrfToken = 'pfc_mockmockmockmockmockmockmockmock';
 
 /**
  * Mock API - Started at.
@@ -483,7 +446,7 @@ const csrfToken: string = 'pfc_mockmockmockmockmockmockmockmock';
  *
  * @since 2.0.0
  */
-const startedAt: number = Date.now();
+const startedAt: MockApi_StartedAt = Date.now();
 
 /**
  * Mock API - Minute.
@@ -493,7 +456,7 @@ const startedAt: number = Date.now();
  *
  * @since 2.0.0
  */
-const minute: number = 60 * 1000;
+const minute: MockApi_Minute = 60 * 1000;
 
 /**
  * Mock API - Administrator.
@@ -503,11 +466,7 @@ const minute: number = 60 * 1000;
  *
  * @since 2.0.0
  */
-let administrator: {
-  createdAt: string
-  password: string
-  username: string
-} | null = null;
+let administrator: MockApi_Administrator = null;
 
 /**
  * Mock API - Signed in.
@@ -517,7 +476,7 @@ let administrator: {
  *
  * @since 2.0.0
  */
-let signedIn: boolean = false;
+let signedIn: MockApi_SignedIn = false;
 
 /**
  * Mock API - Pending challenge.
@@ -527,7 +486,7 @@ let signedIn: boolean = false;
  *
  * @since 2.0.0
  */
-let pendingChallenge: string = '';
+let pendingChallenge: MockApi_PendingChallenge = '';
 
 /**
  * Mock API - TOTP enabled.
@@ -537,7 +496,7 @@ let pendingChallenge: string = '';
  *
  * @since 2.0.0
  */
-let totpEnabled: boolean = false;
+let totpEnabled: MockApi_TotpEnabled = false;
 
 /**
  * Mock API - TOTP pending.
@@ -547,7 +506,7 @@ let totpEnabled: boolean = false;
  *
  * @since 2.0.0
  */
-let totpPending: boolean = false;
+let totpPending: MockApi_TotpPending = false;
 
 /**
  * Mock API - Recovery codes.
@@ -557,7 +516,8 @@ let totpPending: boolean = false;
  *
  * @since 2.0.0
  */
-let recoveryCodes: string[] = [];
+let recoveryCodes: MockApi_RecoveryCodes = [];
+
 // Two saved passkeys, so the Sign-in and security page shows a realistic list. Ones added in the mock are kept until it restarts.
 
 /**
@@ -568,7 +528,7 @@ let recoveryCodes: string[] = [];
  *
  * @since 2.0.0
  */
-let passkeys: MockPasskey[] = [
+let passkeys: MockApi_Passkeys = [
   {
     createdAt: new Date(startedAt - (41 * 24 * 60 * minute)).toISOString(),
     hostname: 'actions.example.net',
@@ -593,7 +553,7 @@ let passkeys: MockPasskey[] = [
  *
  * @since 2.0.0
  */
-const passkeyCeremonies: Map<string, string> = new Map();
+const passkeyCeremonies: MockApi_PasskeyCeremonies = new Map();
 
 /**
  * Mock API - Activity sequence.
@@ -603,7 +563,8 @@ const passkeyCeremonies: Map<string, string> = new Map();
  *
  * @since 2.0.0
  */
-let activitySequence: number = 0;
+let activitySequence: MockApi_ActivitySequence = 0;
+
 // MOCK_KEY_REPLACED=true starts as if the encryption key had been lost, to show the notice.
 
 /**
@@ -614,7 +575,7 @@ let activitySequence: number = 0;
  *
  * @since 2.0.0
  */
-const keyReplaced: boolean = process.env['MOCK_KEY_REPLACED'] === 'true';
+const keyReplaced: MockApi_KeyReplaced = process.env['MOCK_KEY_REPLACED'] === 'true';
 
 /**
  * Mock API - Removed secrets.
@@ -624,13 +585,7 @@ const keyReplaced: boolean = process.env['MOCK_KEY_REPLACED'] === 'true';
  *
  * @since 2.0.0
  */
-let removedSecrets: {
-  credentialType?: 'password' | 'privateKey'
-  kind: 'authenticator' | 'notification' | 'pfsense-credential'
-  name?: string
-  notificationId?: string
-  removedAt: string
-}[] = (keyReplaced) ? [
+let removedSecrets: MockApi_RemovedSecrets = (keyReplaced === true) ? [
   {
     credentialType: 'privateKey',
     kind: 'pfsense-credential',
@@ -650,15 +605,19 @@ let removedSecrets: {
  *
  * @since 2.0.0
  */
-let connection: MockConnection | null = {
-  credentialSaved: !keyReplaced,
+let connection: MockApi_Connection = {
+  credentialSaved: keyReplaced === false,
   credentialType: 'privateKey',
   pfsenseSshIp: '192.168.1.1',
   pfsenseSshPort: 22,
   pfsenseUsername: 'admin',
 };
 
-let connectionCredential: string = (keyReplaced) ? '' : '-----BEGIN OPENSSH PRIVATE KEY-----\nmock-private-key\n-----END OPENSSH PRIVATE KEY-----';
+let connectionCredential: MockApi_ConnectionCredential = (keyReplaced === true) ? '' : [
+  '-----BEGIN OPENSSH PRIVATE KEY-----',
+  'mock-private-key',
+  '-----END OPENSSH PRIVATE KEY-----',
+].join('\n');
 
 /**
  * Mock API - Debug logging.
@@ -668,7 +627,7 @@ let connectionCredential: string = (keyReplaced) ? '' : '-----BEGIN OPENSSH PRIV
  *
  * @since 2.1.0
  */
-let debugLogging: boolean = false;
+let debugLogging: MockApi_DebugLogging = false;
 
 /**
  * Mock API - Notifications.
@@ -678,7 +637,7 @@ let debugLogging: boolean = false;
  *
  * @since 2.0.0
  */
-const notifications: MockNotification[] = [
+const notifications: MockApi_Notifications = [
   {
     createdAt: new Date(startedAt - (30 * 24 * 60 * minute)).toISOString(),
     events: [
@@ -750,9 +709,9 @@ const notifications: MockNotification[] = [
 
 // A lost key removes every destination's saved secrets, as the server does, and pauses
 // those destinations until the secrets are entered again.
-if (keyReplaced) {
-  for (const notification of [...notifications].sort((left: MockNotification, right: MockNotification): number => left.name.localeCompare(right.name))) {
-    const secretKeys: string[] = Object.keys(notification.secrets).sort();
+if (keyReplaced === true) {
+  for (const notification of [...notifications].sort((left, right) => left['name'].localeCompare(right['name']))) {
+    const secretKeys: MockApi_SecretKeys = Object.keys(notification['secrets']).sort();
 
     if (secretKeys.length === 0) {
       continue;
@@ -760,10 +719,11 @@ if (keyReplaced) {
 
     notification.secrets = {};
     notification.secretsMissing = secretKeys;
+
     removedSecrets.push({
       kind: 'notification',
-      name: notification.name,
-      notificationId: notification.id,
+      name: notification['name'],
+      notificationId: notification['id'],
       removedAt: new Date(startedAt).toISOString(),
     });
   }
@@ -777,7 +737,7 @@ if (keyReplaced) {
  *
  * @since 2.0.0
  */
-const tokens: MockToken[] = [
+const tokens: MockApi_Tokens = [
   {
     createdAt: new Date(startedAt - (40 * 24 * 60 * minute)).toISOString(),
     expiresAt: null,
@@ -802,18 +762,14 @@ const tokens: MockToken[] = [
   },
 ];
 
-const tokenHashes: Map<string, string> = new Map(tokens.map((token: MockToken): [string, string] => [
-  token.id,
+const tokenHashes: MockApi_TokenHashes = new Map(tokens.map((token): MockApi_TokenHashes_Entry => [
+  token['id'],
   randomBytes(32).toString('hex'),
 ]));
 
-let backupGrant: {
-  expiresAt: number
-  purpose: MockBackupPurpose
-  token: string
-} | null = null;
+let backupGrant: MockApi_BackupGrant = null;
 
-const backupPasskeyPurposes: Map<string, MockBackupPurpose> = new Map();
+const backupPasskeyPurposes: MockApi_BackupPasskeyPurposes = new Map();
 
 /**
  * Mock API - Activity.
@@ -823,7 +779,7 @@ const backupPasskeyPurposes: Map<string, MockBackupPurpose> = new Map();
  *
  * @since 2.0.0
  */
-const activity: MockActivity[] = [];
+const activity: MockApi_Activity = [];
 
 /**
  * Mock API - Records activity.
@@ -831,19 +787,25 @@ const activity: MockActivity[] = [];
  * Centralizes this operation for the surrounding workflow.
  * Callers reuse one implementation instead of repeating the behavior.
  *
+ * @returns {MockApi_RecordActivity_Returns}
+ *
  * @since 2.0.0
  */
-const recordActivity = (event: Omit<MockActivity, 'createdAt' | 'id'>, minutesAgo: number = 0): void => {
+const recordActivity = (event: MockApi_RecordActivity_Event, minutesAgo: MockApi_RecordActivity_MinutesAgo = 0): MockApi_RecordActivity_Returns => {
   activitySequence += 1;
+
   activity.unshift({
     ...event,
     createdAt: new Date(Date.now() - (minutesAgo * minute)).toISOString(),
     id: `00000000-0000-4000-8000-${String(activitySequence).padStart(12, '0')}`,
   });
+
   activity.splice(250);
+
+  return;
 };
 
-[
+const activitySeeds: MockApi_ActivitySeeds = [
   {
     action: 'state-initialized',
     actorId: 'system',
@@ -916,17 +878,22 @@ const recordActivity = (event: Omit<MockActivity, 'createdAt' | 'id'>, minutesAg
     outcome: 'succeeded',
     summary: 'Completed pfSense connectivity check',
   },
-].forEach((event): void => {
-  const {
-    minutesAgo,
-    ...rest
-  } = event;
+];
 
-  recordActivity(rest as Omit<MockActivity, 'createdAt' | 'id'>, minutesAgo);
+activitySeeds.forEach((activitySeed) => {
+  recordActivity({
+    action: activitySeed['action'],
+    actorId: activitySeed['actorId'],
+    category: activitySeed['category'],
+    outcome: activitySeed['outcome'],
+    summary: activitySeed['summary'],
+  }, activitySeed['minutesAgo']);
+
+  return;
 });
 
 // The server records the key replacement when it removes the locked secrets at startup.
-if (keyReplaced) {
+if (keyReplaced === true) {
   recordActivity({
     action: 'encryption-key-replaced',
     actorId: 'system',
@@ -942,10 +909,14 @@ if (keyReplaced) {
  * Centralizes this operation for the surrounding workflow.
  * Callers reuse one implementation instead of repeating the behavior.
  *
+ * @returns {MockApi_SendJson_Returns}
+ *
  * @since 2.0.0
  */
-const sendJSON = (response: ServerResponse, status: number, body: unknown): void => {
+const sendJSON = (response: MockApi_SendJson_Response, status: MockApi_SendJson_Status, body: MockApi_SendJson_Body): MockApi_SendJson_Returns => {
   response.writeHead(status, { 'Content-Type': 'application/json' }).end(JSON.stringify(body));
+
+  return;
 };
 
 /**
@@ -954,10 +925,14 @@ const sendJSON = (response: ServerResponse, status: number, body: unknown): void
  * Centralizes this operation for the surrounding workflow.
  * Callers reuse one implementation instead of repeating the behavior.
  *
+ * @returns {MockApi_SendEmpty_Returns}
+ *
  * @since 2.0.0
  */
-const sendEmpty = (response: ServerResponse): void => {
+const sendEmpty = (response: MockApi_SendEmpty_Response): MockApi_SendEmpty_Returns => {
   response.writeHead(204).end();
+
+  return;
 };
 
 /**
@@ -966,15 +941,19 @@ const sendEmpty = (response: ServerResponse): void => {
  * Centralizes this operation for the surrounding workflow.
  * Callers reuse one implementation instead of repeating the behavior.
  *
+ * @returns {MockApi_SendError_Returns}
+ *
  * @since 2.0.0
  */
-const sendError = (response: ServerResponse, status: number, code: string, message: string): void => {
+const sendError = (response: MockApi_SendError_Response, status: MockApi_SendError_Status, code: MockApi_SendError_Code, message: MockApi_SendError_Message): MockApi_SendError_Returns => {
   sendJSON(response, status, {
     error: {
       code,
       message,
     },
   });
+
+  return;
 };
 
 /**
@@ -983,9 +962,11 @@ const sendError = (response: ServerResponse, status: number, code: string, messa
  * Centralizes this operation for the surrounding workflow.
  * Callers reuse one implementation instead of repeating the behavior.
  *
+ * @returns {MockApi_SendFieldError_Returns}
+ *
  * @since 2.0.0
  */
-const sendFieldError = (response: ServerResponse, status: number, code: string, field: string, message: string): void => {
+const sendFieldError = (response: MockApi_SendFieldError_Response, status: MockApi_SendFieldError_Status, code: MockApi_SendFieldError_Code, field: MockApi_SendFieldError_Field, message: MockApi_SendFieldError_Message): MockApi_SendFieldError_Returns => {
   sendJSON(response, status, {
     error: {
       code,
@@ -997,6 +978,8 @@ const sendFieldError = (response: ServerResponse, status: number, code: string, 
       message,
     },
   });
+
+  return;
 };
 
 // Marks the mock signed in and answers like the real session response.
@@ -1007,20 +990,26 @@ const sendFieldError = (response: ServerResponse, status: number, code: string, 
  * Centralizes this operation for the surrounding workflow.
  * Callers reuse one implementation instead of repeating the behavior.
  *
+ * @returns {MockApi_StartSession_Returns}
+ *
  * @since 2.0.0
  */
-const startSession = (response: ServerResponse, status: number = 200): void => {
+const startSession = (response: MockApi_StartSession_Response, status: MockApi_StartSession_Status = 200): MockApi_StartSession_Returns => {
   signedIn = true;
+
   response.setHeader('Set-Cookie', `pfa_csrf=${csrfToken}; Path=/; SameSite=Strict`);
+
   sendJSON(response, status, {
     administrator: {
       id: '00000000-0000-4000-8000-000000000001',
-      username: administrator?.username ?? 'admin',
+      username: (administrator !== null) ? administrator['username'] : 'admin',
     },
     csrfToken,
     expiresAt: new Date(Date.now() + (24 * 60 * minute)).toISOString(),
     status: 'authenticated',
   });
+
+  return;
 };
 
 /**
@@ -1029,16 +1018,18 @@ const startSession = (response: ServerResponse, status: number = 200): void => {
  * Centralizes this operation for the surrounding workflow.
  * Callers reuse one implementation instead of repeating the behavior.
  *
+ * @returns {MockApi_ReadBody_Returns}
+ *
  * @since 2.0.0
  */
-const readBody = async (request: IncomingMessage): Promise<Record<string, unknown>> => {
-  const chunks: Buffer[] = [];
+const readBody = async (request: MockApi_ReadBody_Request): MockApi_ReadBody_Returns => {
+  const chunks: MockApi_ReadBody_Chunks = [];
 
   for await (const chunk of request) {
     chunks.push(Buffer.from(chunk));
   }
 
-  const text: string = Buffer.concat(chunks).toString('utf-8');
+  const text: MockApi_ReadBody_Text = Buffer.concat(chunks).toString('utf-8');
 
   return (text === '') ? {} : JSON.parse(text);
 };
@@ -1049,9 +1040,11 @@ const readBody = async (request: IncomingMessage): Promise<Record<string, unknow
  * Centralizes this operation for the surrounding workflow.
  * Callers reuse one implementation instead of repeating the behavior.
  *
+ * @returns {MockApi_ConnectionResource_Returns}
+ *
  * @since 2.0.0
  */
-const connectionResource = (): Record<string, unknown> => ((connection === null) ? { configured: false } : {
+const connectionResource = (): MockApi_ConnectionResource_Returns => ((connection === null) ? { configured: false } : {
   configured: true,
   ...connection,
 });
@@ -1062,31 +1055,45 @@ const connectionResource = (): Record<string, unknown> => ((connection === null)
  * Applies the real importer's name and hash duplicate rules to one mock document.
  * This keeps browser-only development aligned with the server preview.
  *
+ * @returns {MockApi_BackupSummary_Returns}
+ *
  * @since 2.1.0
  */
-const backupSummary = (document: MockBackupDocument): MockBackupSummary => {
-  const importedNotifications = document.notifications ?? [];
-  const importedTokens = document.accessTokens ?? [];
-  const notificationNames: Set<string> = new Set(notifications.map((notification: MockNotification): string => notification.name.toLocaleLowerCase()));
-  const tokenIds: Set<string> = new Set(tokens.map((token: MockToken): string => token.id));
-  const tokenNames: Set<string> = new Set(tokens.map((token: MockToken): string => token.name.toLocaleLowerCase()));
-  const hashes: Set<string> = new Set(tokenHashes.values());
+const backupSummary = (document: MockApi_BackupSummary_Document): MockApi_BackupSummary_Returns => {
+  const importedNotifications: MockApi_BackupSummary_ImportedNotifications = document['notifications'] ?? [];
+  const importedTokens: MockApi_BackupSummary_ImportedTokens = document['accessTokens'] ?? [];
+  const notificationNames: MockApi_BackupSummary_NotificationNames = new Set(notifications.map((notification) => notification['name'].toLocaleLowerCase()));
+  const tokenIds: MockApi_BackupSummary_TokenIds = new Set(tokens.map((token) => token['id']));
+  const tokenNames: MockApi_BackupSummary_TokenNames = new Set(tokens.map((token) => token['name'].toLocaleLowerCase()));
+  const hashes: MockApi_BackupSummary_Hashes = new Set(tokenHashes.values());
 
-  let connectionAction: MockBackupSummary['connection'] = 'skipped';
+  let connectionAction: MockApi_BackupSummary_ConnectionAction = 'skipped';
 
-  if (document.connection !== undefined && document.connection !== null) {
+  if (document['connection'] !== undefined && document['connection'] !== null) {
     connectionAction = (connection === null) ? 'added' : 'replaced';
   }
 
   return {
     accessTokens: {
-      added: importedTokens.filter((token): boolean => !tokenIds.has(token.id) && !tokenNames.has(token.name.toLocaleLowerCase()) && !hashes.has(token.tokenHash)).length,
-      skipped: importedTokens.filter((token): boolean => tokenIds.has(token.id) || tokenNames.has(token.name.toLocaleLowerCase()) || hashes.has(token.tokenHash)).length,
+      added: importedTokens.filter((token) => {
+        return (
+          tokenIds.has(token['id']) === false
+          && tokenNames.has(token['name'].toLocaleLowerCase()) === false
+          && hashes.has(token['tokenHash']) === false
+        );
+      }).length,
+      skipped: importedTokens.filter((token) => {
+        return (
+          tokenIds.has(token['id']) === true
+          || tokenNames.has(token['name'].toLocaleLowerCase()) === true
+          || hashes.has(token['tokenHash']) === true
+        );
+      }).length,
     },
     connection: connectionAction,
     notifications: {
-      added: importedNotifications.filter((notification): boolean => !notificationNames.has(notification.name.toLocaleLowerCase())).length,
-      replaced: importedNotifications.filter((notification): boolean => notificationNames.has(notification.name.toLocaleLowerCase())).length,
+      added: importedNotifications.filter((notification) => notificationNames.has(notification['name'].toLocaleLowerCase()) === false).length,
+      replaced: importedNotifications.filter((notification) => notificationNames.has(notification['name'].toLocaleLowerCase())).length,
     },
   };
 };
@@ -1099,9 +1106,13 @@ const backupSummary = (document: MockBackupDocument): MockBackupSummary => {
  * Centralizes this operation for the surrounding workflow.
  * Callers reuse one implementation instead of repeating the behavior.
  *
+ * @returns {MockApi_NormalizeCode_Returns}
+ *
  * @since 2.0.0
  */
-const normalizeCode = (value: string): string => value.toUpperCase().replace(/[\s-]/gu, '');
+const normalizeCode = (value: MockApi_NormalizeCode_Value): MockApi_NormalizeCode_Returns => {
+  return value.toUpperCase().replace(new RegExp(separatorsPattern, 'gu'), '');
+};
 
 // Usernames follow the rule every appliance shares: 3 to 64 characters, starting with a letter or number.
 
@@ -1111,14 +1122,16 @@ const normalizeCode = (value: string): string => value.toUpperCase().replace(/[\
  * Centralizes this operation for the surrounding workflow.
  * Callers reuse one implementation instead of repeating the behavior.
  *
+ * @returns {MockApi_UsernameIssue_Returns}
+ *
  * @since 2.0.0
  */
-const usernameIssue = (value: string): string => {
+const usernameIssue = (value: MockApi_UsernameIssue_Value): MockApi_UsernameIssue_Returns => {
   if (value === '') {
     return 'Enter a username.';
   }
 
-  return (/^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$/u.test(value)) ? '' : 'Use 3 to 64 letters, numbers, periods, underscores, or hyphens, starting with a letter or number.';
+  return (new RegExp(administratorUsernamePattern, 'u').test(value) === true) ? '' : 'Use 3 to 64 letters, numbers, periods, underscores, or hyphens, starting with a letter or number.';
 };
 
 // newRecoveryCodes makes ten codes the way the server does: ten characters without look-alikes, split 5-5.
@@ -1129,10 +1142,12 @@ const usernameIssue = (value: string): string => {
  * Centralizes this operation for the surrounding workflow.
  * Callers reuse one implementation instead of repeating the behavior.
  *
+ * @returns {MockApi_NewRecoveryCodes_Returns}
+ *
  * @since 2.0.0
  */
-const newRecoveryCodes = (): string[] => Array.from({ length: 10 }, (): string => {
-  const code: string = [...randomBytes(10)].map((byte: number): string => '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'.charAt(byte % 32)).join('');
+const newRecoveryCodes = (): MockApi_NewRecoveryCodes_Returns => Array.from({ length: 10 }, () => {
+  const code: MockApi_NewRecoveryCodes_Code = [...randomBytes(10)].map((byte) => '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'.charAt(byte % 32)).join('');
 
   return `${code.slice(0, 5)}-${code.slice(5)}`;
 });
@@ -1145,19 +1160,21 @@ const newRecoveryCodes = (): string[] => Array.from({ length: 10 }, (): string =
  * Centralizes this operation for the surrounding workflow.
  * Callers reuse one implementation instead of repeating the behavior.
  *
+ * @returns {MockApi_HandleRequest_Returns}
+ *
  * @since 2.0.0
  */
-const handleRequest = async (request: IncomingMessage, response: ServerResponse): Promise<boolean> => {
+const handleRequest = async (request: MockApi_HandleRequest_Request, response: MockApi_HandleRequest_Response): MockApi_HandleRequest_Returns => {
   // The Host header gives the address the page was opened at, like the real server sees it.
-  const url: URL = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
-  const path: string = url.pathname;
-  const method: string = request.method ?? 'GET';
+  const url: MockApi_HandleRequest_Url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
+  const path: MockApi_HandleRequest_Path = url.pathname;
+  const method: MockApi_HandleRequest_Method = request.method ?? 'GET';
 
-  if (!path.startsWith('/api/v1/')) {
+  if (path.startsWith('/api/v1/') === false) {
     return false;
   }
 
-  const body: Record<string, unknown> = (method === 'GET') ? {} : await readBody(request);
+  const body: MockApi_HandleRequest_Body = (method === 'GET') ? {} : await readBody(request);
 
   if (method === 'GET' && path === '/api/v1/setup/status') {
     sendJSON(response, 200, (administrator === null) ? {
@@ -1181,7 +1198,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
       return true;
     }
 
-    const claimUsernameIssue: string = usernameIssue(String(body['username'] ?? '').trim());
+    const claimUsernameIssue: MockApi_HandleRequest_ClaimUsernameIssue = usernameIssue(String(body['username'] ?? '').trim());
 
     if (claimUsernameIssue !== '') {
       sendFieldError(response, 422, 'invalid_request', 'username', claimUsernameIssue);
@@ -1200,20 +1217,26 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
       password: String(body['password']),
       username: String(body['username'] ?? 'admin').trim(),
     };
+
     recordActivity({
       action: 'installation-claimed',
-      actorId: administrator.username,
+      actorId: administrator['username'],
       category: 'access',
       outcome: 'succeeded',
       summary: 'Created the administrator account with the setup code',
     });
+
     startSession(response, 201);
 
     return true;
   }
 
   if (method === 'POST' && path === '/api/v1/auth/login') {
-    if (administrator === null || body['username'] !== administrator.username || body['password'] !== administrator.password) {
+    if (
+      administrator === null
+      || body['username'] !== administrator['username']
+      || body['password'] !== administrator['password']
+    ) {
       recordActivity({
         action: 'sign-in',
         actorId: 'anonymous',
@@ -1221,13 +1244,15 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
         outcome: 'failed',
         summary: 'Rejected a password sign-in',
       });
+
       sendError(response, 401, 'credentials_invalid', 'The username or password is incorrect.');
 
       return true;
     }
 
-    if (totpEnabled) {
+    if (totpEnabled === true) {
       pendingChallenge = 'mockchallengemockchallengemockchallenge01';
+
       sendJSON(response, 200, {
         challenge: pendingChallenge,
         expiresAt: new Date(Date.now() + (5 * minute)).toISOString(),
@@ -1243,9 +1268,9 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
   }
 
   if (method === 'POST' && path === '/api/v1/auth/login/second-factor') {
-    const code: string = String(body['code'] ?? '').trim();
-    const isTotpCode: boolean = /^[0-9]{6}$/u.test(code);
-    const recoveryCode: string | undefined = (isTotpCode) ? undefined : recoveryCodes.find((candidate: string): boolean => normalizeCode(candidate) === normalizeCode(code));
+    const code: MockApi_HandleRequest_Code = String(body['code'] ?? '').trim();
+    const isTotpCode: MockApi_HandleRequest_IsTotpCode = new RegExp(totpCodePattern, 'u').test(code);
+    const recoveryCode: MockApi_HandleRequest_RecoveryCode = (isTotpCode === true) ? undefined : recoveryCodes.find((candidate) => normalizeCode(candidate) === normalizeCode(code));
 
     if (body['challenge'] !== pendingChallenge || pendingChallenge === '') {
       sendError(response, 401, 'challenge_expired', 'Your sign-in timed out. Enter your password again.');
@@ -1253,14 +1278,24 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
       return true;
     }
 
-    if ((isTotpCode && code !== '123456') || (!isTotpCode && recoveryCode === undefined)) {
+    if (
+      (
+        isTotpCode === true
+        && code !== '123456'
+      )
+      || (
+        isTotpCode === false
+        && recoveryCode === undefined
+      )
+    ) {
       sendFieldError(response, 401, 'code_invalid', 'code', 'That code doesn\'t match. Try the current code, or a recovery code.');
 
       return true;
     }
 
-    recoveryCodes = recoveryCodes.filter((candidate: string): boolean => candidate !== recoveryCode);
+    recoveryCodes = recoveryCodes.filter((candidate) => candidate !== recoveryCode);
     pendingChallenge = '';
+
     startSession(response);
 
     return true;
@@ -1294,7 +1329,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
     return true;
   }
 
-  if (!signedIn) {
+  if (signedIn === false) {
     sendError(response, 401, 'authentication_required', 'Sign in to continue.');
 
     return true;
@@ -1306,7 +1341,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
     return true;
   }
 
-  const currentUsername: string = administrator?.username ?? 'admin';
+  const currentUsername: MockApi_HandleRequest_CurrentUsername = (administrator !== null) ? administrator['username'] : 'admin';
 
   /**
    * Mock API - Checks password.
@@ -1314,10 +1349,12 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
    * Centralizes this operation for the surrounding workflow.
    * Callers reuse one implementation instead of repeating the behavior.
    *
+   * @returns {MockApi_HandleRequest_CheckPassword_Returns}
+   *
    * @since 2.0.0
    */
-  const checkPassword = (field: string = 'password'): boolean => {
-    if (body[field] !== administrator?.password) {
+  const checkPassword: MockApi_HandleRequest_CheckPassword = (field: MockApi_HandleRequest_CheckPassword_Field = 'password'): MockApi_HandleRequest_CheckPassword_Returns => {
+    if (body[field] !== ((administrator !== null) ? administrator['password'] : undefined)) {
       sendFieldError(response, 422, 'password_incorrect', field, 'That password is incorrect.');
 
       return false;
@@ -1332,28 +1369,33 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
    * Keeps the raw grant in short-lived mock memory for one matching operation.
    * Browser development therefore exercises the same scoped flow as production.
    *
+   * @returns {MockApi_HandleRequest_IssueBackupGrant_Returns}
+   *
    * @since 2.1.0
    */
-  const issueBackupGrant = (purpose: MockBackupPurpose): void => {
-    const token: string = [
+  const issueBackupGrant: MockApi_HandleRequest_IssueBackupGrant = (purpose: MockApi_HandleRequest_IssueBackupGrant_Purpose): MockApi_HandleRequest_IssueBackupGrant_Returns => {
+    const token: MockApi_HandleRequest_IssueBackupGrant_Token = [
       'pbg_',
       randomBytes(32).toString('base64url'),
     ].join('');
-    const expiresAt: number = Date.now() + (5 * minute);
+    const expiresAt: MockApi_HandleRequest_IssueBackupGrant_ExpiresAt = Date.now() + (5 * minute);
 
     backupGrant = {
       expiresAt,
       purpose,
       token,
     };
+
     sendJSON(response, 200, {
       expiresAt: new Date(expiresAt).toISOString(),
       grant: token,
     });
+
+    return;
   };
 
   if (method === 'POST' && path === '/api/v1/backup/confirmation') {
-    const purpose: MockBackupPurpose | null = (body['purpose'] === 'export' || body['purpose'] === 'import') ? body['purpose'] : null;
+    const purpose: MockApi_HandleRequest_Purpose = (body['purpose'] === 'export' || body['purpose'] === 'import') ? body['purpose'] : null;
 
     if (purpose === null) {
       sendError(response, 422, 'invalid_request', 'Choose what you are confirming.');
@@ -1361,11 +1403,11 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
       return true;
     }
 
-    if (!checkPassword()) {
+    if (checkPassword() === false) {
       return true;
     }
 
-    if (totpEnabled && body['code'] !== '123456') {
+    if (totpEnabled === true && body['code'] !== '123456') {
       sendFieldError(response, 422, 'identity_not_confirmed', 'code', 'That authenticator code is incorrect. In the mock, use 123456.');
 
       return true;
@@ -1377,7 +1419,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
   }
 
   if (method === 'POST' && path === '/api/v1/backup/confirmation/passkey/options') {
-    const purpose: MockBackupPurpose | null = (body['purpose'] === 'export' || body['purpose'] === 'import') ? body['purpose'] : null;
+    const purpose: MockApi_HandleRequest_Purpose = (body['purpose'] === 'export' || body['purpose'] === 'import') ? body['purpose'] : null;
 
     if (purpose === null) {
       sendError(response, 422, 'invalid_request', 'Choose what you are confirming.');
@@ -1385,9 +1427,10 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
       return true;
     }
 
-    const ceremonyId: string = randomBytes(24).toString('base64url');
+    const ceremonyId: MockApi_HandleRequest_CeremonyId = randomBytes(24).toString('base64url');
 
     backupPasskeyPurposes.set(ceremonyId, purpose);
+
     sendJSON(response, 200, {
       ceremonyId,
       options: {
@@ -1403,8 +1446,8 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
   }
 
   if (method === 'POST' && path === '/api/v1/backup/confirmation/passkey/verify') {
-    const ceremonyId: string = String(body['ceremonyId'] ?? '');
-    const purpose: MockBackupPurpose | null = (body['purpose'] === 'export' || body['purpose'] === 'import') ? body['purpose'] : null;
+    const ceremonyId: MockApi_HandleRequest_CeremonyId = String(body['ceremonyId'] ?? '');
+    const purpose: MockApi_HandleRequest_Purpose = (body['purpose'] === 'export' || body['purpose'] === 'import') ? body['purpose'] : null;
 
     if (purpose === null || backupPasskeyPurposes.get(ceremonyId) !== purpose) {
       sendError(response, 409, 'passkey_ceremony_invalid', 'That passkey request expired. Try again.');
@@ -1413,6 +1456,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
     }
 
     backupPasskeyPurposes.delete(ceremonyId);
+
     issueBackupGrant(purpose);
 
     return true;
@@ -1421,9 +1465,9 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
   if (method === 'POST' && path === '/api/v1/backup/export') {
     if (
       backupGrant === null
-      || backupGrant.expiresAt <= Date.now()
-      || backupGrant.purpose !== 'export'
-      || body['grant'] !== backupGrant.token
+      || backupGrant['expiresAt'] <= Date.now()
+      || backupGrant['purpose'] !== 'export'
+      || body['grant'] !== backupGrant['token']
     ) {
       sendError(response, 401, 'backup_confirmation_expired', 'Confirm it\'s you again.');
 
@@ -1432,8 +1476,8 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
 
     backupGrant = null;
 
-    const sections: Record<string, unknown> = (typeof body['sections'] === 'object' && body['sections'] !== null) ? body['sections'] as Record<string, unknown> : {};
-    const document: MockBackupDocument = {
+    const sections: MockApi_HandleRequest_ExportSections = (typeof body['sections'] === 'object' && body['sections'] !== null) ? body['sections'] as MockApi_HandleRequest_ExportSections : {};
+    const document: MockApi_HandleRequest_ExportDocument = {
       appVersion: '2.0.0',
       exportedAt: new Date().toISOString(),
       format: 'pfsense-actions-export',
@@ -1443,19 +1487,19 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
     if (sections['connection'] === true) {
       document.connection = (connection === null) ? null : {
         credential: connectionCredential,
-        credentialType: connection.credentialType,
-        pfsenseSshIp: connection.pfsenseSshIp,
-        pfsenseSshPort: connection.pfsenseSshPort,
-        pfsenseUsername: connection.pfsenseUsername,
+        credentialType: connection['credentialType'],
+        pfsenseSshIp: connection['pfsenseSshIp'],
+        pfsenseSshPort: connection['pfsenseSshPort'],
+        pfsenseUsername: connection['pfsenseUsername'],
       };
     }
 
     if (sections['notifications'] === true) {
-      document.notifications = notifications.map((notification: MockNotification) => ({
-        events: [...notification.events],
-        id: notification.id,
-        name: notification.name,
-        secrets: Object.fromEntries(Object.keys(notification.secrets).map((key: string): [string, string] => [
+      document.notifications = notifications.map((notification) => ({
+        events: [...notification['events']],
+        id: notification['id'],
+        name: notification['name'],
+        secrets: Object.fromEntries(Object.keys(notification['secrets']).map((key): MockApi_HandleRequest_ExportSecretEntry => [
           key,
           [
             'mock-',
@@ -1463,63 +1507,68 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
             '-secret',
           ].join(''),
         ])),
-        service: notification.service,
-        settings: { ...notification.settings },
+        service: notification['service'],
+        settings: { ...notification['settings'] },
       }));
     }
 
     if (sections['accessTokens'] === true) {
-      document.accessTokens = tokens.map((token: MockToken) => ({
+      document.accessTokens = tokens.map((token) => ({
         ...token,
-        tokenHash: tokenHashes.get(token.id) ?? randomBytes(32).toString('hex'),
+        tokenHash: tokenHashes.get(token['id']) ?? randomBytes(32).toString('hex'),
       }));
     }
 
     response.setHeader('Content-Disposition', [
       'attachment; filename="pfsense-actions-export-',
-      document.exportedAt.slice(0, 10),
+      document['exportedAt'].slice(0, 10),
       '.json"',
     ].join(''));
+
     sendJSON(response, 200, document);
 
     return true;
   }
 
   if (method === 'POST' && path === '/api/v1/backup/imports/preview') {
-    const document: MockBackupDocument | null = (typeof body['document'] === 'object' && body['document'] !== null) ? body['document'] as MockBackupDocument : null;
+    const document: MockApi_HandleRequest_Document = (typeof body['document'] === 'object' && body['document'] !== null) ? body['document'] as MockApi_HandleRequest_Document : null;
 
-    if (document === null || document.format !== 'pfsense-actions-export' || document.version !== 1) {
+    if (
+      document === null
+      || document['format'] !== 'pfsense-actions-export'
+      || document['version'] !== 1
+    ) {
       sendError(response, 422, 'invalid_request', 'Choose a valid pfSense Actions export file.');
 
       return true;
     }
 
-    const summary: MockBackupSummary = backupSummary(document);
-    const sections: Array<Record<string, unknown>> = [];
+    const summary: MockApi_HandleRequest_Summary = backupSummary(document);
+    const sections: MockApi_HandleRequest_PreviewSections = [];
 
-    if (Object.hasOwn(document, 'connection')) {
+    if (Object.hasOwn(document, 'connection') === true) {
       sections.push({
-        file: (document.connection === null) ? 'No saved connection' : [
-          document.connection?.pfsenseSshIp ?? '',
+        file: (document['connection'] === null) ? 'No saved connection' : [
+          (document['connection'] !== undefined) ? document['connection']['pfsenseSshIp'] : '',
           ':',
-          String(document.connection?.pfsenseSshPort ?? ''),
+          String((document['connection'] !== undefined) ? document['connection']['pfsenseSshPort'] : ''),
         ].join(''),
         here: (connection === null) ? 'No saved connection' : [
-          connection.pfsenseSshIp,
+          connection['pfsenseSshIp'],
           ':',
-          String(connection.pfsenseSshPort),
+          String(connection['pfsenseSshPort']),
         ].join(''),
         id: 'connection',
         label: 'Connection',
-        ...((document.connection === null) ? { reason: 'The file does not contain a saved connection.' } : {}),
-        willImport: document.connection !== null,
+        ...((document['connection'] === null) ? { reason: 'The file does not contain a saved connection.' } : {}),
+        willImport: document['connection'] !== null,
       });
     }
 
-    if (document.notifications !== undefined) {
+    if (document['notifications'] !== undefined) {
       sections.push({
         file: [
-          String(document.notifications.length),
+          String(document['notifications'].length),
           ' targets',
         ].join(''),
         here: [
@@ -1532,10 +1581,10 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
       });
     }
 
-    if (document.accessTokens !== undefined) {
+    if (document['accessTokens'] !== undefined) {
       sections.push({
         file: [
-          String(document.accessTokens.length),
+          String(document['accessTokens'].length),
           ' tokens',
         ].join(''),
         here: [
@@ -1549,8 +1598,8 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
     }
 
     sendJSON(response, 200, {
-      appVersion: document.appVersion,
-      exportedAt: document.exportedAt,
+      appVersion: document['appVersion'],
+      exportedAt: document['exportedAt'],
       sections,
       summary,
     });
@@ -1559,14 +1608,14 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
   }
 
   if (method === 'POST' && path === '/api/v1/backup/imports') {
-    const document: MockBackupDocument | null = (typeof body['document'] === 'object' && body['document'] !== null) ? body['document'] as MockBackupDocument : null;
+    const document: MockApi_HandleRequest_Document = (typeof body['document'] === 'object' && body['document'] !== null) ? body['document'] as MockApi_HandleRequest_Document : null;
 
     if (
       document === null
       || backupGrant === null
-      || backupGrant.expiresAt <= Date.now()
-      || backupGrant.purpose !== 'import'
-      || body['grant'] !== backupGrant.token
+      || backupGrant['expiresAt'] <= Date.now()
+      || backupGrant['purpose'] !== 'import'
+      || body['grant'] !== backupGrant['token']
     ) {
       sendError(response, 401, 'backup_confirmation_expired', 'Confirm it\'s you again.');
 
@@ -1575,75 +1624,86 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
 
     backupGrant = null;
 
-    const summary: MockBackupSummary = backupSummary(document);
-    const importedSections: Array<'connection' | 'notifications' | 'accessTokens'> = [];
+    const summary: MockApi_HandleRequest_Summary = backupSummary(document);
+    const importedSections: MockApi_HandleRequest_ImportedSections = [];
 
-    if (document.connection !== undefined && document.connection !== null) {
+    if (document['connection'] !== undefined && document['connection'] !== null) {
       connection = {
         credentialSaved: true,
-        credentialType: document.connection.credentialType,
-        pfsenseSshIp: document.connection.pfsenseSshIp,
-        pfsenseSshPort: document.connection.pfsenseSshPort,
-        pfsenseUsername: document.connection.pfsenseUsername,
+        credentialType: document['connection']['credentialType'],
+        pfsenseSshIp: document['connection']['pfsenseSshIp'],
+        pfsenseSshPort: document['connection']['pfsenseSshPort'],
+        pfsenseUsername: document['connection']['pfsenseUsername'],
       };
-      connectionCredential = document.connection.credential;
+      connectionCredential = document['connection']['credential'];
+
       importedSections.push('connection');
     }
 
-    if (document.notifications !== undefined) {
-      for (const imported of document.notifications) {
-        const index: number = notifications.findIndex((notification: MockNotification): boolean => notification.name.toLocaleLowerCase() === imported.name.toLocaleLowerCase());
-        const existing: MockNotification | undefined = notifications[index];
-        const now: string = new Date().toISOString();
-        const notification: MockNotification = {
-          createdAt: existing?.createdAt ?? now,
-          events: [...imported.events],
-          id: existing?.id ?? imported.id,
-          lastAttemptAt: existing?.lastAttemptAt ?? null,
-          lastError: existing?.lastError ?? null,
-          name: imported.name,
-          secrets: Object.fromEntries(Object.keys(imported.secrets).map((key: string): [string, true] => [
+    if (document['notifications'] !== undefined) {
+      for (const imported of document['notifications']) {
+        const index: MockApi_HandleRequest_Index = notifications.findIndex((notification) => notification['name'].toLocaleLowerCase() === imported['name'].toLocaleLowerCase());
+        const existing: MockApi_HandleRequest_Existing = notifications[index];
+        const now: MockApi_HandleRequest_Now = new Date().toISOString();
+        const notification: MockApi_HandleRequest_Notification = {
+          createdAt: (existing !== undefined) ? existing['createdAt'] : now,
+          events: [...imported['events']],
+          id: (existing !== undefined) ? existing['id'] : imported['id'],
+          lastAttemptAt: (existing !== undefined) ? existing['lastAttemptAt'] : null,
+          lastError: (existing !== undefined) ? existing['lastError'] : null,
+          name: imported['name'],
+          secrets: Object.fromEntries(Object.keys(imported['secrets']).map((key): MockApi_HandleRequest_ImportedSecretEntry => [
             key,
             true,
           ])),
           secretsMissing: [],
-          service: imported.service,
-          settings: { ...imported.settings },
+          service: imported['service'],
+          settings: { ...imported['settings'] },
           updatedAt: now,
         };
 
         if (existing === undefined) {
           notifications.push(notification);
         } else {
-          notifications[index] = notification;
+          Reflect.set(notifications, index, notification);
         }
       }
+
       importedSections.push('notifications');
     }
 
-    if (document.accessTokens !== undefined) {
-      const existingIds: Set<string> = new Set(tokens.map((token: MockToken): string => token.id));
-      const existingNames: Set<string> = new Set(tokens.map((token: MockToken): string => token.name.toLocaleLowerCase()));
-      const existingHashes: Set<string> = new Set(tokenHashes.values());
+    if (document['accessTokens'] !== undefined) {
+      const existingIds: MockApi_HandleRequest_ExistingIds = new Set(tokens.map((token) => token['id']));
+      const existingNames: MockApi_HandleRequest_ExistingNames = new Set(tokens.map((token) => token['name'].toLocaleLowerCase()));
+      const existingHashes: MockApi_HandleRequest_ExistingHashes = new Set(tokenHashes.values());
 
-      for (const imported of document.accessTokens) {
-        if (existingIds.has(imported.id) || existingNames.has(imported.name.toLocaleLowerCase()) || existingHashes.has(imported.tokenHash)) {
+      for (const imported of document['accessTokens']) {
+        if (
+          existingIds.has(imported['id']) === true
+          || existingNames.has(imported['name'].toLocaleLowerCase()) === true
+          || existingHashes.has(imported['tokenHash']) === true
+        ) {
           continue;
         }
 
         tokens.push({
-          createdAt: imported.createdAt,
-          expiresAt: imported.expiresAt,
-          id: imported.id,
-          lastUsedAt: imported.lastUsedAt,
-          name: imported.name,
-          scopes: imported.scopes,
+          createdAt: imported['createdAt'],
+          expiresAt: imported['expiresAt'],
+          id: imported['id'],
+          lastUsedAt: imported['lastUsedAt'],
+          name: imported['name'],
+          scopes: imported['scopes'],
         });
-        tokenHashes.set(imported.id, imported.tokenHash);
-        existingIds.add(imported.id);
-        existingNames.add(imported.name.toLocaleLowerCase());
-        existingHashes.add(imported.tokenHash);
+
+        tokenHashes.set(imported['id'], imported['tokenHash']);
+
+        existingIds.add(imported['id']);
+
+        existingNames.add(imported['name'].toLocaleLowerCase());
+
+        existingHashes.add(imported['tokenHash']);
       }
+
       importedSections.push('accessTokens');
     }
 
@@ -1654,6 +1714,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
       outcome: 'succeeded',
       summary: 'Imported backup configuration',
     });
+
     sendJSON(response, 200, {
       ...summary,
       importedSections,
@@ -1676,6 +1737,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
 
   if (method === 'DELETE' && path === '/api/v1/auth/removed-secrets') {
     removedSecrets = [];
+
     sendEmpty(response);
 
     return true;
@@ -1683,6 +1745,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
 
   if (method === 'POST' && path === '/api/v1/auth/logout') {
     signedIn = false;
+
     sendEmpty(response);
 
     return true;
@@ -1702,7 +1765,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
   }
 
   if (method === 'POST' && path === '/api/v1/auth/password') {
-    if (!checkPassword('currentPassword')) {
+    if (checkPassword('currentPassword') === false) {
       return true;
     }
 
@@ -1722,7 +1785,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
   }
 
   if (method === 'POST' && path === '/api/v1/auth/username') {
-    const newUsernameIssue: string = usernameIssue(String(body['username'] ?? '').trim());
+    const newUsernameIssue: MockApi_HandleRequest_NewUsernameIssue = usernameIssue(String(body['username'] ?? '').trim());
 
     if (newUsernameIssue !== '') {
       sendFieldError(response, 422, 'invalid_request', 'username', newUsernameIssue);
@@ -1730,7 +1793,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
       return true;
     }
 
-    if (!checkPassword()) {
+    if (checkPassword() === false) {
       return true;
     }
 
@@ -1741,7 +1804,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
     sendJSON(response, 200, {
       administrator: {
         id: '00000000-0000-4000-8000-000000000001',
-        username: administrator?.username ?? 'admin',
+        username: (administrator !== null) ? administrator['username'] : 'admin',
       },
     });
 
@@ -1749,14 +1812,15 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
   }
 
   if (method === 'POST' && path === '/api/v1/auth/totp/setup') {
-    if (!checkPassword()) {
+    if (checkPassword() === false) {
       return true;
     }
 
     // The same URI and QR code options as the real server, so the code scans.
-    const totpUri: string = `otpauth://totp/pfSense%20Actions:${encodeURIComponent(currentUsername)}?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&issuer=pfSense%20Actions&algorithm=SHA1&digits=6&period=30`;
+    const totpUri: MockApi_HandleRequest_TotpUri = `otpauth://totp/pfSense%20Actions:${encodeURIComponent(currentUsername)}?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&issuer=pfSense%20Actions&algorithm=SHA1&digits=6&period=30`;
 
     totpPending = true;
+
     sendJSON(response, 200, {
       expiresAt: new Date(Date.now() + (10 * minute)).toISOString(),
       qrCode: await toDataURL(totpUri, {
@@ -1772,7 +1836,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
   }
 
   if (method === 'POST' && path === '/api/v1/auth/totp/enable') {
-    if (!totpPending) {
+    if (totpPending === false) {
       sendError(response, 409, 'totp_setup_expired', 'Authenticator setup expired. Start again.');
 
       return true;
@@ -1787,30 +1851,33 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
     totpEnabled = true;
     totpPending = false;
     recoveryCodes = newRecoveryCodes();
-    removedSecrets = removedSecrets.filter((removedSecret): boolean => removedSecret.kind !== 'authenticator');
+    removedSecrets = removedSecrets.filter((removedSecret) => removedSecret['kind'] !== 'authenticator');
+
     sendJSON(response, 200, { recoveryCodes });
 
     return true;
   }
 
   if (method === 'POST' && path === '/api/v1/auth/totp/disable') {
-    if (!checkPassword()) {
+    if (checkPassword() === false) {
       return true;
     }
 
     totpEnabled = false;
     recoveryCodes = [];
+
     sendEmpty(response);
 
     return true;
   }
 
   if (method === 'POST' && path === '/api/v1/auth/recovery-codes') {
-    if (!checkPassword()) {
+    if (checkPassword() === false) {
       return true;
     }
 
     recoveryCodes = newRecoveryCodes();
+
     sendJSON(response, 200, { recoveryCodes });
 
     return true;
@@ -1818,7 +1885,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
 
   // Adding a passkey runs the browser's real prompt; the mock saves whatever answer comes back.
   if (method === 'POST' && path === '/api/v1/auth/passkeys/register/options') {
-    const passkeyName: string = (typeof body['name'] === 'string') ? body['name'].trim() : '';
+    const passkeyName: MockApi_HandleRequest_PasskeyName = (typeof body['name'] === 'string') ? body['name'].trim() : '';
 
     if (passkeyName === '' || [...passkeyName].length > 80) {
       sendFieldError(response, 422, 'invalid_request', 'name', (passkeyName === '') ? 'Name this passkey.' : 'Use 80 characters or fewer.');
@@ -1826,13 +1893,14 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
       return true;
     }
 
-    if (!checkPassword()) {
+    if (checkPassword() === false) {
       return true;
     }
 
-    const ceremonyId: string = randomBytes(16).toString('base64url');
+    const ceremonyId: MockApi_HandleRequest_CeremonyId = randomBytes(16).toString('base64url');
 
     passkeyCeremonies.set(ceremonyId, passkeyName);
+
     sendJSON(response, 200, {
       ceremonyId,
       options: {
@@ -1870,8 +1938,8 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
   }
 
   if (method === 'POST' && path === '/api/v1/auth/passkeys/register/verify') {
-    const ceremonyId: string = (typeof body['ceremonyId'] === 'string') ? body['ceremonyId'] : '';
-    const passkeyName: string | undefined = passkeyCeremonies.get(ceremonyId);
+    const ceremonyId: MockApi_HandleRequest_CeremonyId = (typeof body['ceremonyId'] === 'string') ? body['ceremonyId'] : '';
+    const passkeyName: MockApi_HandleRequest_CeremonyPasskeyName = passkeyCeremonies.get(ceremonyId);
 
     if (passkeyName === undefined) {
       sendError(response, 409, 'passkey_ceremony_invalid', 'That passkey request expired. Try again.');
@@ -1879,7 +1947,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
       return true;
     }
 
-    const passkey: MockPasskey = {
+    const passkey: MockApi_HandleRequest_Passkey = {
       createdAt: new Date().toISOString(),
       hostname: url.hostname,
       id: `pk-${randomBytes(12).toString('base64url')}`,
@@ -1888,29 +1956,32 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
     };
 
     passkeyCeremonies.delete(ceremonyId);
+
     passkeys = [
       ...passkeys,
       passkey,
     ];
+
     sendJSON(response, 201, passkey);
 
     return true;
   }
 
-  if (method === 'DELETE' && path.startsWith('/api/v1/auth/passkeys/')) {
-    const passkeyId: string = decodeURIComponent(path.slice('/api/v1/auth/passkeys/'.length));
+  if (method === 'DELETE' && path.startsWith('/api/v1/auth/passkeys/') === true) {
+    const passkeyId: MockApi_HandleRequest_PasskeyId = decodeURIComponent(path.slice('/api/v1/auth/passkeys/'.length));
 
-    if (!passkeys.some((passkey: MockPasskey): boolean => passkey.id === passkeyId)) {
+    if (passkeys.some((passkey) => passkey['id'] === passkeyId) === false) {
       sendError(response, 404, 'passkey_not_found', 'That passkey no longer exists.');
 
       return true;
     }
 
-    if (!checkPassword()) {
+    if (checkPassword() === false) {
       return true;
     }
 
-    passkeys = passkeys.filter((passkey: MockPasskey): boolean => passkey.id !== passkeyId);
+    passkeys = passkeys.filter((passkey) => passkey['id'] !== passkeyId);
+
     sendEmpty(response);
 
     return true;
@@ -1923,7 +1994,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
   }
 
   if (method === 'GET' && path === '/api/v1/notifications') {
-    sendJSON(response, 200, { items: [...notifications].sort((left: MockNotification, right: MockNotification): number => right.createdAt.localeCompare(left.createdAt)) });
+    sendJSON(response, 200, { items: [...notifications].sort((left, right) => right['createdAt'].localeCompare(left['createdAt'])) });
 
     return true;
   }
@@ -1936,13 +2007,15 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
    * Centralizes this operation for the surrounding workflow.
    * Callers reuse one implementation instead of repeating the behavior.
    *
+   * @returns {MockApi_HandleRequest_NotificationInput_Returns}
+   *
    * @since 2.0.0
    */
-  const notificationInput = (existing: MockNotification | null): MockNotificationInput | null => {
-    const service: MockNotificationService = existing?.service ?? body['service'] as MockNotificationService;
-    const name: string = (typeof body['name'] === 'string') ? body['name'].trim() : '';
-    const events: string[] = (Array.isArray(body['events'])) ? body['events'] as string[] : [];
-    const values: Record<string, unknown> = (typeof body['settings'] === 'object' && body['settings'] !== null) ? body['settings'] as Record<string, unknown> : {};
+  const notificationInput: MockApi_HandleRequest_NotificationInput = (existing: MockApi_HandleRequest_NotificationInput_Existing): MockApi_HandleRequest_NotificationInput_Returns => {
+    const service: MockApi_HandleRequest_NotificationInput_Service = (existing !== null) ? existing['service'] : body['service'] as MockApi_MockNotificationService;
+    const name: MockApi_HandleRequest_NotificationInput_Name = (typeof body['name'] === 'string') ? body['name'].trim() : '';
+    const events: MockApi_HandleRequest_NotificationInput_Events = (Array.isArray(body['events']) === true) ? body['events'] as MockApi_HandleRequest_NotificationInput_Events : [];
+    const values: MockApi_HandleRequest_NotificationInput_Values = (typeof body['settings'] === 'object' && body['settings'] !== null) ? body['settings'] as MockApi_HandleRequest_NotificationInput_Values : {};
 
     if (notificationFields[service] === undefined) {
       sendFieldError(response, 422, 'invalid_request', 'service', 'Choose a service.');
@@ -1962,39 +2035,56 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
       return null;
     }
 
-    const settings: Record<string, string> = {};
-    const secrets: Record<string, true> = { ...(existing?.secrets ?? {}) };
+    const settings: MockApi_HandleRequest_NotificationInput_Settings = {};
+    const secrets: MockApi_HandleRequest_NotificationInput_Secrets = { ...((existing !== null) ? existing['secrets'] : {}) };
 
-    for (const [
-      key,
-      missing,
-      secret,
-      required,
-    ] of notificationFields[service]) {
-      const value: string = (typeof values[key] === 'string') ? (values[key]).trim() : '';
-      const saved: boolean = secret && existing !== null && existing.secrets[key] === true;
+    for (const notificationField of notificationFields[service]) {
+      const key: MockApi_HandleRequest_NotificationInput_Key = notificationField[0];
+      const missing: MockApi_HandleRequest_NotificationInput_Missing = notificationField[1];
+      const secret: MockApi_HandleRequest_NotificationInput_Secret = notificationField[2];
+      const required: MockApi_HandleRequest_NotificationInput_Required = notificationField[3];
+      const value: MockApi_HandleRequest_NotificationInput_Value = (typeof values[key] === 'string') ? (values[key]).trim() : '';
+      const saved: MockApi_HandleRequest_NotificationInput_Saved = (
+        secret === true
+        && existing !== null
+        && existing['secrets'][key] === true
+      );
 
-      if (value === '' && required && !saved) {
+      if (
+        value === ''
+        && required === true
+        && saved === false
+      ) {
         sendFieldError(response, 422, 'invalid_request', `settings.${key}`, missing);
 
         return null;
       }
 
-      if (value !== '' && secret) {
-        secrets[key] = true;
+      if (value !== '' && secret === true) {
+        Reflect.set(secrets, key, true);
       } else if (value !== '') {
-        settings[key] = value;
+        Reflect.set(settings, key, value);
       }
     }
 
     // Optional secrets that are saved, or missing after a lost key, can be cleared once each, never alongside a new value.
-    const clearable: string[] = notificationFields[service]
-      .filter((field: MockNotificationField): boolean => field[2] && !field[3] && existing !== null && (existing.secrets[field[0]] === true || existing.secretsMissing.includes(field[0])))
-      .map((field: MockNotificationField): string => field[0]);
-    const clearSecrets: unknown[] = (Array.isArray(body['clearSecrets'])) ? body['clearSecrets'] : [];
-    const invalidIndex: number = clearSecrets.findIndex((key: unknown): boolean => typeof key !== 'string' || !clearable.includes(key));
+    const clearable: MockApi_HandleRequest_NotificationInput_Clearable = notificationFields[service]
+      .filter((field) => {
+        return (
+          field[2] === true
+          && field[3] === false
+          && existing !== null
+          && (
+            existing['secrets'][field[0]] === true
+            || existing['secretsMissing'].includes(field[0]) === true
+          )
+        );
+      })
+      .map((field) => field[0]);
+    const clearSecrets: MockApi_HandleRequest_NotificationInput_ClearSecrets = (Array.isArray(body['clearSecrets']) === true) ? body['clearSecrets'] : [];
+    const invalidIndex: MockApi_HandleRequest_NotificationInput_InvalidIndex = clearSecrets.findIndex((key) => typeof key !== 'string' || clearable.includes(key) === false);
 
-    if (body['clearSecrets'] !== undefined && !Array.isArray(body['clearSecrets'])) {
+    if (body['clearSecrets'] !== undefined && Array.isArray(body['clearSecrets']) === false) {
       sendFieldError(response, 422, 'invalid_request', 'clearSecrets', 'Choose an optional saved secret.');
 
       return null;
@@ -2012,7 +2102,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
       return null;
     }
 
-    const replaced: string | undefined = (clearSecrets as string[]).find((key: string): boolean => typeof values[key] === 'string' && (values[key]).trim() !== '');
+    const replaced: MockApi_HandleRequest_NotificationInput_Replaced = (clearSecrets as MockApi_HandleRequest_NotificationInput_ClearSecretKeys).find((key) => typeof values[key] === 'string' && (values[key]).trim() !== '');
 
     if (replaced !== undefined) {
       sendFieldError(response, 422, 'invalid_request', `settings.${replaced}`, 'Enter a new value or clear this field, not both.');
@@ -2020,11 +2110,11 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
       return null;
     }
 
-    for (const key of clearSecrets as string[]) {
+    for (const key of clearSecrets as MockApi_HandleRequest_NotificationInput_ClearSecretKeys) {
       Reflect.deleteProperty(secrets, key);
     }
 
-    if (notifications.some((notification: MockNotification): boolean => notification.id !== existing?.id && notification.name.toLowerCase() === name.toLowerCase())) {
+    if (notifications.some((notification) => notification['id'] !== ((existing !== null) ? existing['id'] : undefined) && notification['name'].toLowerCase() === name.toLowerCase()) === true) {
       sendFieldError(response, 409, 'notification_exists', 'name', 'A notification with this name already exists.');
 
       return null;
@@ -2033,7 +2123,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
     return {
       events,
       name,
-      clearSecrets: clearSecrets as string[],
+      clearSecrets: clearSecrets as MockApi_HandleRequest_NotificationInput_ClearSecretKeys,
       secrets,
       service,
       settings,
@@ -2041,18 +2131,18 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
   };
 
   if (method === 'POST' && path === '/api/v1/notifications') {
-    const input: MockNotificationInput | null = notificationInput(null);
+    const input: MockApi_HandleRequest_NotificationInputResult = notificationInput(null);
 
     if (input === null) {
       return true;
     }
 
-    const notification: MockNotification = {
-      events: input.events,
-      name: input.name,
-      secrets: input.secrets,
-      service: input.service,
-      settings: input.settings,
+    const notification: MockApi_HandleRequest_Notification = {
+      events: input['events'],
+      name: input['name'],
+      secrets: input['secrets'],
+      service: input['service'],
+      settings: input['settings'],
       createdAt: new Date().toISOString(),
       id: `ntf-${randomBytes(8).toString('hex')}`,
       lastAttemptAt: null,
@@ -2062,23 +2152,25 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
     };
 
     notifications.push(notification);
+
     recordActivity({
       action: 'notification-created',
       actorId: currentUsername,
       category: 'configuration',
       outcome: 'succeeded',
-      summary: `Added notification ${notification.name}`,
+      summary: `Added notification ${notification['name']}`,
     });
+
     sendJSON(response, 201, notification);
 
     return true;
   }
 
-  const notificationMatch: RegExpMatchArray | null = path.match(/^\/api\/v1\/notifications\/(ntf-[0-9a-f]{16})(\/test)?$/u);
+  const notificationMatch: MockApi_HandleRequest_NotificationMatch = path.match(new RegExp(notificationPathPattern, 'u'));
 
   if (notificationMatch !== null) {
-    const index: number = notifications.findIndex((notification: MockNotification): boolean => notification.id === notificationMatch[1]);
-    const notification: MockNotification | undefined = notifications[index];
+    const index: MockApi_HandleRequest_Index = notifications.findIndex((notification) => notification['id'] === notificationMatch[1]);
+    const notification: MockApi_HandleRequest_FoundNotification = notifications[index];
 
     if (notification === undefined) {
       sendError(response, 404, 'notification_not_found', 'That notification no longer exists.');
@@ -2087,7 +2179,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
     }
 
     if (method === 'POST' && notificationMatch[2] === '/test') {
-      if (notification.secretsMissing.length > 0) {
+      if (notification['secretsMissing'].length > 0) {
         sendJSON(response, 200, {
           delivered: false,
           message: 'Enter the removed secrets again first.',
@@ -2098,6 +2190,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
 
       notification.lastAttemptAt = new Date().toISOString();
       notification.lastError = null;
+
       sendJSON(response, 200, { delivered: true });
 
       return true;
@@ -2105,36 +2198,40 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
 
     if (method === 'DELETE') {
       notifications.splice(index, 1);
-      removedSecrets = removedSecrets.filter((removedSecret): boolean => removedSecret.notificationId !== notification.id);
+
+      removedSecrets = removedSecrets.filter((removedSecret) => removedSecret['notificationId'] !== notification['id']);
+
       recordActivity({
         action: 'notification-removed',
         actorId: currentUsername,
         category: 'configuration',
         outcome: 'succeeded',
-        summary: `Removed notification ${notification.name}`,
+        summary: `Removed notification ${notification['name']}`,
       });
+
       sendEmpty(response);
 
       return true;
     }
 
     if (method === 'PUT') {
-      const input: MockNotificationInput | null = notificationInput(notification);
+      const input: MockApi_HandleRequest_NotificationInputResult = notificationInput(notification);
 
       if (input === null) {
         return true;
       }
 
-      notification.events = input.events;
-      notification.name = input.name;
-      notification.secrets = input.secrets;
+      notification.events = input['events'];
+      notification.name = input['name'];
+      notification.secrets = input['secrets'];
+
       // A missing secret is settled by entering it again or, when optional, by clearing it.
-      notification.secretsMissing = notification.secretsMissing.filter((key: string): boolean => input.secrets[key] !== true && !input.clearSecrets.includes(key));
-      notification.settings = input.settings;
+      notification.secretsMissing = notification['secretsMissing'].filter((key) => input['secrets'][key] !== true && input['clearSecrets'].includes(key) === false);
+      notification.settings = input['settings'];
       notification.updatedAt = new Date().toISOString();
 
-      if (notification.secretsMissing.length === 0) {
-        removedSecrets = removedSecrets.filter((removedSecret): boolean => removedSecret.notificationId !== notification.id);
+      if (notification['secretsMissing'].length === 0) {
+        removedSecrets = removedSecrets.filter((removedSecret) => removedSecret['notificationId'] !== notification['id']);
       }
 
       recordActivity({
@@ -2142,8 +2239,9 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
         actorId: currentUsername,
         category: 'configuration',
         outcome: 'succeeded',
-        summary: `Updated notification ${notification.name}`,
+        summary: `Updated notification ${notification['name']}`,
       });
+
       sendJSON(response, 200, notification);
 
       return true;
@@ -2151,7 +2249,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
   }
 
   if (method === 'GET' && path === '/api/v1/auth/tokens') {
-    sendJSON(response, 200, { items: [...tokens].sort((left: MockToken, right: MockToken): number => right.createdAt.localeCompare(left.createdAt)) });
+    sendJSON(response, 200, { items: [...tokens].sort((left, right) => right['createdAt'].localeCompare(left['createdAt'])) });
 
     return true;
   }
@@ -2164,11 +2262,13 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
    * Centralizes this operation for the surrounding workflow.
    * Callers reuse one implementation instead of repeating the behavior.
    *
+   * @returns {MockApi_HandleRequest_TokenInput_Returns}
+   *
    * @since 2.0.0
    */
-  const tokenInput = (exceptId: string): MockTokenInput | null => {
-    const name: string = (typeof body['name'] === 'string') ? body['name'].trim() : '';
-    const scopes: MockScope[] = (Array.isArray(body['scopes'])) ? body['scopes'] as MockScope[] : [];
+  const tokenInput: MockApi_HandleRequest_TokenInput = (exceptId: MockApi_HandleRequest_TokenInput_ExceptId): MockApi_HandleRequest_TokenInput_Returns => {
+    const name: MockApi_HandleRequest_TokenInput_Name = (typeof body['name'] === 'string') ? body['name'].trim() : '';
+    const scopes: MockApi_HandleRequest_TokenInput_Scopes = (Array.isArray(body['scopes']) === true) ? body['scopes'] as MockApi_HandleRequest_TokenInput_Scopes : [];
 
     if (name === '') {
       sendFieldError(response, 422, 'invalid_request', 'name', 'Name this token.');
@@ -2188,7 +2288,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
       return null;
     }
 
-    if (tokens.some((token: MockToken): boolean => token.id !== exceptId && token.name.toLowerCase() === name.toLowerCase())) {
+    if (tokens.some((token) => token['id'] !== exceptId && token['name'].toLowerCase() === name.toLowerCase()) === true) {
       sendFieldError(response, 409, 'token_exists', 'name', 'A token with this name already exists.');
 
       return null;
@@ -2196,39 +2296,42 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
 
     return {
       name,
-      scopes: scopeOrder.filter((scope: MockScope): boolean => scopes.includes(scope)),
+      scopes: scopeOrder.filter((scope) => scopes.includes(scope)),
     };
   };
 
   if (method === 'POST' && path === '/api/v1/auth/tokens') {
-    const input: MockTokenInput | null = tokenInput('');
+    const input: MockApi_HandleRequest_TokenInputResult = tokenInput('');
 
     if (input === null) {
       return true;
     }
 
-    const plaintext: string = [
+    const plaintext: MockApi_HandleRequest_Plaintext = [
       'pfa_',
       randomBytes(32).toString('base64url'),
     ].join('');
-    const token: MockToken = {
+    const token: MockApi_HandleRequest_Token = {
       createdAt: new Date().toISOString(),
       expiresAt: (typeof body['expiresAt'] === 'string') ? body['expiresAt'] : null,
       id: `tok-${randomBytes(8).toString('hex')}`,
       lastUsedAt: null,
-      name: input.name,
-      scopes: input.scopes,
+      name: input['name'],
+      scopes: input['scopes'],
     };
 
     tokens.push(token);
-    tokenHashes.set(token.id, randomBytes(32).toString('hex'));
+
+    tokenHashes.set(token['id'], randomBytes(32).toString('hex'));
+
     recordActivity({
       action: 'token-created',
       actorId: currentUsername,
       category: 'token',
       outcome: 'succeeded',
-      summary: `Created personal access token ${token.name}`,
+      summary: `Created personal access token ${token['name']}`,
     });
+
     sendJSON(response, 201, {
       plaintext,
       token,
@@ -2237,11 +2340,11 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
     return true;
   }
 
-  const tokenMatch: RegExpMatchArray | null = path.match(/^\/api\/v1\/auth\/tokens\/([a-z0-9-]+)$/u);
+  const tokenMatch: MockApi_HandleRequest_TokenMatch = path.match(new RegExp(tokenPathPattern, 'u'));
 
   if (tokenMatch !== null) {
-    const index: number = tokens.findIndex((token: MockToken): boolean => token.id === tokenMatch[1]);
-    const token: MockToken | undefined = tokens[index];
+    const index: MockApi_HandleRequest_Index = tokens.findIndex((token) => token['id'] === tokenMatch[1]);
+    const token: MockApi_HandleRequest_FoundToken = tokens[index];
 
     if (token === undefined) {
       sendError(response, 404, 'token_not_found', 'That token no longer exists.');
@@ -2251,38 +2354,44 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
 
     if (method === 'DELETE') {
       tokens.splice(index, 1);
-      tokenHashes.delete(token.id);
+
+      tokenHashes.delete(token['id']);
+
       recordActivity({
         action: 'token-revoked',
         actorId: currentUsername,
         category: 'token',
         outcome: 'succeeded',
-        summary: `Revoked personal access token ${token.name}`,
+        summary: `Revoked personal access token ${token['name']}`,
       });
+
       sendEmpty(response);
 
       return true;
     }
 
     if (method === 'PUT') {
-      const input: MockTokenInput | null = tokenInput(token.id);
+      const input: MockApi_HandleRequest_TokenInputResult = tokenInput(token['id']);
 
       if (input === null) {
         return true;
       }
 
-      token.name = input.name;
-      token.scopes = input.scopes;
+      token.name = input['name'];
+      token.scopes = input['scopes'];
+
       if (body['expiresAt'] !== undefined) {
         token.expiresAt = (typeof body['expiresAt'] === 'string') ? body['expiresAt'] : null;
       }
+
       recordActivity({
         action: 'token-updated',
         actorId: currentUsername,
         category: 'token',
         outcome: 'succeeded',
-        summary: `Updated personal access token ${token.name}`,
+        summary: `Updated personal access token ${token['name']}`,
       });
+
       sendJSON(response, 200, token);
 
       return true;
@@ -2293,8 +2402,8 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
     sendJSON(response, 200, {
       activityCount: activity.length,
       administrator: (administrator === null) ? null : {
-        createdAt: administrator.createdAt,
-        username: administrator.username,
+        createdAt: administrator['createdAt'],
+        username: administrator['username'],
       },
       connection: connectionResource(),
       tokenCount: tokens.length,
@@ -2326,14 +2435,16 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
 
     if (body['debugLogging'] !== debugLogging) {
       debugLogging = body['debugLogging'];
+
       recordActivity({
         action: 'debug-logging-updated',
         actorId: currentUsername,
         category: 'configuration',
         outcome: 'succeeded',
-        summary: (debugLogging) ? 'Turned debug logging on' : 'Turned debug logging off',
+        summary: (debugLogging === true) ? 'Turned debug logging on' : 'Turned debug logging off',
       });
     }
+
     sendJSON(response, 200, { debugLogging });
 
     return true;
@@ -2352,36 +2463,44 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
       return true;
     }
 
-    if (!connection.credentialSaved) {
+    if (connection['credentialSaved'] === false) {
       sendError(response, 409, 'connection_not_configured', 'Enter the password or private key again, then save the connection.');
 
       return true;
     }
 
-    const connected: boolean = connection.pfsenseSshIp !== '192.0.2.66';
+    const connected: MockApi_HandleRequest_Connected = connection['pfsenseSshIp'] !== '192.0.2.66';
 
     recordActivity({
       action: 'connection-tested',
       actorId: currentUsername,
       category: 'configuration',
-      outcome: (connected) ? 'succeeded' : 'failed',
-      summary: (connected) ? 'Verified the saved pfSense SSH connection' : 'Could not verify the saved pfSense SSH connection',
+      outcome: (connected === true) ? 'succeeded' : 'failed',
+      summary: (connected === true) ? 'Verified the saved pfSense SSH connection' : 'Could not verify the saved pfSense SSH connection',
     });
+
     sendJSON(response, 200, { connected });
 
     return true;
   }
 
   if (method === 'PUT' && path === '/api/v1/connection') {
-    const address: string = String(body['pfsenseSshIp'] ?? '').trim();
+    const address: MockApi_HandleRequest_Address = String(body['pfsenseSshIp'] ?? '').trim();
 
-    if (!/^(\d{1,3}\.){3}\d{1,3}$|:/u.test(address)) {
+    if (new RegExp(ipAddressPattern, 'u').test(address) === false) {
       sendFieldError(response, 422, 'invalid_request', 'pfsenseSshIp', 'Enter an IPv4 or IPv6 address.');
 
       return true;
     }
 
-    if (body['credential'] === undefined && (connection === null || !connection.credentialSaved || connection.credentialType !== body['credentialType'])) {
+    if (
+      body['credential'] === undefined
+      && (
+        connection === null
+        || connection['credentialSaved'] === false
+        || connection['credentialType'] !== body['credentialType']
+      )
+    ) {
       sendFieldError(response, 422, 'credential_required', 'credential', (body['credentialType'] === 'password') ? 'Enter the SSH password.' : 'Paste the SSH private key.');
 
       return true;
@@ -2395,12 +2514,13 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
         outcome: 'failed',
         summary: 'Rejected pfSense SSH settings that could not sign in',
       });
+
       sendError(response, 502, 'connection_failed', 'pfSense Actions couldn\'t sign in over SSH with these settings. Nothing was saved.');
 
       return true;
     }
 
-    removedSecrets = removedSecrets.filter((removedSecret): boolean => removedSecret.kind !== 'pfsense-credential');
+    removedSecrets = removedSecrets.filter((removedSecret) => removedSecret['kind'] !== 'pfsense-credential');
     connection = {
       credentialSaved: true,
       credentialType: (body['credentialType'] === 'password') ? 'password' : 'privateKey',
@@ -2408,9 +2528,11 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
       pfsenseSshPort: Number(body['pfsenseSshPort'] ?? 22),
       pfsenseUsername: String(body['pfsenseUsername'] ?? '').trim(),
     };
+
     if (typeof body['credential'] === 'string') {
       connectionCredential = body['credential'];
     }
+
     recordActivity({
       action: 'connection-updated',
       actorId: currentUsername,
@@ -2418,6 +2540,7 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
       outcome: 'succeeded',
       summary: 'Updated the pfSense SSH connection',
     });
+
     sendJSON(response, 200, connectionResource());
 
     return true;
@@ -2435,21 +2558,27 @@ const handleRequest = async (request: IncomingMessage, response: ServerResponse)
  * The setup code is printed when the dev server starts; the authenticator code is 123456,
  * and recovery codes are random, shown once when they're made.
  *
- * @returns {Plugin}
+ * @returns {MockApi_MockApi_Returns}
  *
  * @since 2.0.0
  */
-export const mockApi = (): Plugin => ({
+export const mockApi = (): MockApi_MockApi_Returns => ({
   name: 'pfsense-actions-mock-api',
-  configureServer: (server): void => {
+  configureServer: (server) => {
     server.config.logger.info(`  Mock setup code: ${setupCode}`);
 
-    server.middlewares.use((request: IncomingMessage, response: ServerResponse, next: () => void): void => {
-      void handleRequest(request, response).then((handled: boolean): void => {
-        if (!handled) {
+    server.middlewares.use((request: MockApi_MockApi_Request, response: MockApi_MockApi_Response, next: MockApi_MockApi_Next) => {
+      void handleRequest(request, response).then((handled) => {
+        if (handled === false) {
           next();
         }
+
+        return;
       });
+
+      return;
     });
+
+    return;
   },
 });

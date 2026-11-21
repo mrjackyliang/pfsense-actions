@@ -39,30 +39,96 @@ import { OverviewView } from '@/web/overview-view.tsx';
 import { BrandMark } from '@/web/primitives.tsx';
 import { SecurityView } from '@/web/security-view.tsx';
 
-import type { ReactElement } from 'react';
-
+import type { Web_Api_CreatedToken } from '@/types/web/api.d.ts';
+import type { Web_AppNavigation_PathMatch } from '@/types/web/app-navigation.d.ts';
 import type {
-  Web_Api_ActivityEvent,
-  Web_Api_Connection,
-  Web_Api_CreatedToken,
-  Web_Api_CreateTokenInput,
-  Web_Api_Overview,
-  Web_Api_Principal,
-  Web_Api_RemovedSecret,
-  Web_Api_Token,
-  Web_Api_UpdateTokenInput,
-} from '@/types/web/api.d.ts';
-import type {
-  Web_AppNavigation_PathMatch,
-  Web_AppNavigation_Route,
-} from '@/types/web/app-navigation.d.ts';
-import type {
-  Web_App_Phase,
-  Web_App_RemovedSecretAction,
+  Web_App_App_ActiveRoute,
+  Web_App_App_ActiveRouteState,
+  Web_App_App_Activity,
+  Web_App_App_ActivityState,
+  Web_App_App_ApplyAppRoute,
+  Web_App_App_ApplyAppRoute_Returns,
+  Web_App_App_ApplyAppRoute_Route,
+  Web_App_App_Bootstrap,
+  Web_App_App_Bootstrap_Returns,
+  Web_App_App_Bootstrap_SetupStatus,
+  Web_App_App_Connection,
+  Web_App_App_ConnectionDirty,
+  Web_App_App_ConnectionDirtyState,
+  Web_App_App_ConnectionState,
+  Web_App_App_ConnectionTest,
+  Web_App_App_ConnectionTestState,
+  Web_App_App_EnterApplication,
+  Web_App_App_EnterApplication_Principal,
+  Web_App_App_EnterApplication_Returns,
+  Web_App_App_Guard,
+  Web_App_App_Guard_Action,
+  Web_App_App_Guard_Returns,
+  Web_App_App_LastRemovedSecret,
+  Web_App_App_LoadActivity,
+  Web_App_App_LoadActivity_Returns,
+  Web_App_App_LoadConnection,
+  Web_App_App_LoadConnection_Returns,
+  Web_App_App_LoadOverview,
+  Web_App_App_LoadOverview_NextActivity,
+  Web_App_App_LoadOverview_NextOverview,
+  Web_App_App_LoadOverview_NextResults,
+  Web_App_App_LoadOverview_Returns,
+  Web_App_App_LoadRemovedSecrets,
+  Web_App_App_LoadRemovedSecrets_Principal,
+  Web_App_App_LoadRemovedSecrets_Returns,
+  Web_App_App_LoadTokens,
+  Web_App_App_LoadTokens_Returns,
+  Web_App_App_Notice,
+  Web_App_App_OpenRoute,
+  Web_App_App_OpenRoute_Returns,
+  Web_App_App_OpenRoute_Route,
+  Web_App_App_OpenView,
+  Web_App_App_OpenView_Returns,
+  Web_App_App_OpenView_View,
+  Web_App_App_Overview,
+  Web_App_App_OverviewState,
+  Web_App_App_Phase,
+  Web_App_App_PhaseState,
+  Web_App_App_RemovedAt,
+  Web_App_App_RemovedSecrets,
+  Web_App_App_RemovedSecretsState,
+  Web_App_App_RenderView,
+  Web_App_App_RenderView_Returns,
+  Web_App_App_ResetSession,
+  Web_App_App_ResetSession_Returns,
+  Web_App_App_Returns,
+  Web_App_App_RunConnectionTest,
+  Web_App_App_RunConnectionTest_Result,
+  Web_App_App_RunConnectionTest_Returns,
+  Web_App_App_SetActiveRoute,
+  Web_App_App_SetActivity,
+  Web_App_App_SetConnection,
+  Web_App_App_SetConnectionDirty,
+  Web_App_App_SetConnectionTest,
+  Web_App_App_SetOverview,
+  Web_App_App_SetPhase,
+  Web_App_App_SetRemovedSecrets,
+  Web_App_App_SetStartupError,
+  Web_App_App_SetTokens,
+  Web_App_App_SetUsername,
+  Web_App_App_SignOut,
+  Web_App_App_SignOut_Returns,
+  Web_App_App_StartupError,
+  Web_App_App_StartupErrorState,
+  Web_App_App_Tokens,
+  Web_App_App_TokensState,
+  Web_App_App_Username,
+  Web_App_App_UsernameState,
+  Web_App_DescribeConnection_Connection,
+  Web_App_DescribeConnection_ConnectionTest,
+  Web_App_DescribeConnection_Returns,
+  Web_App_DescribeConnection_Target,
+  Web_App_DescribeRemovedSecret_RemovedSecret,
+  Web_App_DescribeRemovedSecret_Returns,
 } from '@/types/web/app.d.ts';
 import type {
   Web_Components_ConnectionStatus,
-  Web_Components_ConnectionTestResult,
   Web_Components_ShellStatus,
   Web_Components_View,
 } from '@/types/web/components.d.ts';
@@ -70,14 +136,18 @@ import type {
 // What each secret removed with a lost key asks for, and the page where it is entered again.
 
 /**
- * App - Describe removed secret.
+ * App - Describe Removed Secret.
  *
  * Centralizes this operation for the surrounding workflow.
  * Callers reuse one implementation instead of repeating the behavior.
  *
+ * @param {Web_App_DescribeRemovedSecret_RemovedSecret} removedSecret - Removed secret.
+ *
+ * @returns {Web_App_DescribeRemovedSecret_Returns}
+ *
  * @since 2.0.0
  */
-const describeRemovedSecret = (removedSecret: Web_Api_RemovedSecret): Web_App_RemovedSecretAction => {
+const describeRemovedSecret = (removedSecret: Web_App_DescribeRemovedSecret_RemovedSecret): Web_App_DescribeRemovedSecret_Returns => {
   if (removedSecret['kind'] === 'notification') {
     return {
       label: `Set up the ${removedSecret['name'] ?? 'removed'} notification again`,
@@ -99,22 +169,22 @@ const describeRemovedSecret = (removedSecret: Web_Api_RemovedSecret): Web_App_Re
 };
 
 /**
- * App - Describe connection.
+ * App - Describe Connection.
  *
  * Reduces the saved connection and its latest test to the generic status data
  * consumed by the shared shell's desktop card and phone pill.
  *
- * @param {Web_Api_Connection | null}           connection     - Connection.
- * @param {Web_Components_ConnectionTestResult} connectionTest - Connection test.
+ * @param {Web_App_DescribeConnection_Connection}     connection     - Connection.
+ * @param {Web_App_DescribeConnection_ConnectionTest} connectionTest - Connection test.
  *
- * @returns {Web_Components_ConnectionStatus}
+ * @returns {Web_App_DescribeConnection_Returns}
  *
  * @since 2.0.0
  */
 const describeConnection = (
-  connection: Web_Api_Connection | null,
-  connectionTest: Web_Components_ConnectionTestResult,
-): Web_Components_ConnectionStatus => {
+  connection: Web_App_DescribeConnection_Connection,
+  connectionTest: Web_App_DescribeConnection_ConnectionTest,
+): Web_App_DescribeConnection_Returns => {
   if (connection === null) {
     return {
       detail: 'Loading…',
@@ -123,7 +193,7 @@ const describeConnection = (
     };
   }
 
-  if (!connection['configured']) {
+  if (connection['configured'] === false) {
     return {
       detail: 'Set up the SSH connection',
       label: 'Not connected',
@@ -139,7 +209,7 @@ const describeConnection = (
     };
   }
 
-  const target: string = `${connection['pfsenseUsername'] ?? ''}@${connection['pfsenseSshIp'] ?? ''}`;
+  const target: Web_App_DescribeConnection_Target = `${connection['pfsenseUsername'] ?? ''}@${connection['pfsenseSshIp'] ?? ''}`;
 
   if (connectionTest === true) {
     return {
@@ -165,70 +235,63 @@ const describeConnection = (
 };
 
 /**
- * App.
+ * App - App.
  *
  * Centralizes this operation for the surrounding workflow.
  * Callers reuse one implementation instead of repeating the behavior.
  *
+ * @returns {Web_App_App_Returns}
+ *
  * @since 2.0.0
  */
-export const App = (): ReactElement => {
+export const App = (): Web_App_App_Returns => {
   const initialNavigation: Web_AppNavigation_PathMatch = resolveAppNavigationPath(window.location.pathname);
-  const [
-    phase,
-    setPhase,
-  ] = useState<Web_App_Phase>('loading');
-  const [
-    username,
-    setUsername,
-  ] = useState<string>('');
-  const [
-    activeRoute,
-    setActiveRoute,
-  ] = useState<Web_AppNavigation_Route>(initialNavigation['route']);
+  const phaseState: Web_App_App_PhaseState = useState<Web_App_App_Phase>('loading');
+  const phase: Web_App_App_Phase = phaseState[0];
+  const setPhase: Web_App_App_SetPhase = phaseState[1];
+  const usernameState: Web_App_App_UsernameState = useState<Web_App_App_Username>('');
+  const username: Web_App_App_Username = usernameState[0];
+  const setUsername: Web_App_App_SetUsername = usernameState[1];
+  const activeRouteState: Web_App_App_ActiveRouteState = useState<Web_App_App_ActiveRoute>(initialNavigation['route']);
+  const activeRoute: Web_App_App_ActiveRoute = activeRouteState[0];
+  const setActiveRoute: Web_App_App_SetActiveRoute = activeRouteState[1];
   const activeView: Web_Components_View = activeRoute['view'];
-  const [
-    overview,
-    setOverview,
-  ] = useState<Web_Api_Overview | null>(null);
-  const [
-    activity,
-    setActivity,
-  ] = useState<Web_Api_ActivityEvent[]>([]);
-  const [
-    connection,
-    setConnection,
-  ] = useState<Web_Api_Connection | null>(null);
-  const [
-    connectionTest,
-    setConnectionTest,
-  ] = useState<Web_Components_ConnectionTestResult>(null);
-  const [
-    tokens,
-    setTokens,
-  ] = useState<Web_Api_Token[]>([]);
-  const [
-    removedSecrets,
-    setRemovedSecrets,
-  ] = useState<Web_Api_RemovedSecret[]>([]);
-  const [
-    startupError,
-    setStartupError,
-  ] = useState<string>('');
-  const [
-    connectionDirty,
-    setConnectionDirty,
-  ] = useState<boolean>(false);
+  const overviewState: Web_App_App_OverviewState = useState<Web_App_App_Overview>(null);
+  const overview: Web_App_App_Overview = overviewState[0];
+  const setOverview: Web_App_App_SetOverview = overviewState[1];
+  const activityState: Web_App_App_ActivityState = useState<Web_App_App_Activity>([]);
+  const activity: Web_App_App_Activity = activityState[0];
+  const setActivity: Web_App_App_SetActivity = activityState[1];
+  const connectionState: Web_App_App_ConnectionState = useState<Web_App_App_Connection>(null);
+  const connection: Web_App_App_Connection = connectionState[0];
+  const setConnection: Web_App_App_SetConnection = connectionState[1];
+  const connectionTestState: Web_App_App_ConnectionTestState = useState<Web_App_App_ConnectionTest>(null);
+  const connectionTest: Web_App_App_ConnectionTest = connectionTestState[0];
+  const setConnectionTest: Web_App_App_SetConnectionTest = connectionTestState[1];
+  const tokensState: Web_App_App_TokensState = useState<Web_App_App_Tokens>([]);
+  const tokens: Web_App_App_Tokens = tokensState[0];
+  const setTokens: Web_App_App_SetTokens = tokensState[1];
+  const removedSecretsState: Web_App_App_RemovedSecretsState = useState<Web_App_App_RemovedSecrets>([]);
+  const removedSecrets: Web_App_App_RemovedSecrets = removedSecretsState[0];
+  const setRemovedSecrets: Web_App_App_SetRemovedSecrets = removedSecretsState[1];
+  const startupErrorState: Web_App_App_StartupErrorState = useState<Web_App_App_StartupError>('');
+  const startupError: Web_App_App_StartupError = startupErrorState[0];
+  const setStartupError: Web_App_App_SetStartupError = startupErrorState[1];
+  const connectionDirtyState: Web_App_App_ConnectionDirtyState = useState<Web_App_App_ConnectionDirty>(false);
+  const connectionDirty: Web_App_App_ConnectionDirty = connectionDirtyState[0];
+  const setConnectionDirty: Web_App_App_SetConnectionDirty = connectionDirtyState[1];
 
   /**
-   * App - Reset session.
+   * App - Reset Session.
    *
    * Centralizes this operation for the surrounding workflow.
    * Callers reuse one implementation instead of repeating the behavior.
    *
+   * @returns {Web_App_App_ResetSession_Returns}
+   *
    * @since 2.0.0
    */
-  const resetSession = (): void => {
+  const resetSession: Web_App_App_ResetSession = (): Web_App_App_ResetSession_Returns => {
     setUsername('');
     setOverview(null);
     setActivity([]);
@@ -238,6 +301,8 @@ export const App = (): ReactElement => {
     setRemovedSecrets([]);
     setConnectionDirty(false);
     setPhase('login');
+
+    return;
   };
 
   // A request that finds the session gone sends the browser back to sign-in.
@@ -248,9 +313,13 @@ export const App = (): ReactElement => {
    * Centralizes this operation for the surrounding workflow.
    * Callers reuse one implementation instead of repeating the behavior.
    *
+   * @param {Web_App_App_Guard_Action} action - Action.
+   *
+   * @returns {Web_App_App_Guard_Returns}
+   *
    * @since 2.0.0
    */
-  const guard = async (action: () => Promise<void>): Promise<void> => {
+  const guard: Web_App_App_Guard = async (action: Web_App_App_Guard_Action): Web_App_App_Guard_Returns => {
     try {
       await action();
     } catch (caughtError) {
@@ -262,78 +331,98 @@ export const App = (): ReactElement => {
 
       throw caughtError;
     }
+
+    return;
   };
 
   /**
-   * App - Loads overview.
+   * App - Load Overview.
    *
    * Centralizes this operation for the surrounding workflow.
    * Callers reuse one implementation instead of repeating the behavior.
    *
+   * @returns {Web_App_App_LoadOverview_Returns}
+   *
    * @since 2.0.0
    */
-  const loadOverview = async (): Promise<void> => guard(async (): Promise<void> => {
-    const [
-      nextOverview,
-      nextActivity,
-    ] = await Promise.all([
+  const loadOverview: Web_App_App_LoadOverview = async (): Web_App_App_LoadOverview_Returns => guard(async () => {
+    const nextResults: Web_App_App_LoadOverview_NextResults = await Promise.all([
       getOverview(),
       getActivity(),
     ]);
+    const nextOverview: Web_App_App_LoadOverview_NextOverview = nextResults[0];
+    const nextActivity: Web_App_App_LoadOverview_NextActivity = nextResults[1];
 
     setOverview(nextOverview);
     setConnection(nextOverview['connection']);
     setActivity(nextActivity);
+
+    return;
   });
 
   /**
-   * App - Loads activity.
+   * App - Load Activity.
    *
    * Centralizes this operation for the surrounding workflow.
    * Callers reuse one implementation instead of repeating the behavior.
    *
+   * @returns {Web_App_App_LoadActivity_Returns}
+   *
    * @since 2.0.0
    */
-  const loadActivity = async (): Promise<void> => guard(async (): Promise<void> => {
+  const loadActivity: Web_App_App_LoadActivity = async (): Web_App_App_LoadActivity_Returns => guard(async () => {
     setActivity(await getActivity());
+
+    return;
   });
 
   /**
-   * App - Loads tokens.
+   * App - Load Tokens.
    *
    * Centralizes this operation for the surrounding workflow.
    * Callers reuse one implementation instead of repeating the behavior.
    *
+   * @returns {Web_App_App_LoadTokens_Returns}
+   *
    * @since 2.0.0
    */
-  const loadTokens = async (): Promise<void> => guard(async (): Promise<void> => {
+  const loadTokens: Web_App_App_LoadTokens = async (): Web_App_App_LoadTokens_Returns => guard(async () => {
     setTokens(await getTokens());
+
+    return;
   });
 
   /**
-   * App - Loads connection.
+   * App - Load Connection.
    *
    * Centralizes this operation for the surrounding workflow.
    * Callers reuse one implementation instead of repeating the behavior.
    *
+   * @returns {Web_App_App_LoadConnection_Returns}
+   *
    * @since 2.0.0
    */
-  const loadConnection = async (): Promise<void> => guard(async (): Promise<void> => {
+  const loadConnection: Web_App_App_LoadConnection = async (): Web_App_App_LoadConnection_Returns => guard(async () => {
     setConnection(await getConnection());
+
+    return;
   });
 
   // The notice shrinks as secrets are entered again, so the list is read again after each one.
 
   /**
-   * App - Loads removed secrets.
+   * App - Load Removed Secrets.
    *
    * Centralizes this operation for the surrounding workflow.
    * Callers reuse one implementation instead of repeating the behavior.
    *
+   * @returns {Web_App_App_LoadRemovedSecrets_Returns}
+   *
    * @since 2.0.0
    */
-  const loadRemovedSecrets = async (): Promise<void> => guard(async (): Promise<void> => {
-    const principal: Web_Api_Principal | null = await getCurrentPrincipal();
+  const loadRemovedSecrets: Web_App_App_LoadRemovedSecrets = async (): Web_App_App_LoadRemovedSecrets_Returns => guard(async () => {
+    const principal: Web_App_App_LoadRemovedSecrets_Principal = await getCurrentPrincipal();
+
     if (principal === null) {
       resetSession();
 
@@ -341,42 +430,49 @@ export const App = (): ReactElement => {
     }
 
     setRemovedSecrets(principal['removedSecrets'] ?? []);
+
+    return;
   });
 
   /**
-   * App - Applies route.
+   * App - Apply App Route.
    *
    * Keeps the rendered page synchronized with a resolved browser address.
    * Browser Back and Forward reuse this transition without pushing history.
    *
-   * @param {Web_AppNavigation_Route} route - Route.
+   * @param {Web_App_App_ApplyAppRoute_Route} route - Route.
+   *
+   * @returns {Web_App_App_ApplyAppRoute_Returns}
    *
    * @since 2.1.0
    */
-  const applyAppRoute = (route: Web_AppNavigation_Route): void => {
+  const applyAppRoute: Web_App_App_ApplyAppRoute = (route: Web_App_App_ApplyAppRoute_Route): Web_App_App_ApplyAppRoute_Returns => {
     setConnectionDirty(false);
     setActiveRoute(route);
+
     window.scrollTo(0, 0);
 
     return;
   };
 
   /**
-   * App - Opens route.
+   * App - Open Route.
    *
    * Preserves the connection editor's unsaved-change guard, pushes browser
    * history, and then applies the selected page and its refresh behavior.
    *
-   * @param {Web_AppNavigation_Route} route - Route.
+   * @param {Web_App_App_OpenRoute_Route} route - Route.
+   *
+   * @returns {Web_App_App_OpenRoute_Returns}
    *
    * @since 2.1.0
    */
-  const openRoute = (route: Web_AppNavigation_Route): void => {
+  const openRoute: Web_App_App_OpenRoute = (route: Web_App_App_OpenRoute_Route): Web_App_App_OpenRoute_Returns => {
     if (route['view'] === activeView) {
       return;
     }
 
-    if (connectionDirty && !window.confirm('Discard your unsaved changes?')) {
+    if (connectionDirty === true && window.confirm('Discard your unsaved changes?') === false) {
       return;
     }
 
@@ -395,37 +491,42 @@ export const App = (): ReactElement => {
   };
 
   /**
-   * App - Opens view.
+   * App - Open View.
    *
    * Resolves shell destinations through the app-owned path table before the
    * shared History API transition runs.
    *
-   * @param {Web_Components_View} view - View.
+   * @param {Web_App_App_OpenView_View} view - View.
+   *
+   * @returns {Web_App_App_OpenView_Returns}
    *
    * @since 2.1.0
    */
-  const openView = (view: Web_Components_View): void => {
+  const openView: Web_App_App_OpenView = (view: Web_App_App_OpenView_View): Web_App_App_OpenView_Returns => {
     openRoute(appRouteForView(view));
 
     return;
   };
 
-  useEffect((): (() => void) => startNavigationHistory(
+  useEffect(() => startNavigationHistory(
     window,
     resolveAppNavigationPath,
     applyAppRoute,
   ), []);
 
   /**
-   * App - Enter application.
+   * App - Enter Application.
    *
    * Centralizes this operation for the surrounding workflow.
    * Callers reuse one implementation instead of repeating the behavior.
    *
+   * @returns {Web_App_App_EnterApplication_Returns}
+   *
    * @since 2.0.0
    */
-  const enterApplication = async (): Promise<void> => {
-    const principal: Web_Api_Principal | null = await getCurrentPrincipal();
+  const enterApplication: Web_App_App_EnterApplication = async (): Web_App_App_EnterApplication_Returns => {
+    const principal: Web_App_App_EnterApplication_Principal = await getCurrentPrincipal();
+
     if (principal === null || principal['authenticationType'] !== 'session') {
       setPhase('login');
 
@@ -441,22 +542,28 @@ export const App = (): ReactElement => {
       loadOverview(),
       loadTokens(),
     ]);
+
+    return;
   };
 
-  useEffect((): void => {
+  useEffect(() => {
     /**
      * App - Bootstrap.
      *
      * Centralizes this operation for the surrounding workflow.
      * Callers reuse one implementation instead of repeating the behavior.
      *
+     * @returns {Web_App_App_Bootstrap_Returns}
+     *
      * @since 2.0.0
      */
-    const bootstrap = async (): Promise<void> => {
+    const bootstrap: Web_App_App_Bootstrap = async (): Web_App_App_Bootstrap_Returns => {
       setStartupError('');
+
       try {
-        const setupStatus = await getSetupStatus();
-        if (setupStatus['claimRequired']) {
+        const setupStatus: Web_App_App_Bootstrap_SetupStatus = await getSetupStatus();
+
+        if (setupStatus['claimRequired'] === true) {
           setPhase('claim');
 
           return;
@@ -466,36 +573,47 @@ export const App = (): ReactElement => {
       } catch (caughtError) {
         setStartupError((caughtError instanceof Error) ? caughtError.message : 'The console could not be loaded.');
       }
+
+      return;
     };
 
     void bootstrap();
+
+    return;
   }, []);
 
   /**
-   * App - Run connection test.
+   * App - Run Connection Test.
    *
    * Centralizes this operation for the surrounding workflow.
    * Callers reuse one implementation instead of repeating the behavior.
    *
+   * @returns {Web_App_App_RunConnectionTest_Returns}
+   *
    * @since 2.0.0
    */
-  const runConnectionTest = async (): Promise<void> => guard(async (): Promise<void> => {
-    const result = await testConnection();
+  const runConnectionTest: Web_App_App_RunConnectionTest = async (): Web_App_App_RunConnectionTest_Returns => guard(async () => {
+    const result: Web_App_App_RunConnectionTest_Result = await testConnection();
 
     setConnectionTest(result['connected']);
+
     await loadOverview();
+
+    return;
   });
 
   /**
-   * App - Sign out.
+   * App - Sign Out.
    *
    * Centralizes this operation for the surrounding workflow.
    * Callers reuse one implementation instead of repeating the behavior.
    *
+   * @returns {Web_App_App_SignOut_Returns}
+   *
    * @since 2.0.0
    */
-  const signOut = async (): Promise<void> => {
-    if (connectionDirty && !window.confirm('Discard your unsaved changes?')) {
+  const signOut: Web_App_App_SignOut = async (): Web_App_App_SignOut_Returns => {
+    if (connectionDirty === true && window.confirm('Discard your unsaved changes?') === false) {
       return;
     }
 
@@ -508,6 +626,8 @@ export const App = (): ReactElement => {
       applyAppRoute(rootNavigation['route']);
       resetSession();
     }
+
+    return;
   };
 
   if (phase === 'loading') {
@@ -526,92 +646,112 @@ export const App = (): ReactElement => {
   }
 
   /**
-   * App - Renders view.
+   * App - Render View.
    *
    * Centralizes this operation for the surrounding workflow.
    * Callers reuse one implementation instead of repeating the behavior.
    *
+   * @returns {Web_App_App_RenderView_Returns}
+   *
    * @since 2.0.0
    */
-  const renderView = (): ReactElement => {
+  const renderView: Web_App_App_RenderView = (): Web_App_App_RenderView_Returns => {
     switch (activeView) {
       case 'activity': {
         return <ActivityView activity={activity} onRefresh={loadActivity} />;
       }
+
       case 'access': {
         return (
           <AccessView
-            onCreateToken={async (input: Web_Api_CreateTokenInput): Promise<Web_Api_CreatedToken> => {
+            onCreateToken={async (input) => {
               const nextToken: Web_Api_CreatedToken = await createToken(input);
 
               await loadTokens();
 
               return nextToken;
             }}
-            onRevokeToken={async (tokenId: string): Promise<void> => {
+            onRevokeToken={async (tokenId) => {
               await revokeToken(tokenId);
               await loadTokens();
+
+              return;
             }}
-            onUpdateToken={async (tokenId: string, input: Web_Api_UpdateTokenInput): Promise<void> => {
+            onUpdateToken={async (tokenId, input) => {
               await updateToken(tokenId, input);
               await loadTokens();
+
+              return;
             }}
             tokens={tokens}
           />
         );
       }
+
       case 'connection': {
         return (
           <ConnectionView
             connection={connection}
             connectionTest={connectionTest}
-            onBackupImported={async (): Promise<void> => {
+            onBackupImported={async () => {
               setConnectionTest(null);
+
               await Promise.all([
                 loadOverview(),
                 loadTokens(),
                 loadRemovedSecrets(),
               ]);
+
+              return;
             }}
             onDirtyChange={setConnectionDirty}
-            onSave={(savedConnection: Web_Api_Connection): void => {
+            onSave={(savedConnection) => {
               setConnectionDirty(false);
               setConnection(savedConnection);
               setConnectionTest(true);
               void loadOverview();
               void loadRemovedSecrets();
+
+              return;
             }}
             onTestConnection={runConnectionTest}
           />
         );
       }
+
       case 'notifications': {
         return (
           <NotificationsView
             interpreter="pfsense-actions"
-            onChange={(): void => {
+            onChange={() => {
               void loadRemovedSecrets();
+
+              return;
             }}
           />
         );
       }
+
       case 'security': {
         return (
           <SecurityView
-            onAuthenticatorEnabled={(): void => {
+            onAuthenticatorEnabled={() => {
               void loadRemovedSecrets();
+
+              return;
             }}
             onUsernameChanged={setUsername}
           />
         );
       }
+
       default: {
         return (
           <OverviewView
             activity={activity}
             connectionTest={connectionTest}
-            onOpenActivity={(): void => openView('activity')}
-            onOpenConnection={(): void => openView('connection')}
+            onOpenActivity={() => openView('activity')}
+            onOpenConnection={() => openView('connection')}
             onRefresh={loadOverview}
             onTestConnection={runConnectionTest}
             overview={overview}
@@ -621,34 +761,41 @@ export const App = (): ReactElement => {
     }
   };
 
-  const notice: ReactElement | null = (removedSecrets.length === 0) ? null : (
+  const lastRemovedSecret: Web_App_App_LastRemovedSecret = removedSecrets.at(-1);
+  const removedAt: Web_App_App_RemovedAt = (lastRemovedSecret !== undefined) ? lastRemovedSecret['removedAt'] : '';
+  const notice: Web_App_App_Notice = (removedSecrets.length === 0) ? null : (
     <KeyNotice
       appName="pfSense Actions"
-      items={removedSecrets.map((removedSecret: Web_Api_RemovedSecret) => ({
+      items={removedSecrets.map((removedSecret) => ({
         id: removedSecret['notificationId'] ?? removedSecret['kind'],
         label: describeRemovedSecret(removedSecret)['label'],
-        onOpen: (): void => openView(describeRemovedSecret(removedSecret)['view']),
+        onOpen: () => openView(describeRemovedSecret(removedSecret)['view']),
       }))}
       keyName="encryption key"
-      onDismiss={async (): Promise<void> => {
+      onDismiss={async () => {
         await dismissRemovedSecrets();
+
         setRemovedSecrets([]);
+
+        return;
       }}
-      removedAt={removedSecrets.at(-1)?.['removedAt'] ?? ''}
+      removedAt={removedAt}
     />
   );
   const connectionStatus: Web_Components_ConnectionStatus = describeConnection(connection, connectionTest);
   const shellStatus: Web_Components_ShellStatus = {
     ...connectionStatus,
-    onOpen: (): void => openView('connection'),
+    onOpen: () => openView('connection'),
   };
 
   return (
     <AppShell
       activeView={activeView}
       notice={notice}
-      onLogout={(): void => {
+      onLogout={() => {
         void signOut();
+
+        return;
       }}
       onViewChange={openView}
       status={shellStatus}

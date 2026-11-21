@@ -1,5 +1,15 @@
 # pfsense-actions-app-api
 
+## 2.2.1 - 2026-11-21
+
+### UPDATED
+- Web console and mock API code, which now follows the full lint rule set and reads the Discord webhook placeholder from a chat platform helper, with no change in behavior.
+- Tests now report coverage through a `check:coverage` script, which fails when line, function, branch or statement coverage drops below the project minimum, and the README badges now include that coverage.
+- Notification delivery code, which now uses one adapter per service with no change to saved destinations or the requests they send.
+- Nova 0.49.0, which supplies the coverage thresholds behind `check:coverage` through its `VitestCoverage` toolkit and brings updated ESLint presets and stricter type checks to the workspace's tooling.
+- README badges, which now include Docker Hub pulls and image size.
+- README introduction, which now describes the project with its new long description.
+
 ## 2.2.0 - 2026-11-17
 
 ### UPDATED
