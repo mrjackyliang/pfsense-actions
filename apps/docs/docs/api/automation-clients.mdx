@@ -83,7 +83,7 @@ The script exits with an error for any HTTP error, so AppleScript shows the aler
 
 ## Download the Mac Wake-on-LAN Script
 
-[Wake on LAN via pfSense Actions](https://github.com/mrjackyliang/mrjackyliang/blob/main/applescript/pfsense-actions-wol/script.applescript) is a ready-made AppleScript that wakes a computer, waits until it answers pings, and then opens Moonlight, Parsec, or Windows App so you can connect to it. It keeps a list of computers and stores each computer's <Terminology title="The pfa_ key a script sends to call the API" to="/docs/reference/terminology#access-tokens">personal access token</Terminology> in the macOS Keychain.
+[Wake on LAN via pfSense Actions](https://mrjackyliang.github.io/mrjackyliang/scripts/applescript/pfsense-actions-wol/) is a ready-made AppleScript that wakes a computer, waits until it answers pings, and then opens Moonlight, Parsec, or Windows App so you can connect to it. It keeps a list of computers and stores each computer's <Terminology title="The pfa_ key a script sends to call the API" to="/docs/reference/terminology#access-tokens">personal access token</Terminology> in the macOS Keychain.
 
 - **Needs** — pfSense Actions at an HTTPS address, such as behind the [HTTPS reverse proxy](/docs/getting-started/https-reverse-proxy/), and a token with the `wol:execute` and `reachability:read` <Terminology title="What a token may do; each action needs exactly one" to="/docs/reference/terminology#access-tokens">scopes</Terminology>.
 - **Asks for** — A name for the computer, the HTTPS address, the token, the broadcast address, the computer's IP address and MAC address, and how many seconds to wait for it to boot.
